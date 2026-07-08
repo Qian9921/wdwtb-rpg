@@ -91,11 +91,18 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         .setOrigin(1, 1);
       container.add(endLabel);
 
-      box.setInteractive({ useHandCursor: true });
-      box.on('pointerdown', () => {
+      const advance = () => {
+        if (this._advanced) return;
+        this._advanced = true;
         if (node.action) this.emit('action', node.action, node);
         this._endDialogue();
-      });
+      };
+      this._advanced = false;
+      box.setInteractive({ useHandCursor: true });
+      box.on('pointerdown', advance);
+      // 统一交互：空格/回车也可推进
+      this.scene.input.keyboard.once('keydown-SPACE', advance);
+      this.scene.input.keyboard.once('keydown-ENTER', advance);
       return;
     }
 
@@ -166,6 +173,21 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       container.add(btn);
       container.add(label);
     });
+
+    // 统一交互：只有一个选项（如"(继续)"）时，空格/回车也可推进
+    if (visibleChoices.length === 1) {
+      const only = visibleChoices[0];
+      const go = () => {
+        if (this._advanced) return;
+        this._advanced = true;
+        this._applyEffects(only.effects);
+        if (node.action) this.emit('action', node.action, node);
+        this._showNode(only.next);
+      };
+      this._advanced = false;
+      this.scene.input.keyboard.once('keydown-SPACE', go);
+      this.scene.input.keyboard.once('keydown-ENTER', go);
+    }
   }
 
   // 条件判断：检查 choice.condition 中所有状态键是否满足 min（≥）/ max（≤）

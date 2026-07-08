@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { StateSystem } from '../systems/StateSystem.js';
 import { StatusBarUI } from '../systems/StatusBarUI.js';
 import { DialogueEngine } from '../systems/DialogueEngine.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -30,6 +31,8 @@ export class WorldScene extends Phaser.Scene {
     this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
+    // 进场即存档，保证"继续游戏"总能回到当前职业与幕次
+    SaveSystem.save({ career: this.career, act: this.act });
   }
 
   preload() {
@@ -88,9 +91,10 @@ export class WorldScene extends Phaser.Scene {
 
     // 交互键
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     // 操作提示（钉屏）
-    this.add.text(MW / 2, 8, 'WASD / 方向键 移动 · 走近 NPC 按 E 交谈', {
+    this.add.text(MW / 2, 8, 'WASD / 方向键 移动 · 走近 NPC 按 E 交谈 · ESC 菜单', {
       fontSize: '13px',
       fill: '#dfe3ff',
       backgroundColor: '#000000aa',
@@ -331,6 +335,18 @@ export class WorldScene extends Phaser.Scene {
   update() {
     if (!this.player?.body) return;
 
+    // ESC 唤起暂停菜单（对话进行中不触发，交给对话自己的 ESC）
+    if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      this.scene.pause();
+      this.scene.launch('PauseScene', {
+        origin: 'WorldScene',
+        stateSystem: this.stateSystem,
+        career: this.career,
+        act: this.act,
+      });
+      return;
+    }
+
     // 对话中冻结移动，跳过交互检测
     if (this.dialogueActive) {
       this.player.setVelocity(0, 0);
@@ -553,6 +569,7 @@ export class WorldScene extends Phaser.Scene {
       })
       .then(data => {
         this.act = next;
+        SaveSystem.save({ career: this.career, act: this.act }); // 过幕即存，续档回到最新一幕
         this.dialogueEngine._clearUI();
         this.dialogueEngine.start(data);
       })

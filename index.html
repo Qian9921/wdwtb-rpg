@@ -4,21 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>你想成为谁</title>
+  <!-- 内联 SVG favicon：主题金色「谁」字，避免 favicon.ico 404 -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2315151f'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23d4a353' font-family='sans-serif' font-weight='bold'%3E谁%3C/text%3E%3C/svg%3E" />
+
   <style>
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
       height: 100%;
-      background: #1a1a2e;
+      background: #0c0c14;
       overflow: hidden;
       -webkit-tap-highlight-color: transparent;
     }
-    body {
+    /* #game 占满整个视口；Phaser FIT 在其中等比缩放画布并居中 */
+    #game {
+      width: 100vw;
+      height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    canvas { display: block; }
+    /* 像素游戏关键：canvas 被 FIT 放大到全屏时，强制最近邻插值，
+       让像素块保持锐利硬边缘，而非被浏览器双线性插值抹糊。 */
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
   </style>
 </head>
 <body>

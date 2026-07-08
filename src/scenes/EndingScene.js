@@ -148,8 +148,33 @@ export class EndingScene extends Phaser.Scene {
 
     const btnY = y + 16;
     this._button(ui, width / 2 - 130, btnY, 200, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
-    this._button(ui, width / 2 + 130, btnY, 200, 36, '截图分享', 0x3a3a2a, () => {
-      console.log('[Ending] 截图分享(带 #CodeBuddy #workbuddy #腾讯云黑客松)');
+    this._button(ui, width / 2 + 130, btnY, 200, 36, '保存画像 📷', 0x3a3a2a, () => this._sharePortrait());
+  }
+
+  // 保存心之画像：截当前画布为 PNG 下载（玩家可发社交平台，自然传播）
+  _sharePortrait() {
+    try {
+      this.game.renderer.snapshot((img) => {
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = `心之画像_${this.ending || 'me'}_${Date.now()}.png`;
+        a.click();
+        this._toast('已保存！发给朋友，也许 TA 也在找自己。');
+      });
+    } catch (e) {
+      this._toast('保存失败，可直接截屏分享');
+    }
+  }
+
+  _toast(msg) {
+    const { width, height } = this.scale;
+    const t = this.add.text(width / 2, height - 40, msg, {
+      fontSize: '14px', color: '#ffe08a', backgroundColor: '#1e1e30',
+      padding: { x: 14, y: 8 },
+    }).setOrigin(0.5).setDepth(99999).setAlpha(0);
+    this.tweens.add({
+      targets: t, alpha: 1, duration: 250, yoyo: true, hold: 1800,
+      onComplete: () => t.destroy(),
     });
   }
 

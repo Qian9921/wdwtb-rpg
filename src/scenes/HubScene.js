@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // HubScene：职业选择大厅。玩家捏完人后选职业进入体验。
 // 职业列表暂时硬编码，以后可挪到 data/ 目录的 JSON。
@@ -9,6 +10,21 @@ export class HubScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#1a1a2e');
+    this.cameras.main.fadeIn(500, 10, 8, 20);
+    AudioSystem.playBgm('title'); // 延续标题氛围（同 mood 无缝）
+
+    // 背景氛围光点（与标题页呼应）
+    for (let i = 0; i < 10; i++) {
+      const c = this.add.circle(
+        Phaser.Math.Between(0, 960), Phaser.Math.Between(0, 540),
+        Phaser.Math.Between(2, 4), 0xf5c86b, Phaser.Math.FloatBetween(0.05, 0.14)
+      );
+      this.tweens.add({
+        targets: c, y: c.y - Phaser.Math.Between(20, 60),
+        alpha: 0, duration: Phaser.Math.Between(3000, 6000),
+        repeat: -1, delay: Phaser.Math.Between(0, 3000),
+      });
+    }
 
     const careers = [
       // 深度职业（3 个）—— 金边 + 亮色填充
@@ -26,11 +42,16 @@ export class HubScene extends Phaser.Scene {
     ];
 
     // 标题
-    this.add.text(480, 50, '你想成为谁？', {
-      fontSize: '32px', color: '#ffffff',
+    const title = this.add.text(480, 62, '你想成为谁？', {
+      fontSize: '34px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 4,
     }).setOrigin(0.5);
-    this.add.text(480, 85, '选择一个职业，开始你的职场故事', {
+    title.setShadow(0, 2, '#d4a35366', 10, false, true);
+    this.add.text(480, 100, '选择一个职业，开始你的职场故事', {
       fontSize: '15px', color: '#9aa0a6',
+    }).setOrigin(0.5);
+    // 分类小标签
+    this.add.text(480, 138, '—— 金框为深度剧情（五幕完整体验）·  其余为轻量体验 ——', {
+      fontSize: '12px', color: '#6a6a8a',
     }).setOrigin(0.5);
 
     // 左上角返回按钮
@@ -80,12 +101,21 @@ export class HubScene extends Phaser.Scene {
         fontSize: '11px', color: descColor,
       }).setOrigin(0.5);
 
-      // 交互
-      interactiveRect.on('pointerover', () => interactiveRect.setFillStyle(hoverFill));
-      interactiveRect.on('pointerout', () => interactiveRect.setFillStyle(baseFill));
+      // 交互：hover 放大 + 点击音 + 淡出进场
+      const cardParts = [interactiveRect];
+      interactiveRect.on('pointerover', () => {
+        interactiveRect.setFillStyle(hoverFill);
+        this.tweens.add({ targets: cardParts, scale: 1.04, duration: 120 });
+      });
+      interactiveRect.on('pointerout', () => {
+        interactiveRect.setFillStyle(baseFill);
+        this.tweens.add({ targets: cardParts, scale: 1, duration: 120 });
+      });
       interactiveRect.on('pointerdown', () => {
-        console.log('选择职业', career.key);
-        this.scene.start('WorldScene', { career: career.key, deep: career.deep, act: 1 });
+        AudioSystem.uiClick();
+        this.cameras.main.fadeOut(400, 10, 8, 20);
+        this.cameras.main.once('camerafadeoutcomplete', () =>
+          this.scene.start('WorldScene', { career: career.key, deep: career.deep, act: 1 }));
       });
     });
   }

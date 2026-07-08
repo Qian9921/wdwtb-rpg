@@ -23,6 +23,9 @@ const FSCALE = 2.5;      // 家具缩放 (32x48 → 64x96)
 // idle 帧（Row0）：0=下 1=左 2=右 3=上
 const IDLE = { down: 0, left: 1, right: 2, up: 3 };
 
+// 轻量职业：单文件全剧情（data/light_*.json），无分幕；深度职业走 {career}_act{n}.json
+const LIGHT_CAREERS = ['designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer'];
+
 export class WorldScene extends Phaser.Scene {
   constructor() { super('WorldScene'); }
 
@@ -411,7 +414,10 @@ export class WorldScene extends Phaser.Scene {
       this.ePrompt.setVisible(false);
       this.guideText.setVisible(false);
       this.act = npc.act;
-      const url = `./data/${this.career}_act${this.act}.json`;
+      // 轻量职业单文件；深度职业按幕分文件
+      const url = LIGHT_CAREERS.includes(this.career)
+        ? `./data/light_${this.career}.json`
+        : `./data/${this.career}_act${this.act}.json`;
       console.log('[WorldScene] 走近老陈,加载剧情:', url);
       fetch(url)
         .then(res => {

@@ -43,6 +43,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     const boxY = height - boxH - 20; // 靠底，留 20px 边距
 
     const container = this.scene.add.container(0, 0);
+    container.setScrollFactor(0).setDepth(9500); // 钉屏:对话UI固定在镜头上,不随世界滚动
     this.ui = container;
     container.setScrollFactor(0).setDepth(10000); // 摄像机滚动场景下钉死在屏幕
 
@@ -73,7 +74,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     const bodyText = this.scene.add.text(boxX + 18, textY, node.text, {
       fontSize: '18px',
       color: '#ffffff',
-      wordWrap: { width: boxW - 36 },
+      wordWrap: { width: boxW - 36, useAdvancedWrap: true },
     });
     container.add(bodyText);
 

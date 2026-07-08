@@ -24,9 +24,10 @@ const IDLE = { down: 0, left: 1, right: 2, up: 3 };
 export class WorldScene extends Phaser.Scene {
   constructor() { super('WorldScene'); }
 
-  init() {
-    this.career = 'programmer';
-    this.act = 1;
+  init(data) {
+    this.career = (data && data.career) || 'programmer';
+    this.deep = data ? data.deep : true;
+    this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
   }
@@ -425,7 +426,7 @@ export class WorldScene extends Phaser.Scene {
       fontSize: '14px', color: '#ffd24d',
     }));
     c.add(this.add.text(width / 2 - 440, height - 114, text, {
-      fontSize: '17px', color: '#ffffff', wordWrap: { width: 880 },
+      fontSize: '17px', color: '#ffffff', wordWrap: { width: 880, useAdvancedWrap: true },
     }));
     c.add(this.add.text(width / 2 + 440, height - 44, '［点击/E 继续］', {
       fontSize: '12px', color: '#9aa0a6',
@@ -471,7 +472,20 @@ export class WorldScene extends Phaser.Scene {
         case 'minigame:coding':
         case 'minigame:review':
         case 'minigame:affairs':
-          self._showRitual('⌨️ [代码小游戏] — 稍后接入实战环节');
+          self.scene.pause();
+          self.scene.launch('MinigameScene', {
+            type: action.split(':')[1],
+            fromScene: null,
+            onComplete: (result) => {
+              // 按成绩反哺状态:全对 skill+5 passion+4;部分 skill+3;全错 stress+3 但 skill+1(试错也是学)
+              const total = result?.total || 3, ok = result?.correct || 0;
+              if (ok === total) { self.stateSystem.change('skill', 5); self.stateSystem.change('passion', 4); }
+              else if (ok > 0) { self.stateSystem.change('skill', 3); self.stateSystem.change('energy', -3); }
+              else { self.stateSystem.change('stress', 3); self.stateSystem.change('skill', 1); }
+              self.scene.stop('MinigameScene');
+              self.scene.resume();
+            },
+          });
           break;
         case 'enter_mindscape':
           self.scene.pause();
@@ -508,7 +522,7 @@ export class WorldScene extends Phaser.Scene {
     overlay.add(box);
     overlay.add(this.add.text(width / 2, height / 2 - 45, text, {
       fontSize: '20px', color: '#f0d080',
-      wordWrap: { width: 440 }, align: 'center',
+      wordWrap: { width: 440, useAdvancedWrap: true }, align: 'center',
     }).setOrigin(0.5));
     overlay.add(this.add.text(width / 2, height / 2 + 15, '点击任意处继续', {
       fontSize: '13px', color: '#6a6a7a',

@@ -85,7 +85,7 @@ export class HubScene extends Phaser.Scene {
       interactiveRect.on('pointerout', () => interactiveRect.setFillStyle(baseFill));
       interactiveRect.on('pointerdown', () => {
         console.log('选择职业', career.key);
-        this.scene.start('OfficeScene', { career: career.key, act: 1 });
+        this.scene.start('WorldScene', { career: career.key, deep: career.deep, act: 1 });
       });
     });
   }

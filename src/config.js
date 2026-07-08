@@ -1,3 +1,4 @@
+import { TitleScene } from "./scenes/TitleScene.js";
 import { FurnCheck } from "./scenes/FurnCheck.js";
 import { CharCheck } from "./scenes/CharCheck.js";
 import { FloorTest } from "./scenes/FloorTest.js";
@@ -27,5 +28,5 @@ export const config = {
       debug: false,
     },
   },
-  scene: [WorldScene, MindscapeScene, OpeningScene, HubScene, OfficeScene, MinigameScene, EndingScene],
+  scene: [TitleScene, WorldScene, MindscapeScene, OpeningScene, HubScene, OfficeScene, MinigameScene, EndingScene],
 };

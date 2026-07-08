@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AIClient } from '../systems/AIClient.js';
 
 // MindscapeScene — 招牌机制「心象世界」
 // 玩家内心的可视化空间:氛围随心理状态实时变化,AI内心独白浮现,
@@ -45,7 +46,7 @@ export class MindscapeScene extends Phaser.Scene {
     this._renderTitle();
 
     // 稍候浮现内心独白 → 再给疗愈选择
-    this.time.delayedCall(900, () => this._showMonologue());
+    this.time.delayedCall(200, () => this._showMonologue());
   }
 
   // ===== 天空/氛围(冷暖插值) =====
@@ -192,14 +193,26 @@ export class MindscapeScene extends Phaser.Scene {
     return Phaser.Utils.Array.GetRandom(arr);
   }
 
-  _showMonologue() {
-    const text = this._pickMonologue();
+  async _showMonologue() {
+    console.log('[Mind] _showMonologue enter');
+    // AI优先(结合实时状态个性化),模板兜底
+    const tpl = this._pickMonologue();
+    let text = tpl;
+    try {
+      const sp = this.snap;
+      const res = await AIClient.call([
+        { role: 'system', content: '你是职场疗愈游戏里玩家的内心独白。第一人称,2-3句,克制走心,写画面不写形容,像深夜对自己说的话。只用中文。' },
+        { role: 'user', content: `我的状态:健康${sp.health} 精力${sp.energy} 心态${sp.san} 压力${sp.stress} 热情${sp.passion}。写一段此刻我站在自己内心世界里的独白。` },
+      ], { model: 'hy3', timeoutMs: 7000, fallbackFn: () => ({ text: tpl }) });
+      if (res.text && res.text.length > 6 && res.text.length < 160) text = res.text.trim();
+    } catch (e) { /* 用模板 */ }
+    console.log('[Mind] render box, text=', text.slice(0,20));
     const box = this.add.container(0, 0).setDepth(30);
     const bg = this.add.rectangle(this.W / 2, this.H - 90, this.W - 120, 120, 0x000000, 0.5);
     box.add(bg);
     const tf = this.add.text(this.W / 2, this.H - 90, '', {
       fontSize: '18px', color: '#eae6ff', align: 'center',
-      wordWrap: { width: this.W - 180 }, lineSpacing: 8,
+      wordWrap: { width: this.W - 180, useAdvancedWrap: true }, lineSpacing: 8,
     }).setOrigin(0.5);
     box.add(tf);
     this.monoBox = box;

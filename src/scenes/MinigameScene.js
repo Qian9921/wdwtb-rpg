@@ -138,7 +138,7 @@ export class MinigameScene extends Phaser.Scene {
     const qY = blockY + blockH + 14;
     c.add(this.add.text(50, qY, q.question, {
       fontSize: '16px', color: '#e6e6e6',
-      wordWrap: { width: 860 },
+      wordWrap: { width: 860, useAdvancedWrap: true },
     }));
 
     // 选项按钮
@@ -149,7 +149,7 @@ export class MinigameScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       const txt = this.add.text(480, by, opt, {
         fontSize: '14px', color: '#c9d1d9',
-        wordWrap: { width: 400 },
+        wordWrap: { width: 400, useAdvancedWrap: true },
       }).setOrigin(0.5);
 
       btn.on('pointerover', () => btn.setFillStyle(0x30363d));
@@ -196,7 +196,7 @@ export class MinigameScene extends Phaser.Scene {
     if (explain) {
       c.add(this.add.text(480, 260, explain, {
         fontSize: '14px', color: '#8b949e',
-        wordWrap: { width: 660 },
+        wordWrap: { width: 660, useAdvancedWrap: true },
         align: 'center',
       }).setOrigin(0.5, 0));
     }
@@ -256,7 +256,7 @@ export class MinigameScene extends Phaser.Scene {
       } else {
         console.log('[Minigame]', result);
       }
-      this.scene.start(this.fromScene);
+      if (this.fromScene) this.scene.start(this.fromScene);
     });
     c.add(btn);
     c.add(btnTxt);

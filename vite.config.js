@@ -5,7 +5,8 @@ import { defineConfig } from 'vite';
 // 开发期 /ai 代理插件：把前端对 /ai 的请求转发到腾讯混元 hy3。
 // 生产环境由 EdgeOne 边缘函数 functions/ai.js 处理同一路径，前端 AIClient 无需改动。
 const HUNYUAN_URL = 'https://tokenhub.tencentmaas.com/v1/chat/completions';
-const HUNYUAN_KEY = process.env.HUNYUAN_API_KEY || 'sk-2gwdHJXwPXMfTZoodcyAeOdXOyXNfEtsKUdfH2euaSKjFpPK';
+// API key 从环境变量读取,绝不硬编码进仓库。本地开发在 .env 或 shell 设 HUNYUAN_API_KEY。
+const HUNYUAN_KEY = process.env.HUNYUAN_API_KEY || '';
 
 function aiDevProxy() {
   return {

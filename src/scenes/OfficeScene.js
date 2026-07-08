@@ -125,7 +125,7 @@ export class OfficeScene extends Phaser.Scene {
     overlay.add(box);
     overlay.add(this.add.text(480, 215, text, {
       fontSize: '20px', color: '#f0d080',
-      wordWrap: { width: 440 }, align: 'center',
+      wordWrap: { width: 440, useAdvancedWrap: true }, align: 'center',
     }).setOrigin(0.5));
     overlay.add(this.add.text(480, 275, '点击任意处继续', {
       fontSize: '13px', color: '#6a6a7a',

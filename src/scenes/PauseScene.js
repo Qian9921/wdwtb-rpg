@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // PauseScene — 暂停菜单覆盖场景（完整像素 RPG 标配）
 // 由 WorldScene 通过 scene.launch('PauseScene', { origin, stateSystem, career, act }) 唤起，
@@ -29,6 +30,7 @@ export class PauseScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.W = W; this.H = H;
+    AudioSystem.duck(true); // 菜单打开压低 BGM
     // 半透明遮罩（吃掉底层点击）
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a12, 0.82).setInteractive();
     // 面板容器（切换用）
@@ -57,7 +59,7 @@ export class PauseScene extends Phaser.Scene {
     const txt = this.add.text(this.W / 2, y, label, { fontSize: '18px', color: '#e8e8f4' }).setOrigin(0.5);
     btn.on('pointerover', () => btn.setFillStyle(0x3a3a5e));
     btn.on('pointerout', () => btn.setFillStyle(color));
-    btn.on('pointerdown', cb);
+    btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
     this.panel.add(btn); this.panel.add(txt);
     return btn;
   }
@@ -223,8 +225,11 @@ export class PauseScene extends Phaser.Scene {
         knob.x = nx;
         const val = Math.round((nx - trackX) / trackW * 100);
         settings[key] = val; fill.width = trackW * val / 100; valTxt.setText(`${val}`);
+        AudioSystem.setVolume(key, val); // 实时生效，边拖边听
         save();
       });
+      // 松手时给一声反馈（sfx 滑块能立刻听到新音量）
+      knob.on('dragend', () => { if (key === 'sfx') AudioSystem.uiClick(); });
     };
     slider(180, '背景音乐', 'bgm');
     slider(230, '音效', 'sfx');
@@ -262,6 +267,7 @@ export class PauseScene extends Phaser.Scene {
 
   // ===== 关闭并恢复 =====
   _close() {
+    AudioSystem.duck(false); // 恢复 BGM 音量
     this.scene.stop();
     this.scene.resume(this.origin);
   }

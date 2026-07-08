@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AIClient } from '../systems/AIClient.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // EndingScene：结局"心之画像"报告 — 游戏高潮收尾，AI(混元hy3)据玩家全程数据生成，模板兜底。
 const DEFAULT_PORTRAIT = {
@@ -30,6 +31,7 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create() {
+    AudioSystem.playBgm('ending'); // 温暖释然的收尾
     this.cameras.main.setBackgroundColor('#15151f');
     this.uiContainer = null;
 

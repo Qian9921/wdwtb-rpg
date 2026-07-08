@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioSystem } from './AudioSystem.js';
 
 // DialogueEngine：对话树演出引擎。
 // 读 data/schema.md 格式的对话 JSON：渲染对话框+选项，进入节点/选选项时应用 effects，
@@ -13,6 +14,58 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     this.ui = null; // Container 持有当前对话所有 UI 元素
     this.currentAct = null;
     this.currentActName = null;
+    this._keyHandlers = []; // 本节点绑定的键盘 handler，_clearUI 时精确解绑防泄漏
+    this._typeTimer = null; // 打字机计时器
+    this._typing = false;
+  }
+
+  // 绑定空格/回车推进键。不用 once：玩家用鼠标推进时 once 不消费会残留旧闭包，
+  // 积累后一次按键触发多个旧节点逻辑——改为记录引用、_clearUI 精确 off。
+  _bindAdvanceKeys(fn) {
+    const kb = this.scene.input.keyboard;
+    kb.on('keydown-SPACE', fn);
+    kb.on('keydown-ENTER', fn);
+    this._keyHandlers.push(fn);
+  }
+
+  _unbindKeys() {
+    const kb = this.scene.input.keyboard;
+    for (const h of this._keyHandlers) {
+      kb.off('keydown-SPACE', h);
+      kb.off('keydown-ENTER', h);
+    }
+    this._keyHandlers = [];
+  }
+
+  // 打字机逐字显示 + 叽喳声。用 scene.time（场景 pause 时自动停），不用 setInterval。
+  _startTypewriter(textObj, fullText, speaker) {
+    if (this._typeTimer) { this._typeTimer.remove(); this._typeTimer = null; }
+    if (!fullText) { this._typing = false; return; }
+    this._typing = true;
+    this._typeTarget = textObj;
+    this._typeFull = fullText;
+    let i = 0;
+    this._typeTimer = this.scene.time.addEvent({
+      delay: 34,
+      repeat: fullText.length - 1,
+      callback: () => {
+        i++;
+        textObj.setText(fullText.slice(0, i));
+        const ch = fullText[i - 1];
+        // 每 2 字一声 blip，标点/空白静音（更像说话的节奏）
+        if (i % 2 === 0 && ch && !'，。！？…、：；·「」『』（）\n ,.!?()'.includes(ch)) {
+          AudioSystem.blip(speaker);
+        }
+        if (i >= fullText.length) { this._typing = false; this._typeTimer = null; }
+      },
+    });
+  }
+
+  // 立即补完全文（打字中按推进键 = 跳字，第二次才是推进——RPG 惯例）
+  _finishTyping() {
+    if (this._typeTimer) { this._typeTimer.remove(); this._typeTimer = null; }
+    if (this._typeTarget && this._typeFull != null) this._typeTarget.setText(this._typeFull);
+    this._typing = false;
   }
 
   // 接收对话树 JSON 对象，从其 start 节点开始演出
@@ -70,13 +123,14 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       container.add(speakerText);
       textY += 22;
     }
-    // 正文
-    const bodyText = this.scene.add.text(boxX + 18, textY, node.text, {
+    // 正文：打字机逐字显示 + 按说话人声线的叽喳声（像素 RPG 标配）
+    const bodyText = this.scene.add.text(boxX + 18, textY, '', {
       fontSize: '18px',
       color: '#ffffff',
       wordWrap: { width: boxW - 36, useAdvancedWrap: true },
     });
     container.add(bodyText);
+    this._startTypewriter(bodyText, node.text || '', node.speaker);
 
     const rawChoices = node.choices || [];
     const isEndNode = !node.choices || node.choices.length === 0;
@@ -92,6 +146,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       container.add(endLabel);
 
       const advance = () => {
+        if (this._typing) { this._finishTyping(); return; } // 打字中先跳字
         if (this._advanced) return;
         this._advanced = true;
         if (node.action) this.emit('action', node.action, node);
@@ -101,8 +156,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       box.setInteractive({ useHandCursor: true });
       box.on('pointerdown', advance);
       // 统一交互：空格/回车也可推进
-      this.scene.input.keyboard.once('keydown-SPACE', advance);
-      this.scene.input.keyboard.once('keydown-ENTER', advance);
+      this._bindAdvanceKeys(advance);
       return;
     }
 
@@ -165,6 +219,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
       btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
       btn.on('pointerdown', () => {
+        AudioSystem.uiClick();
         this._applyEffects(choice.effects);
         if (node.action) this.emit('action', node.action, node);
         this._showNode(choice.next);
@@ -178,6 +233,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     if (visibleChoices.length === 1) {
       const only = visibleChoices[0];
       const go = () => {
+        if (this._typing) { this._finishTyping(); return; } // 打字中先跳字
         if (this._advanced) return;
         this._advanced = true;
         this._applyEffects(only.effects);
@@ -185,8 +241,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         this._showNode(only.next);
       };
       this._advanced = false;
-      this.scene.input.keyboard.once('keydown-SPACE', go);
-      this.scene.input.keyboard.once('keydown-ENTER', go);
+      this._bindAdvanceKeys(go);
     }
   }
 
@@ -214,6 +269,9 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
   }
 
   _clearUI() {
+    this._unbindKeys(); // 解绑本节点键盘 handler，防旧闭包累积
+    if (this._typeTimer) { this._typeTimer.remove(); this._typeTimer = null; }
+    this._typing = false;
     if (this.ui) {
       this.ui.destroy(true); // 连子元素一起销毁
       this.ui = null;

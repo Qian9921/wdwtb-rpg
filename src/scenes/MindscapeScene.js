@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AIClient } from '../systems/AIClient.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // MindscapeScene — 招牌机制「心象世界」
 // 玩家内心的可视化空间:氛围随心理状态实时变化,AI内心独白浮现,
@@ -35,6 +36,7 @@ export class MindscapeScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.W = W; this.H = H;
+    AudioSystem.playBgm('mindscape'); // 空灵慢板，衬内心空间
 
     // 溶入黑场
     this.cameras.main.fadeIn(600, 10, 8, 20);

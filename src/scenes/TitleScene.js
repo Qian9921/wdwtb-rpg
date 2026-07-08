@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // TitleScene：游戏标题页 — 游戏名 + 主题金句 + 开始。demo 与正式流程的门面。
 export class TitleScene extends Phaser.Scene {
@@ -9,6 +10,7 @@ export class TitleScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale;
     this.cameras.main.setBackgroundColor('#15151f');
     this.cameras.main.fadeIn(700, 10, 8, 20);
+    AudioSystem.playBgm('title'); // 音频未解锁时挂起，首次点击后自动开播
 
     // 背景氛围:漂浮的光点(呼应心象世界)
     for (let i = 0; i < 14; i++) {
@@ -70,7 +72,7 @@ export class TitleScene extends Phaser.Scene {
       const hi = Phaser.Display.Color.IntegerToColor(fill).lighten(12).color;
       b.on('pointerover', () => b.setFillStyle(hi));
       b.on('pointerout', () => b.setFillStyle(fill));
-      b.on('pointerdown', onClick);
+      b.on('pointerdown', () => { AudioSystem.uiClick(); onClick(); });
       return b;
     };
 

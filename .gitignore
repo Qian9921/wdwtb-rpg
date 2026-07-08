@@ -5,6 +5,7 @@ dist
 .vite
 .workbuddy
 *.cjs
+!scripts/*.cjs
 game-content-bk/
 game-content-backup-*/
 art-assets/

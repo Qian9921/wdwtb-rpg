@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { config } from './config.js';
+import { AudioSystem } from './systems/AudioSystem.js';
 
 // 全局文字高清：pixelArt:true 会关抗锯齿，导致文字被 FIT 放大后发糊。
 // 覆盖 add.text 工厂，让所有场景的文字默认以 2× 分辨率光栅化——一处生效、零遗漏。
@@ -13,6 +14,16 @@ Phaser.GameObjects.GameObjectFactory.register('text', function (x, y, text, styl
 });
 
 const game = new Phaser.Game(config); window.__game = game;
+
+// 音频解锁：浏览器要求 AudioContext 在用户手势后创建。
+// 首次点击/按键时 unlock，之前各场景声明的 BGM 会自动开播。
+const unlockOnce = () => {
+  AudioSystem.unlock();
+  window.removeEventListener('pointerdown', unlockOnce);
+  window.removeEventListener('keydown', unlockOnce);
+};
+window.addEventListener('pointerdown', unlockOnce);
+window.addEventListener('keydown', unlockOnce);
 
 // 调试钩子:?s=场景key 启动指定场景(仅开发用)
 const _s = new URLSearchParams(location.search).get('s');

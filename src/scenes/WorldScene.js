@@ -3,6 +3,7 @@ import { StateSystem } from '../systems/StateSystem.js';
 import { StatusBarUI } from '../systems/StatusBarUI.js';
 import { DialogueEngine } from '../systems/DialogueEngine.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -72,6 +73,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    AudioSystem.playBgm('office');
     this.obstacles = this.physics.add.staticGroup();
 
     this._buildFloor();

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AIClient } from '../systems/AIClient.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // OpeningScene：开场"认识你" — 捏人 + 7 道情境测评(RIASEC+大五双通道) + AI 专属小传。
 // 测评题库来自 data/assessment.json（专业规格：霍兰德 RIASEC + 大五人格，玩家全程不见术语）。
@@ -11,6 +12,7 @@ export class OpeningScene extends Phaser.Scene {
   }
 
   create() {
+    AudioSystem.playBgm('title'); // 与标题同氛围（相同 mood 不重启，无缝衔接）
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this.hairColors = [
       { name: '黑', color: 0x2b2b33 }, { name: '棕', color: 0x8B6914 },

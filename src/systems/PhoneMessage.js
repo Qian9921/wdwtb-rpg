@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 
-// PhoneMessage：仿微信手机消息弹窗 — 展示剧情中家人发来的消息。
-// UI 框架，消息内容以后从 data/ 读取；引擎共用，不写死具体消息。
+// PhoneMessage：仿微信手机消息弹窗 —— 展示剧情中家人发来的消息。
+// 纯 UI 渲染层（"怎么显示"）；显示什么由 FamilyMessages（数据层）决定。
+// 钉屏（setScrollFactor 0）+ 适配 UI 相机（双相机架构下不被主相机 zoom 放大），
+// 层级在对话 UI(10000) 之上(10050)，保证家人消息永远盖在最上层。
 export class PhoneMessage {
   constructor(scene) {
     this.scene = scene;
@@ -18,40 +20,41 @@ export class PhoneMessage {
     this._closing = false;
     const scene = this.scene;
 
-    const panelW = 300;
-    const titleH = 36;
+    const SW = scene.scale.width;  // 1920 设计分辨率
+    const SH = scene.scale.height;
+    const panelW = 420;            // 1920 尺度下更宽更舒展
+    const titleH = 52;
     const contentH = this._contentHeight(messages);
-    const panelH = titleH + contentH;
-    const startX = 960; // 从右侧屏幕外开始
-    const endX = 960 - panelW - 16;
+    const panelH = Math.min(titleH + contentH, SH - 120);
+    const startX = SW + panelW;    // 从右侧屏幕外滑入
+    const endX = SW - panelW - 24; // 停在右侧
 
-    // 半透明遮罩（场景级，不随面板移动）—— 点击遮罩关闭
-    const backdrop = scene.add.rectangle(480, 270, 960, 540, 0x000000, 0.35)
+    // 半透明遮罩（钉屏，点击关闭）——比对话遮罩更深的暗，把场景压暗聚焦消息
+    const backdrop = scene.add.rectangle(SW / 2, SH / 2, SW, SH, 0x000000, 0.5)
+      .setScrollFactor(0)
       .setInteractive()
-      .setDepth(90);
+      .setDepth(10050);
     backdrop.on('pointerdown', () => this._close(false));
     this.backdrop = backdrop;
 
-    // 面板容器
-    const c = scene.add.container(startX, 60).setDepth(91);
+    // 面板容器（钉屏）
+    const c = scene.add.container(startX, 80).setScrollFactor(0).setDepth(10051);
     this.ui = c;
 
-    // 面板背景（矩形模拟深色手机面板）
+    // 面板背景：手机式深色卡片
     const bg = scene.add.rectangle(panelW / 2, panelH / 2, panelW, panelH, 0x1e1e2e, 0.97);
     c.add(bg);
-    bg.setInteractive(); // 吃掉面板区域内的点击，防止穿透到遮罩
+    bg.setInteractive(); // 吃掉面板区域内的点击，防穿透到遮罩
 
-    // ---- 标题栏 ----
-    // WeChat 绿色标题条
-    const titleBar = scene.add.rectangle(panelW / 2, titleH / 2, panelW, titleH, 0x15a15a, 0.9);
+    // ---- 标题栏：WeChat 绿 ----
+    const titleBar = scene.add.rectangle(panelW / 2, titleH / 2, panelW, titleH, 0x15a15a, 0.92);
     c.add(titleBar);
-    // "微信" 标题
-    c.add(scene.add.text(18, titleH / 2, '微信', {
-      fontSize: '15px', color: '#ffffff',
+    c.add(scene.add.text(24, titleH / 2, '微信', {
+      fontSize: '22px', color: '#ffffff',
     }).setOrigin(0, 0.5));
     // ✕ 关闭按钮
-    const closeBtn = scene.add.text(panelW - 18, titleH / 2, '✕', {
-      fontSize: '16px', color: '#ffffff',
+    const closeBtn = scene.add.text(panelW - 24, titleH / 2, '✕', {
+      fontSize: '24px', color: '#ffffff',
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor('#ff6666'));
     closeBtn.on('pointerout', () => closeBtn.setColor('#ffffff'));
@@ -59,32 +62,40 @@ export class PhoneMessage {
     c.add(closeBtn);
 
     // ---- 消息气泡 ----
-    let y = titleH + 14;
+    let y = titleH + 20;
     messages.forEach(msg => {
       // 发送人（上方小字）
-      c.add(scene.add.text(20, y, msg.sender, {
-        fontSize: '12px', color: '#9aa0a6',
+      c.add(scene.add.text(28, y, msg.sender, {
+        fontSize: '15px', color: '#9aa0a6',
       }));
-      y += 15;
+      y += 21;
 
-      // 气泡背景（浅暖色，家人的温度）
-      const bubbleW = panelW - 40;
-      const bubbleH = 36;
-      c.add(scene.add.rectangle(20 + bubbleW / 2, y + bubbleH / 2, bubbleW, bubbleH, 0xf0eed8, 0.92));
+      // 气泡：宽随文字测量，最小留两行空间
+      const probe = scene.add.text(-9999, -9999, msg.text, {
+        fontSize: '18px', wordWrap: { width: panelW - 96, useAdvancedWrap: true },
+      }).setVisible(false);
+      const bubbleW = panelW - 56;
+      const bubbleH = Math.max(48, probe.height + 24);
+      probe.destroy();
 
-      // 气泡内文字（深色，左对齐）
-      c.add(scene.add.text(28, y + 7, msg.text, {
-        fontSize: '14px', color: '#3a3a3a',
+      c.add(scene.add.rectangle(28 + bubbleW / 2, y + bubbleH / 2, bubbleW, bubbleH, 0xf0eed8, 0.94));
+      c.add(scene.add.text(40, y + 12, msg.text, {
+        fontSize: '18px', color: '#3a3a3a',
+        wordWrap: { width: bubbleW - 24, useAdvancedWrap: true },
+        lineSpacing: 4,
       }));
 
-      y += bubbleH + 18;
+      y += bubbleH + 24;
     });
 
-    // ---- 滑入动画（300ms）----
+    // 适配双相机：main 相机忽略（不受 zoom 放大），uiCamera 默认渲染
+    if (typeof scene.attachToUICamera === 'function') scene.attachToUICamera([backdrop, c]);
+
+    // ---- 滑入动画（350ms）----
     scene.tweens.add({
       targets: c,
       x: endX,
-      duration: 300,
+      duration: 350,
       ease: 'Power2',
     });
   }
@@ -96,8 +107,8 @@ export class PhoneMessage {
     if (immediate) { this._cleanup(); return; }
     this.scene.tweens.add({
       targets: this.ui,
-      x: 960,
-      duration: 250,
+      x: this.scene.scale.width + 420,
+      duration: 280,
       ease: 'Power2',
       onComplete: () => this._cleanup(),
     });
@@ -114,8 +125,18 @@ export class PhoneMessage {
     }
   }
 
+  // 当前是否有弹窗在显示（供场景判断是否冻结移动）
+  isShowing() {
+    return !!this.ui;
+  }
+
+  // 立即关闭（场景切换/清理时调用）
+  destroy() {
+    if (this.ui) this._cleanup();
+  }
+
   _contentHeight(messages) {
-    const perMsg = 15 + 36 + 18; // sender 行 + 气泡 + 间隔
-    return messages.length * perMsg + 10; // 底部留白
+    const perMsg = 21 + 48 + 24; // sender 行 + 气泡(最小) + 间隔
+    return messages.length * perMsg + 16; // 底部留白
   }
 }

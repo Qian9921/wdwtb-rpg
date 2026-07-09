@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "type": "coding",
+    "title": "代码审查闯关 · 程序员",
+    "desc": "三道工作中真实的代码陷阱：越界、隐式类型转换、off-by-one。考察的是日常 review 会撞上的坑。"
+  },
+  "questions": [
+    {
+      "code": "scores = [85, 92, 78]\nfor i in range(0, 4):\n    print(scores[i])",
+      "question": "这段代码运行时会出什么问题？",
+      "options": [
+        "列表越界——scores只有3个元素，循环访问了第4个",
+        "print函数调用语法错误",
+        "变量scores未定义"
+      ],
+      "answer": 0,
+      "explain": "scores 有 3 个元素（索引 0~2），但 range(0,4) 会访问 0,1,2,3 → 第 4 次循环索引 3 越界。应改为 range(len(scores))。"
+    },
+    {
+      "code": "let score = \"80\";\nif (score == 80) {\n  console.log(\"合格\");\n}",
+      "question": "为了更严谨地判断分数，应该怎样修改？",
+      "options": [
+        "将 == 改为 ===",
+        "将 \"80\" 改为数字 80",
+        "在 if 前加类型检查 typeof"
+      ],
+      "answer": 0,
+      "explain": "== 会做隐式类型转换（\"80\"==80 为 true），=== 则严格比较类型和值。严谨代码推荐用 ===，避免意外转换。"
+    },
+    {
+      "code": "for i in range(1, 5):\n    print(i)\n# 想打印出 1 到 5",
+      "question": "这段代码为什么只打印到 4？",
+      "options": [
+        "range(1,5) 是左闭右开，不包含 5",
+        "print 没有正确缩进",
+        "i 的初始值应该是 0"
+      ],
+      "answer": 0,
+      "explain": "Python 的 range(start,stop) 生成从 start 到 stop-1 的序列。range(1,5) → 1,2,3,4，不包含 5。要打印 1~5 应改为 range(1,6)。这是经典 off-by-one。"
+    }
+  ]
+}

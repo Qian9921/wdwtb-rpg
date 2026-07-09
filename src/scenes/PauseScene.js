@@ -53,13 +53,18 @@ export class PauseScene extends Phaser.Scene {
     }).setOrigin(0.5));
   }
 
-  _menuButton(y, label, cb, w = 320, color = 0x2a2a44) {
-    const btn = this.add.rectangle(this.W / 2, y, w, 46, color, 0.95)
-      .setStrokeStyle(1, 0x5a5a8a).setInteractive({ useHandCursor: true });
-    const txt = this.add.text(this.W / 2, y, label, { fontSize: '18px', color: '#e8e8f4' }).setOrigin(0.5);
+  _menuButton(y, label, cb, w = 340, color = 0x2a2a44) {
+    // 先量文字再定框：宽取 max(给定宽, 文字宽+边距)，高随文字，绝不挡字
+    const txt = this.add.text(this.W / 2, y, label, { fontSize: '20px', color: '#e8e8f4' }).setOrigin(0.5);
+    const bw = Math.max(w, Math.ceil(txt.width) + 56);
+    const bh = Math.ceil(txt.height) + 24;
+    const btn = this.add.rectangle(this.W / 2, y, bw, bh, color, 0.96)
+      .setStrokeStyle(2, 0x5a5a8a).setInteractive({ useHandCursor: true });
+    txt.setDepth(btn.depth + 1);
     btn.on('pointerover', () => btn.setFillStyle(0x3a3a5e));
     btn.on('pointerout', () => btn.setFillStyle(color));
     btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
+    // 框要在文字下方：先加框再加文字
     this.panel.add(btn); this.panel.add(txt);
     return btn;
   }

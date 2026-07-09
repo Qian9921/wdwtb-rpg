@@ -9,11 +9,15 @@ export class OpeningScene extends Phaser.Scene {
 
   preload() {
     this.load.json('assessment', './data/assessment.json');
-    // 角色皮肤（LimeZu 四款 16x32）：捏人用真实游戏立绘替代几何色块
+    // LimeZu 四款 16×32
     for (const n of ['Adam', 'Alex', 'Amelia', 'Bob']) {
       this.load.spritesheet(n.toLowerCase(), `./assets/limezu/characters/${n}.png`, {
         frameWidth: 16, frameHeight: 32,
       });
+    }
+    // SkyOffice 四款 atlas（更精细，捏人可选）
+    for (const c of ['adam', 'ash', 'lucy', 'nancy']) {
+      this.load.atlas(`so_${c}`, `./assets/skyoffice/character/${c}.png`, `./assets/skyoffice/character/${c}.json`);
     }
   }
 
@@ -24,11 +28,18 @@ export class OpeningScene extends Phaser.Scene {
     this.cameras.main.setZoom(2);
     this.cameras.main.centerOn(480, 270);
     // 角色皮肤模板（真实游戏立绘,主角形象=进办公室的形象）
+    // 两套素材混池：LimeZu(spritesheet 16×32,帧号索引) + SkyOffice(atlas 32×48,帧名索引)。
+    // 每条带 type/pv(预览缩放)/th(缩略图缩放)/idle(静止帧)，捏人 UI 只调工厂、不碰底层格式。
+    // pv/th 让两套素材缩放后等高：LimeZu 32px×3.6≈115，SkyOffice 48px×2.4≈115（视觉齐平不遮标题）。
     this.charSkins = [
-      { key: 'alex', name: '利落短发 · 男', gender: 'male' },
-      { key: 'bob', name: '沉稳黑发 · 男', gender: 'male' },
-      { key: 'amelia', name: '栗色长发 · 女', gender: 'female' },
-      { key: 'adam', name: '慵懒绿发 · 中性', gender: 'neutral' },
+      { key: 'alex',   name: '利落短发 · 男',  gender: 'male',    type: 'limezu', pv: 3.6, th: 2.0, idle: 3 },
+      { key: 'bob',    name: '沉稳黑发 · 男',  gender: 'male',    type: 'limezu', pv: 3.6, th: 2.0, idle: 3 },
+      { key: 'amelia', name: '栗色长发 · 女',  gender: 'female',  type: 'limezu', pv: 3.6, th: 2.0, idle: 3 },
+      { key: 'adam',   name: '慵懒绿发 · 中性', gender: 'neutral', type: 'limezu', pv: 3.6, th: 2.0, idle: 3 },
+      { key: 'so_adam',  cap: 'Adam',  name: '干练寸头 · 男', gender: 'male',   type: 'skyoffice', pv: 2.4, th: 1.3, idle: 'Adam_idle_anim_19.png' },
+      { key: 'so_ash',   cap: 'Ash',   name: '金棕短发 · 男', gender: 'male',   type: 'skyoffice', pv: 2.4, th: 1.3, idle: 'Ash_idle_anim_19.png' },
+      { key: 'so_lucy',  cap: 'Lucy',  name: '棕发利落 · 女', gender: 'female', type: 'skyoffice', pv: 2.4, th: 1.3, idle: 'Lucy_idle_anim_19.png' },
+      { key: 'so_nancy', cap: 'Nancy', name: '黑发知性 · 女', gender: 'female', type: 'skyoffice', pv: 2.4, th: 1.3, idle: 'Nancy_idle_anim_19.png' },
     ];
     // 色调滤镜：给立绘加一层轻染色,四款皮肤 × 五种色调 = 20 种组合
     this.tints = [
@@ -67,45 +78,44 @@ export class OpeningScene extends Phaser.Scene {
     this.ui.add(this.add.text(480, 76, '选一个「即将走进职场的你」——这就是你在游戏里的样子', { fontSize: '14px', color: '#8b8ba0' }).setOrigin(0.5));
 
     // 预览台：聚光底座 + 大立绘（原地走路动画,像试衣间）
-    const cx = 480, cy = 210;
-    this.ui.add(this.add.ellipse(cx, cy + 62, 120, 30, 0x2a2a44, 0.9));
-    this.ui.add(this.add.ellipse(cx, cy + 58, 92, 22, 0x3a3a5e, 0.9));
-    // 走路动画（每个皮肤独立 anim key）
-    for (const s of this.charSkins) {
-      const k = `open_walk_${s.key}`;
-      if (!this.anims.exists(k)) {
-        this.anims.create({
-          key: k,
-          frames: this.anims.generateFrameNumbers(s.key, { start: 42, end: 47 }), // 朝下走
-          frameRate: 7, repeat: -1,
-        });
-      }
-    }
-    this.previewSpr = this.add.sprite(cx, cy + 40, this.charSkins[0].key, 3)
-      .setScale(5.5).setOrigin(0.5, 1);
-    this.previewSpr.play(`open_walk_${this.charSkins[0].key}`);
+    // 立绘底部对齐 baseline=250，高约 115 → 顶部落 ~135，稳在副标题(y=76)下方，绝不遮标题。
+    const cx = 480, baseline = 250;
+    this.ui.add(this.add.ellipse(cx, baseline + 4, 120, 30, 0x2a2a44, 0.9));
+    this.ui.add(this.add.ellipse(cx, baseline, 92, 22, 0x3a3a5e, 0.9));
+    const first = this.charSkins[0];
+    this.previewSpr = this.add.sprite(cx, baseline + 8, first.key, first.idle).setOrigin(0.5, 1);
+    this._showSkinOn(this.previewSpr, first);
+    this.previewSpr.setScale(first.pv);
     this.ui.add(this.previewSpr);
+    // 预览台下方：当前皮肤名（随选择更新，取代拥挤的逐图小字）
+    this.skinNameLabel = this.add.text(cx, baseline + 26, first.name, {
+      fontSize: '15px', color: '#d4a353', fontStyle: 'bold', letterSpacing: 1,
+    }).setOrigin(0.5);
+    this.ui.add(this.skinNameLabel);
 
-    // 左右两侧小缩略图（可点选,当前高亮金框）
+    // 缩略图池：8 款 → 2 行 × 4 列，居中排布（可点选,当前高亮金框）
     this.thumbFrames = [];
+    const cols = 4, gx = 108, gy = 80, x0 = cx - (cols - 1) * gx / 2, y0 = 328;
     this.charSkins.forEach((s, i) => {
-      const tx = 300 + i * 120, ty = 350;
-      const frame = this.add.rectangle(tx, ty, 76, 96, 0x232338, 0.95)
+      const tx = x0 + (i % cols) * gx, ty = y0 + Math.floor(i / cols) * gy;
+      const frame = this.add.rectangle(tx, ty, 74, 76, 0x232338, 0.95)
         .setStrokeStyle(2, i === 0 ? 0xd4a353 : 0x3a3a52)
         .setInteractive({ useHandCursor: true });
-      const spr = this.add.sprite(tx, ty + 34, s.key, 3).setScale(2.4).setOrigin(0.5, 1);
-      const nm = this.add.text(tx, ty + 58, s.name.split(' · ')[1], { fontSize: '11px', color: '#9aa0b6' }).setOrigin(0.5, 0);
+      const spr = this.add.sprite(tx, ty + 30, s.key, s.idle).setScale(s.th).setOrigin(0.5, 1);
+      this._showSkinOn(spr, s); // 缩略图也动起来（试衣间感）
+      frame.on('pointerover', () => { if (this.avatar.skinIdx !== i) frame.setStrokeStyle(2, 0x6a6a8a); });
+      frame.on('pointerout', () => { if (this.avatar.skinIdx !== i) frame.setStrokeStyle(2, 0x3a3a52); });
       frame.on('pointerdown', () => this._pickSkin(i));
-      this.ui.add(frame); this.ui.add(spr); this.ui.add(nm);
+      this.ui.add(frame); this.ui.add(spr);
       this.thumbFrames.push(frame);
     });
 
     // 色调选择（染色滤镜,一排色块）
-    this.ui.add(this.add.text(346, 448, '色调', { fontSize: '14px', color: '#aaaabc' }).setOrigin(0.5));
+    this.ui.add(this.add.text(346, 470, '色调', { fontSize: '14px', color: '#aaaabc' }).setOrigin(0.5));
     this.tintDots = [];
     this.tints.forEach((t, i) => {
       const dx = 400 + i * 44;
-      const dot = this.add.circle(dx, 448, 13, t.tint ?? 0x8888a0)
+      const dot = this.add.circle(dx, 470, 13, t.tint ?? 0x8888a0)
         .setStrokeStyle(2, i === 0 ? 0xd4a353 : 0x3a3a52)
         .setInteractive({ useHandCursor: true });
       dot.on('pointerdown', () => this._pickTint(i));
@@ -113,14 +123,33 @@ export class OpeningScene extends Phaser.Scene {
       this.tintDots.push(dot);
     });
 
-    this._button(480, 500, 200, 40, '下一步 →', () => { this.qIdx = 0; this._showQuestion(); });
+    this._button(480, 512, 200, 40, '下一步 →', () => { this.qIdx = 0; this._showQuestion(); });
+  }
+
+  // —— 皮肤工厂：吸收 LimeZu(帧号) 与 SkyOffice(帧名) 两种格式差异 ——
+  // 走路动画懒创建：down 方向循环。LimeZu 用 42..47 帧号；SkyOffice 用 Xxx_run_19..24 帧名。
+  _ensureWalkAnim(s) {
+    const k = `open_walk_${s.key}`;
+    if (this.anims.exists(k)) return k;
+    const frames = s.type === 'skyoffice'
+      ? this.anims.generateFrameNames(s.key, { prefix: `${s.cap}_run_`, suffix: '.png', start: 19, end: 24 })
+      : this.anims.generateFrameNumbers(s.key, { start: 42, end: 47 });
+    this.anims.create({ key: k, frames, frameRate: s.type === 'skyoffice' ? 10 : 7, repeat: -1 });
+    return k;
+  }
+
+  // 把一个 sprite 换成某皮肤并播放走路动画（预览/缩略图共用）。
+  _showSkinOn(spr, s) {
+    spr.setTexture(s.key, s.idle);
+    spr.play(this._ensureWalkAnim(s));
   }
 
   _pickSkin(i) {
     this.avatar.skinIdx = i;
     const s = this.charSkins[i];
-    this.previewSpr.setTexture(s.key, 3);
-    this.previewSpr.play(`open_walk_${s.key}`);
+    this._showSkinOn(this.previewSpr, s);
+    this.previewSpr.setScale(s.pv);
+    if (this.skinNameLabel) this.skinNameLabel.setText(s.name);
     this._applyTint();
     this.thumbFrames.forEach((f, j) => f.setStrokeStyle(2, j === i ? 0xd4a353 : 0x3a3a52));
   }

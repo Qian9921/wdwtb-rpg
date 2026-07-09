@@ -5,7 +5,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const p = await b.newPage();
   await p.setViewport({ width: 1920, height: 1080 });
   p.on('pageerror', e => console.log('[err]', String(e).slice(0,150)));
-  await p.goto('http://localhost:5173/', { waitUntil: 'networkidle2' });
+  await p.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
   await sleep(2000);
   const r = await p.evaluate(async () => {
     try {

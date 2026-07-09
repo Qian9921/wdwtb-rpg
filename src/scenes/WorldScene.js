@@ -4,6 +4,9 @@ import { StatusBarUI } from '../systems/StatusBarUI.js';
 import { DialogueEngine } from '../systems/DialogueEngine.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
+import { PhoneMessage } from '../systems/PhoneMessage.js';
+import { FamilyMessages } from '../systems/FamilyMessages.js';
+import { TouchControls } from '../systems/TouchControls.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -33,10 +36,58 @@ const EXTRA_WORKERS = [
   { x: 976, y: 560, tex: 'alex' },
 ];
 
-// idle 帧（Row0，逐帧目检修正）：f0=右 f1=上 f2=左 f3=下
+// idle 帧（LimeZu Row0，逐帧目检）：f0=右 f1=上 f2=左 f3=下
 const IDLE = { right: 0, up: 1, left: 2, down: 3 };
-// 走路帧组（Row1，f24-47 按 6 帧一组）：右/上/左/下
+// 走路帧组（LimeZu Row1，f24-47 每 6 帧一向）：右/上/左/下
 const WALK = { right: [24, 29], up: [30, 35], left: [36, 41], down: [42, 47] };
+
+// 皮肤注册表：统一支持两种素材源，创建角色时按 type 分派动画。
+// - limezu：单张 spritesheet 用帧号（16×32），走 WALK / idle IDLE
+// - skyoffice：atlas 用帧名（32×48，动作更精细，6 帧/向）
+//   idle: r0-5/u6-11/l12-17/d18-23  run: r24-29/u30-35/l36-41/d42-47
+const SKINS = {
+  // LimeZu 4 款（现有，捏人已用）
+  adam:   { type: 'limezu', scale: 2 },
+  alex:   { type: 'limezu', scale: 2 },
+  amelia: { type: 'limezu', scale: 2 },
+  bob:    { type: 'limezu', scale: 2 },
+  // SkyOffice 4 款（新，更精细）。tex=纹理key(so_前缀)，cap=帧名用的首字母大写名。
+  so_adam:  { type: 'skyoffice', tex: 'so_adam',  cap: 'Adam',  scale: 1.4 },
+  so_ash:   { type: 'skyoffice', tex: 'so_ash',   cap: 'Ash',   scale: 1.4 },
+  so_lucy:  { type: 'skyoffice', tex: 'so_lucy',  cap: 'Lucy',  scale: 1.4 },
+  so_nancy: { type: 'skyoffice', tex: 'so_nancy', cap: 'Nancy', scale: 1.4 },
+};
+// SkyOffice 走路(run)每向 6 帧：右1-6 上7-12 左13-18 下19-24（idle 同理，另一套帧名）
+const SKY_DIR_START = { right: 1, up: 7, left: 13, down: 19 };
+
+// 为某皮肤建四向走路+idle 动画（幂等，key 前缀带皮肤名）。
+// 返回 { walkPrefix, tex, idleFrame(dir) }：idleFrame 是"停步显示帧"（limezu 返回帧号，skyoffice 返回帧名）。
+function ensureSkinAnims(scene, skinKey) {
+  const s = SKINS[skinKey];
+  if (!s) return null;
+  if (s.type === 'limezu') {
+    for (const [dir, [a, b]] of Object.entries(WALK)) {
+      const k = `walk_${skinKey}_${dir}`;
+      if (!scene.anims.exists(k)) scene.anims.create({
+        key: k, frames: scene.anims.generateFrameNumbers(skinKey, { start: a, end: b }), frameRate: 10, repeat: -1,
+      });
+    }
+    return { walkPrefix: `walk_${skinKey}`, tex: skinKey, idleFrame: (d) => IDLE[d] ?? IDLE.down };
+  }
+  // skyoffice atlas：帧名 {Cap}_run_{n}.png / {Cap}_idle_anim_{n}.png
+  for (const [dir, start] of Object.entries(SKY_DIR_START)) {
+    const k = `walk_${skinKey}_${dir}`;
+    if (!scene.anims.exists(k)) scene.anims.create({
+      key: k,
+      frames: scene.anims.generateFrameNames(s.tex, { prefix: `${s.cap}_run_`, suffix: '.png', start, end: start + 5 }),
+      frameRate: 10, repeat: -1,
+    });
+  }
+  return {
+    walkPrefix: `walk_${skinKey}`, tex: s.tex,
+    idleFrame: (d) => `${s.cap}_idle_anim_${SKY_DIR_START[d] ?? SKY_DIR_START.down}.png`,
+  };
+}
 
 // 轻量职业：单文件全剧情（data/light_*.json），无分幕；深度职业走 {career}_act{n}.json
 const LIGHT_CAREERS = ['designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer'];
@@ -147,6 +198,11 @@ export class WorldScene extends Phaser.Scene {
     this.load.spritesheet('so_computers', `${SO}/items/computer.png`, { frameWidth: 96, frameHeight: 64 });
     this.load.spritesheet('so_whiteboards', `${SO}/items/whiteboard.png`, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('so_vending', `${SO}/items/vendingmachine.png`, { frameWidth: 48, frameHeight: 72 });
+    // SkyOffice 4 角色 atlas（更精细动画，捏人可选）。
+    // ⚠️ 纹理 key 加 so_ 前缀，避免与 LimeZu 的 'adam' spritesheet 冲突。
+    for (const c of ['adam', 'ash', 'lucy', 'nancy']) {
+      this.load.atlas(`so_${c}`, `${SO}/character/${c}.png`, `${SO}/character/${c}.json`);
+    }
   }
 
   create() {
@@ -172,6 +228,14 @@ export class WorldScene extends Phaser.Scene {
     this.statusUI = new StatusBarUI(this, this.stateSystem);
     this.dialogueEngine = new DialogueEngine(this, this.stateSystem);
     this._setupDialogueEvents();
+    // 家人消息：数据层（异步加载）+ UI 层（仿微信弹窗）
+    this.familyMessages = new FamilyMessages();
+    this.phoneMessage = new PhoneMessage(this);
+    // 预加载消息数据（不阻塞 create）
+    this.familyMessages.load();
+    // 状态触底监听：health/san/passion 跌破 20 时推送一条"至暗"家人消息
+    this.stateSystem.on('threshold', (info) => this._onStateThreshold(info));
+    this._phoneTriggeredFor = new Set(); // 去重：每个状态键只触发一次危机消息
 
     // 交互键
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
@@ -227,6 +291,23 @@ export class WorldScene extends Phaser.Scene {
     this._worldObjects = this.children.list.filter(o => !this.uiObjects.includes(o));
     this.uiCamera.ignore(this._worldObjects);
 
+    // 移动端触屏控制（摇杆+按钮）：非触屏设备自动空跑，不影响键盘
+    this.touchControls = new TouchControls(this);
+    this.touchControls.onInteract(() => {
+      if (!this.dialogueActive && this.activeNpc) this._interact(this.activeNpc);
+    });
+    this.touchControls.onMenu(() => {
+      if (!this.dialogueActive) {
+        this.scene.pause();
+        this.scene.launch('PauseScene', {
+          origin: 'WorldScene',
+          stateSystem: this.stateSystem,
+          career: this.career,
+          act: this.act,
+        });
+      }
+    });
+
     // 调试自验证钩子:?autochen=1 → 传送到报到 NPC 并自动触发第一幕(仅用于截图验证)
     if (typeof window !== 'undefined' && window.location.search.includes('autochen=1')) {
       const chen = this.npcs.find(n => n.id === 'senior');
@@ -263,7 +344,9 @@ export class WorldScene extends Phaser.Scene {
     // 物件层 → staticGroup，逐个按 gid 摆放（origin 左下 → 中心换算）。
     // collidable 的层加入碰撞组，供 _createPlayer 后与玩家碰撞。
     this.solidGroups = [];
-    const addGroup = (layerName, sheetKey, tilesetName, collidable) => {
+    // collidable=true 的层加入碰撞组；bodyScale 收缩碰撞体（贴合家具实体、
+    // 不"隔空挡路"，避免玩家被家具周围的空气挡住）。
+    const addGroup = (layerName, sheetKey, tilesetName, collidable, bodyScale = 0.8) => {
       const ts = map.getTileset(tilesetName);
       if (!ts) return;
       const group = this.physics.add.staticGroup();
@@ -273,23 +356,33 @@ export class WorldScene extends Phaser.Scene {
         const ax = o.x + o.width * 0.5;
         const ay = o.y - o.height * 0.5;
         const img = group.get(ax, ay, sheetKey, o.gid - ts.firstgid);
-        if (img) img.setDepth(ay);
+        if (!img) return;
+        img.setDepth(ay);
+        if (collidable && img.body) {
+          // 碰撞体收缩到家具实体大小并对齐底部（脚下挡人，头顶不挡）
+          const bw = img.displayWidth * bodyScale;
+          const bh = img.displayHeight * bodyScale;
+          img.body.setSize(bw, bh);
+          img.body.setOffset((img.displayWidth - bw) / 2, img.displayHeight - bh);
+          img.body.updateFromGameObject();
+        }
       });
       if (collidable) this.solidGroups.push(group);
     };
 
-    // 墙（用地板 sheet 的瓦片做立面）+ 各类家具物件
-    addGroup('Wall', 'tiles_wall', 'FloorAndGround', false);
-    addGroup('Objects', 'so_office', 'Modern_Office_Black_Shadow', false);
-    addGroup('ObjectsOnCollide', 'so_office', 'Modern_Office_Black_Shadow', true);
-    addGroup('GenericObjects', 'so_generic', 'Generic', false);
-    addGroup('GenericObjectsOnCollide', 'so_generic', 'Generic', true);
-    addGroup('Basement', 'so_basement', 'Basement', true);
-    // 椅子/电脑/白板/售货机（专用 sheet，帧尺寸各异）
-    addGroup('Chair', 'so_chairs', 'chair', false);
-    addGroup('Computer', 'so_computers', 'computer', true);
-    addGroup('Whiteboard', 'so_whiteboards', 'whiteboard', true);
-    addGroup('VendingMachine', 'so_vending', 'vendingmachine', true);
+    // 墙 + 各类家具物件。桌(Objects)、椅(Chair) 现在都挡人（修穿模），
+    // 桌用较大碰撞体、椅用较小（椅子矮小只挡一点，不把办公室变迷宫）。
+    addGroup('Wall', 'tiles_wall', 'FloorAndGround', true, 0.9);
+    addGroup('Objects', 'so_office', 'Modern_Office_Black_Shadow', true, 0.82);
+    addGroup('ObjectsOnCollide', 'so_office', 'Modern_Office_Black_Shadow', true, 0.82);
+    addGroup('GenericObjects', 'so_generic', 'Generic', true, 0.8);
+    addGroup('GenericObjectsOnCollide', 'so_generic', 'Generic', true, 0.8);
+    addGroup('Basement', 'so_basement', 'Basement', true, 0.85);
+    // 椅子/电脑/白板/售货机
+    addGroup('Chair', 'so_chairs', 'chair', true, 0.55);
+    addGroup('Computer', 'so_computers', 'computer', true, 0.8);
+    addGroup('Whiteboard', 'so_whiteboards', 'whiteboard', true, 0.8);
+    addGroup('VendingMachine', 'so_vending', 'vendingmachine', true, 0.85);
 
     // 职业氛围光：极淡全屏色调（保留职业差异化的"行业气质"）
     const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
@@ -304,31 +397,26 @@ export class WorldScene extends Phaser.Scene {
     let skinKey = 'adam', skinTint = null;
     try {
       const prof = JSON.parse(localStorage.getItem('wdwtb_profile') || '{}');
-      if (prof?.avatar?.skinKey && this.textures.exists(prof.avatar.skinKey)) {
+      if (prof?.avatar?.skinKey && SKINS[prof.avatar.skinKey]) {
         skinKey = prof.avatar.skinKey;
         skinTint = prof.avatar.tint || null;
       }
     } catch (e) {}
 
-    // 四向走路动画：全部来自 Row1 的稳定帧组（质心恒定,不再分裂）;anim key 带皮肤名防冲突
-    this.walkPrefix = `walk_${skinKey}`;
-    for (const [dir, [s, e]] of Object.entries(WALK)) {
-      const k = `${this.walkPrefix}_${dir}`;
-      if (!this.anims.exists(k)) {
-        this.anims.create({
-          key: k,
-          frames: this.anims.generateFrameNumbers(skinKey, { start: s, end: e }),
-          frameRate: 10, repeat: -1, // 10fps 配 130px/s 步频更贴地，消除"漂"感
-        });
-      }
-    }
+    // 用皮肤注册表建动画（自动分派 limezu 帧号 / skyoffice 帧名）
+    const skin = ensureSkinAnims(this, skinKey) || ensureSkinAnims(this, 'adam');
+    this.playerSkin = skin;
+    this.walkPrefix = skin.walkPrefix;
+    const s = SKINS[skinKey] || SKINS.adam;
 
-    this.player = this.physics.add.sprite(SPAWN.x, SPAWN.y, skinKey, IDLE.down);
+    this.player = this.physics.add.sprite(SPAWN.x, SPAWN.y, skin.tex).setFrame(skin.idleFrame('down'));
     if (skinTint) this.player.setTint(skinTint);
-    this.player.setScale(SCALE);
+    this.player.setScale(s.scale ?? SCALE);
     this.player.setCollideWorldBounds(true);
-    this.player.body.setSize(12, 14);
-    this.player.body.setOffset(2, 18);
+    // 碰撞体=脚底一小块（两种素材尺寸不同，按显示高度比例取底部）
+    const fw = this.player.displayWidth, fh = this.player.displayHeight;
+    this.player.body.setSize(fw * 0.4 / this.player.scaleX, fh * 0.25 / this.player.scaleY);
+    this.player.body.setOffset(fw * 0.3 / this.player.scaleX, fh * 0.7 / this.player.scaleY);
 
     this.physics.world.setBounds(0, 0, MW, MH);
     // 与地板墙碰撞层 + 各碰撞物件组碰撞（替代旧的 this.obstacles）
@@ -347,33 +435,39 @@ export class WorldScene extends Phaser.Scene {
     const [seniorName, seniorTitle] = theme.npcs.senior;
     const [peerName, peerTitle] = theme.npcs.peer;
     const [vetName, vetTitle] = theme.npcs.vet;
+    // NPC 用不同皮肤增加多样（senior 用精细 SkyOffice，其余混搭）
     const defs = [
       {
-        id: 'senior', name: seniorName, tex: 'bob',
+        id: 'senior', name: seniorName, skin: 'so_adam',
         x: NPC_POS.senior.x, y: NPC_POS.senior.y, facing: 'down',
         label: `${seniorName} · ${seniorTitle}`, mark: '❗', markColor: '#ffdd33',
         act: 1, // 走近报到 → 播第一幕
       },
       {
-        id: 'peer', name: peerName, tex: 'alex',
+        id: 'peer', name: peerName, skin: 'so_nancy',
         x: NPC_POS.peer.x, y: NPC_POS.peer.y, facing: 'down',
         label: `${peerName} · ${peerTitle}`, mark: '💬', markColor: '#7ec8ff',
         line: theme.peerLine,
       },
       {
-        id: 'vet', name: vetName, tex: 'amelia',
+        id: 'vet', name: vetName, skin: 'so_lucy',
         x: NPC_POS.vet.x, y: NPC_POS.vet.y, facing: 'down',
         label: `${vetName} · ${vetTitle}`, mark: '💬', markColor: '#7ec8ff',
         line: theme.vetLine,
       },
     ];
 
+    // 用任意皮肤在 (x,y) 放一个静态角色（朝向 idle 帧），返回 sprite
+    const placeChar = (x, y, skinKey, facing = 'down') => {
+      const sk = ensureSkinAnims(this, skinKey) || ensureSkinAnims(this, 'adam');
+      const cfg = SKINS[skinKey] || SKINS.adam;
+      return this.add.sprite(x, y, sk.tex).setFrame(sk.idleFrame(facing))
+        .setScale(cfg.scale ?? SCALE).setOrigin(0.5, 1).setDepth(y);
+    };
+
     this.npcs = [];
     for (const d of defs) {
-      const spr = this.add.sprite(d.x, d.y, d.tex, IDLE[d.facing] ?? 0)
-        .setScale(SCALE)
-        .setOrigin(0.5, 1)
-        .setDepth(d.y);
+      const spr = placeChar(d.x, d.y, d.skin, d.facing);
 
       // NPC 名牌（脚下小字，1920 尺度）
       const nameTag = this.add.text(d.x, d.y + 8, d.name, {
@@ -394,11 +488,9 @@ export class WorldScene extends Phaser.Scene {
       this.npcs.push({ ...d, spr, mark, nameTag });
     }
 
-    // 背景群演：坐/站在开放区的路人同事，让办公室"有活人"（纯装饰，不可交互）
-    for (const w of EXTRA_WORKERS) {
-      this.add.sprite(w.x, w.y, w.tex, IDLE.down)
-        .setScale(SCALE).setOrigin(0.5, 1).setDepth(w.y);
-    }
+    // 背景群演：坐/站在开放区的路人，让办公室"有活人"（纯装饰，混搭皮肤增加多样）
+    const workerSkins = ['amelia', 'bob', 'so_ash'];
+    EXTRA_WORKERS.forEach((w, i) => placeChar(w.x, w.y, workerSkins[i % workerSkins.length]));
   }
 
   update() {
@@ -427,23 +519,48 @@ export class WorldScene extends Phaser.Scene {
       this.player.setVelocity(0, 0);
       if (this.player.anims.isPlaying) {
         this.player.anims.stop();
-        this.player.setFrame(IDLE[this.facing] ?? IDLE.down);
+        this.player.setFrame(this.playerSkin.idleFrame(this.facing));
       }
       return;
     }
 
     const speed = 130;
-    let vx = 0, vy = 0;
-    let newFacing = null;
+    const L = this.cursors.left.isDown || this.wasd.A.isDown;
+    const R = this.cursors.right.isDown || this.wasd.D.isDown;
+    const U = this.cursors.up.isDown || this.wasd.W.isDown;
+    const D = this.cursors.down.isDown || this.wasd.S.isDown;
+    // 触屏摇杆：有输入时优先（手机走摇杆，桌面走键盘，二者不冲突）
+    const touch = this.touchControls ? this.touchControls.getAxis() : { x: 0, y: 0 };
+    const useTouch = Math.abs(touch.x) > 0.15 || Math.abs(touch.y) > 0.15;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) { vx = -speed; newFacing = 'left'; }
-    if (this.cursors.right.isDown || this.wasd.D.isDown) { vx = speed; newFacing = 'right'; }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) { vy = -speed; newFacing = 'up'; }
-    if (this.cursors.down.isDown || this.wasd.S.isDown) { vy = speed; newFacing = 'down'; }
+    let vx, vy;
+    if (useTouch) {
+      vx = touch.x * speed;
+      vy = touch.y * speed;
+      // 摇杆是模拟量，斜向已天然归一化；朝向按主轴吸附到 4 向
+      if (Math.abs(touch.x) > Math.abs(touch.y)) this.facing = touch.x > 0 ? 'right' : 'left';
+      else if (touch.y !== 0) this.facing = touch.y > 0 ? 'down' : 'up';
+    } else {
+      vx = (R ? speed : 0) - (L ? speed : 0);
+      vy = (D ? speed : 0) - (U ? speed : 0);
+
+      // 八向位移，但动画朝向干净吸附到 4 向之一（LimeZu 无斜向帧，斜走不失真）：
+      // 刚按下的方向键优先决定朝向；斜走时以"最新按下的轴"为准，否则保留上一朝向。
+      const justDir =
+        Phaser.Input.Keyboard.JustDown(this.wasd.A) || Phaser.Input.Keyboard.JustDown(this.cursors.left) ? 'left' :
+        Phaser.Input.Keyboard.JustDown(this.wasd.D) || Phaser.Input.Keyboard.JustDown(this.cursors.right) ? 'right' :
+        Phaser.Input.Keyboard.JustDown(this.wasd.W) || Phaser.Input.Keyboard.JustDown(this.cursors.up) ? 'up' :
+        Phaser.Input.Keyboard.JustDown(this.wasd.S) || Phaser.Input.Keyboard.JustDown(this.cursors.down) ? 'down' : null;
+      if (justDir) {
+        this.facing = justDir;
+      } else if (vx !== 0 || vy !== 0) {
+        // 无新按键（持续走）：若当前朝向已无对应输入，回退到仍在按的某个方向
+        const stillValid = { left: L, right: R, up: U, down: D }[this.facing];
+        if (!stillValid) this.facing = L ? 'left' : R ? 'right' : U ? 'up' : 'down';
+      }
+    }
 
     if (vx !== 0 && vy !== 0) { vx *= 0.7071; vy *= 0.7071; }
-    if (newFacing) this.facing = newFacing;
-
     this.player.setVelocity(vx, vy);
     this.player.setDepth(this.player.y);
 
@@ -451,7 +568,7 @@ export class WorldScene extends Phaser.Scene {
       // 停步：停动画并回到该朝向的 idle 帧（不再定格在走路中间帧）
       if (this.player.anims.isPlaying) {
         this.player.anims.stop();
-        this.player.setFrame(IDLE[this.facing] ?? IDLE.down);
+        this.player.setFrame(this.playerSkin.idleFrame(this.facing));
       }
     } else {
       this.player.anims.play(`${this.walkPrefix}_${this.facing}`, true);
@@ -474,11 +591,14 @@ export class WorldScene extends Phaser.Scene {
     this.activeNpc = nearest;
     if (nearest) {
       this.ePrompt.setText(`［ E ］与 ${nearest.name} 交谈`).setVisible(true);
+      // 触屏：显示交互按钮
+      if (this.touchControls) this.touchControls.setInteractVisible(true);
       if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
         this._interact(nearest);
       }
     } else {
       this.ePrompt.setVisible(false);
+      if (this.touchControls) this.touchControls.setInteractVisible(false);
     }
   }
 
@@ -583,6 +703,7 @@ export class WorldScene extends Phaser.Scene {
           self.scene.pause();
           self.scene.launch('MinigameScene', {
             type: action.split(':')[1],
+            career: self.career,          // 让小游戏加载职业专属题库
             fromScene: null,
             onComplete: (result) => {
               // 按成绩反哺状态:全对 skill+5 passion+4;部分 skill+3;全错 stress+3 但 skill+1(试错也是学)
@@ -609,6 +730,10 @@ export class WorldScene extends Phaser.Scene {
         case 'next_act':
           self._loadNextAct();
           break;
+        case 'phone_message':
+          // 剧情数据显式触发：按 node 上的 act 或关键词推一条家人消息
+          self._showFamilyByAct(self.act, node && node.phoneKeyword);
+          break;
         case 'ending':
           self.scene.start('EndingScene', {
             ending: self.career,
@@ -618,6 +743,53 @@ export class WorldScene extends Phaser.Scene {
         default:
           console.log('[WorldScene] unhandled action:', action);
       }
+    });
+  }
+
+  // ==================== 家人消息（PhoneMessage + FamilyMessages）====================
+  // 三种触发入口，共享同一个 _showPhone 渲染方法：
+  //   1. _showFamilyByAct(act)      —— 幕次推进时推一条（每幕1条，去重）
+  //   2. _onStateThreshold(info)     —— health/san/passion 触底时推一条至暗消息
+  //   3. action 'phone_message'      —— 剧情数据显式触发（上面已接线）
+  _showFamilyByAct(act, keyword) {
+    this.familyMessages.load().then(() => {
+      const picked = keyword
+        ? this.familyMessages.pickByKeyword(keyword)
+        : this.familyMessages.pickForAct(act);
+      if (picked) this._showPhone(picked.bubbles, picked.context);
+    });
+  }
+
+  // 状态触底回调：health/san/passion 跌破 20。
+  // 每个状态键只触发一次（用 _phoneTriggeredFor 去重），避免数值来回跳反复弹窗。
+  _onStateThreshold(info) {
+    const key = info.key;
+    if (this._phoneTriggeredFor.has(key)) return;
+    this._phoneTriggeredFor.add(key);
+    // 弹窗前先确保家人在移动状态被冻结期间显示
+    this.familyMessages.load().then(() => {
+      const picked = this.familyMessages.pickForThreshold();
+      if (picked) {
+        this._showPhone(picked.bubbles, picked.context);
+      } else {
+        // 没匹配到专属消息时，用一句通用安慰兜底（不空窗）
+        this._showPhone(
+          [{ sender: '妈妈', text: '囡囡，别太拼了。身体是自己的，妈就你好好的。' }],
+          '兜底·状态触底'
+        );
+      }
+    });
+  }
+
+  // 统一渲染：用 PhoneMessage 弹窗显示，期间冻结玩家移动
+  _showPhone(bubbles, contextLabel) {
+    if (!bubbles || !bubbles.length) return;
+    if (this.phoneMessage.isShowing()) return; // 已有消息在显示，不叠加
+    console.log('[WorldScene] 家人消息:', contextLabel || '(无情境标注)');
+    this.dialogueActive = true;   // 冻结移动 + 让 HUD 让路
+    this.phoneMessage.show(bubbles, () => {
+      this.dialogueActive = false;
+      if (this.guideText) this.guideText.setVisible(true);
     });
   }
 
@@ -661,6 +833,8 @@ export class WorldScene extends Phaser.Scene {
         SaveSystem.save({ career: this.career, act: this.act }); // 过幕即存，续档回到最新一幕
         this.dialogueEngine._clearUI();
         this.dialogueEngine.start(data);
+        // 幕次推进：推一条家人消息（每幕1条，呼应"低频高杀伤"的设计）
+        this._showFamilyByAct(next);
       })
       .catch(() => {
         this.scene.start('EndingScene', {

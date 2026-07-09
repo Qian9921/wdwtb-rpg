@@ -25,14 +25,12 @@
       align-items: center;
       justify-content: center;
     }
-    /* 像素游戏关键：canvas 被 FIT 放大到全屏时，强制最近邻插值，
-       让像素块保持锐利硬边缘，而非被浏览器双线性插值抹糊。 */
+    /* zoom:2 后 backing 已达 1920×1080，接近屏幕原生。
+       用 auto 让 GPU 平滑处理剩余的少量缩放——pixelated 此时只会给文字加锯齿。
+       像素美术的锐利由 Phaser 内部 NEAREST 纹理过滤保证，不依赖此项。 */
     canvas {
       display: block;
-      image-rendering: pixelated;
-      image-rendering: -moz-crisp-edges;
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
+      image-rendering: auto;
     }
   </style>
 </head>

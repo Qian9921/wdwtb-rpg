@@ -8,9 +8,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   p.on('pageerror', e => errors.push('PAGEERR: ' + String(e).slice(0,200)));
   p.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text().slice(0,200)); });
 
-  await p.goto('http://localhost:5173/', { waitUntil: 'networkidle2' });
+  await p.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
   await p.evaluate(() => localStorage.clear());
-  await p.reload({ waitUntil: 'networkidle2' });
+  await p.reload({ waitUntil: 'domcontentloaded' });
   await sleep(2000);
 
   // 直接驱动到 WorldScene（跳过开场，专测世界+菜单不报错）

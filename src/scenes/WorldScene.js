@@ -170,6 +170,9 @@ export class WorldScene extends Phaser.Scene {
     this._createPlayer();
     this._createNpcs();
 
+    // 设计分辨率 1920×1080，世界仍是 960×640 坐标系 → camera zoom 2 让
+    // 视口显示 960×540 世界单位（与旧取景一致），但渲染在 2× 真实像素上 = 锐利。
+    this.cameras.main.setZoom(2);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setBounds(0, 0, MW, MH);
 
@@ -183,36 +186,55 @@ export class WorldScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-    // 操作提示（钉屏）
-    this.add.text(MW / 2, 8, 'WASD / 方向键 移动 · 走近 NPC 按 E 交谈 · ESC 菜单', {
-      fontSize: '13px',
+    // ===== 双相机架构：main 相机 zoom 2 渲染世界，uiCamera 原生 1:1 渲染 HUD =====
+    // 主相机放大世界会连带放大钉屏 UI，故 HUD 交给独立的满分辨率 UI 相机，二者互相 ignore。
+    const SW = this.scale.width, SH = this.scale.height; // 1920×1080 屏幕坐标系
+    this.uiObjects = [];
+    const trackUI = (o) => { this.uiObjects.push(o); return o; };
+
+    // 操作提示（屏幕顶部居中）
+    trackUI(this.add.text(SW / 2, 14, 'WASD / 方向键 移动 · 走近 NPC 按 E 交谈 · ESC 菜单', {
+      fontSize: '22px',
       fill: '#dfe3ff',
       backgroundColor: '#000000aa',
-      padding: { x: 8, y: 4 },
-    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999);
+      padding: { x: 14, y: 7 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999));
 
-    // 引导语（钉屏，底部）——按职业主题生成"找谁报到"
+    // 引导语（屏幕底部）——按职业主题生成"找谁报到"
     const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
     const [gName, gTitle] = gTheme.npcs.senior;
-    this.guideText = this.add.text(MW / 2, 500, `📋 新人报到:去找${gTitle}「${gName}」(头顶有 ❗),走近按 E`, {
-      fontSize: '13px',
+    this.guideText = trackUI(this.add.text(SW / 2, SH - 90, `📋 新人报到:去找${gTitle}「${gName}」(头顶有 ❗),走近按 E`, {
+      fontSize: '22px',
       fill: '#ffe08a',
       backgroundColor: '#00000099',
-      padding: { x: 10, y: 5 },
-    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(9999);
+      padding: { x: 16, y: 8 },
+    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(9999));
 
-    // "按 E 交谈"浮标（钉屏，默认隐藏）
-    this.ePrompt = this.add.text(MW / 2, 470, '［ E ］交谈', {
-      fontSize: '18px',
+    // "按 E 交谈"浮标（屏幕中下，默认隐藏）
+    this.ePrompt = trackUI(this.add.text(SW / 2, SH - 150, '［ E ］交谈', {
+      fontSize: '28px',
       fill: '#ffffff',
       backgroundColor: '#2a6fd6ee',
-      padding: { x: 14, y: 7 },
-    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(9999).setVisible(false);
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(9999).setVisible(false));
 
-    // 素材署名（钉屏，右下角小字）
-    this.add.text(MW - 6, MH - 4, 'Art: LimeZu · Kenney', {
-      fontSize: '10px', fill: '#7a7a8a',
-    }).setOrigin(1, 1).setScrollFactor(0).setDepth(9999);
+    // 素材署名（屏幕右下角小字）
+    trackUI(this.add.text(SW - 10, SH - 6, 'Art: LimeZu · Kenney', {
+      fontSize: '14px', fill: '#7a7a8a',
+    }).setOrigin(1, 1).setScrollFactor(0).setDepth(9999));
+
+    // HUD（StatusBarUI 的 mini/panel 容器）也归 UI 相机
+    if (this.statusUI) {
+      if (this.statusUI.mini) trackUI(this.statusUI.mini);
+      if (this.statusUI.panel) trackUI(this.statusUI.panel);
+    }
+
+    // 建 UI 相机：主相机忽略所有 UI；UI 相机忽略当前所有世界对象（快照）。
+    this.uiCamera = this.cameras.add(0, 0, SW, SH);
+    this.uiCamera.setScroll(0, 0);
+    this.cameras.main.ignore(this.uiObjects);
+    this._worldObjects = this.children.list.filter(o => !this.uiObjects.includes(o));
+    this.uiCamera.ignore(this._worldObjects);
 
     // 调试自验证钩子:?autochen=1 → 传送到报到 NPC 并自动触发第一幕(仅用于截图验证)
     if (typeof window !== 'undefined' && window.location.search.includes('autochen=1')) {
@@ -222,6 +244,16 @@ export class WorldScene extends Phaser.Scene {
         this.time.delayedCall(800, () => this._interact(chen));
       }
     }
+  }
+
+  // 把动态 UI（对话框/仪式弹窗/气泡）指派给 UI 相机：
+  // main 相机忽略它（不受 zoom 影响）、uiCamera 渲染它（屏幕坐标、满分辨率、锐利）。
+  // 传 Container 或对象数组均可。
+  attachToUICamera(objOrArr) {
+    if (!this.uiCamera) return;
+    const arr = Array.isArray(objOrArr) ? objOrArr : [objOrArr];
+    this.cameras.main.ignore(arr);
+    // uiCamera 之前 ignore 了世界快照；新 UI 对象不在快照里，故 uiCamera 默认会渲染它——无需额外处理。
   }
 
   // ==================== 地板 ====================
@@ -604,31 +636,38 @@ export class WorldScene extends Phaser.Scene {
     if (npc.line) this._showLine(npc.name, npc.line);
   }
 
-  // 轻量单句气泡（非正式剧情）——钉屏，点击/E/空格关闭
+  // 轻量单句气泡（非正式剧情）——钉屏 UI 相机，1920 尺度，点击/E/空格关闭
   _showLine(name, text) {
     this.dialogueActive = true;
     this.ePrompt.setVisible(false);
+    if (this.guideText) this.guideText.setVisible(false);
     const { width, height } = this.scale;
+    const bw = Math.min(1400, width - 120);
+    const bx = (width - bw) / 2, by = height - 200;
+    const PAD = 32;
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10000);
-    c.add(this.add.rectangle(width / 2, height - 90, 900, 120, 0x000000, 0.72));
-    c.add(this.add.text(width / 2 - 440, height - 138, name, {
-      fontSize: '14px', color: '#ffd24d',
+    // 全屏输入层（点任何位置关闭，永不错位）
+    const hit = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.001)
+      .setScrollFactor(0).setInteractive();
+    c.add(hit);
+    c.add(this.add.rectangle(bx + bw / 2, by + 80, bw, 160, 0x0a0a14, 0.86).setStrokeStyle(2, 0xd4a353, 0.5));
+    c.add(this.add.text(bx + PAD, by + 20, name, {
+      fontSize: '22px', color: '#ffd24d', fontStyle: 'bold',
     }));
-    c.add(this.add.text(width / 2 - 440, height - 114, text, {
-      fontSize: '17px', color: '#ffffff', wordWrap: { width: 880, useAdvancedWrap: true },
+    c.add(this.add.text(bx + PAD, by + 56, text, {
+      fontSize: '26px', color: '#ffffff', lineSpacing: 8, wordWrap: { width: bw - PAD * 2, useAdvancedWrap: true },
     }));
-    c.add(this.add.text(width / 2 + 440, height - 44, '［点击/E 继续］', {
-      fontSize: '12px', color: '#9aa0a6',
+    c.add(this.add.text(bx + bw - PAD, by + 150, '［点击 / E 继续］', {
+      fontSize: '18px', color: '#9aa0a6',
     }).setOrigin(1, 1));
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
 
     const close = () => {
       c.destroy(true);
       this.dialogueActive = false;
+      if (this.guideText) this.guideText.setVisible(true);
     };
     this.time.delayedCall(120, () => {
-      const hit = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.01)
-        .setScrollFactor(0).setDepth(9999).setInteractive();
-      c.add(hit);
       hit.on('pointerdown', close);
       this.input.keyboard.once('keydown-E', close);
       this.input.keyboard.once('keydown-SPACE', close);
@@ -646,8 +685,8 @@ export class WorldScene extends Phaser.Scene {
     });
 
     eng.on('dialogueEnd', () => {
-      console.log('[WorldScene] dialogue ended');
       self.dialogueActive = false;
+      if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
     });
 
     eng.on('action', (action, node) => {
@@ -706,27 +745,24 @@ export class WorldScene extends Phaser.Scene {
   _showRitual(text) {
     const { width, height } = this.scale;
     const overlay = this.add.container(0, 0).setScrollFactor(0).setDepth(10001);
-    overlay.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5));
-    const box = this.add.rectangle(width / 2, height / 2 - 20, 500, 140, 0x1e1e2e, 0.95);
-    overlay.add(box);
-    overlay.add(this.add.text(width / 2, height / 2 - 45, text, {
-      fontSize: '20px', color: '#f0d080',
-      wordWrap: { width: 440, useAdvancedWrap: true }, align: 'center',
+    // 全屏遮罩兼点击层（点任何处关闭）
+    const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setInteractive();
+    overlay.add(mask);
+    overlay.add(this.add.rectangle(width / 2, height / 2 - 30, 820, 220, 0x1e1e2e, 0.97).setStrokeStyle(2, 0xd4a353, 0.6));
+    overlay.add(this.add.text(width / 2, height / 2 - 55, text, {
+      fontSize: '30px', color: '#f0d080',
+      wordWrap: { width: 720, useAdvancedWrap: true }, align: 'center', lineSpacing: 8,
     }).setOrigin(0.5));
-    overlay.add(this.add.text(width / 2, height / 2 + 15, '点击任意处继续', {
-      fontSize: '13px', color: '#6a6a7a',
+    overlay.add(this.add.text(width / 2, height / 2 + 55, '点击任意处继续', {
+      fontSize: '20px', color: '#8a8a9e',
     }).setOrigin(0.5));
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(overlay);
 
     const close = () => overlay.destroy(true);
-    box.setInteractive();
-    box.on('pointerdown', close);
-    this.input.keyboard.once('keydown-ESC', close);
-    this.input.keyboard.once('keydown-SPACE', close);
     this.time.delayedCall(100, () => {
-      overlay.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.01)
-        .setScrollFactor(0)
-        .setInteractive()
-        .on('pointerdown', close));
+      mask.on('pointerdown', close);
+      this.input.keyboard.once('keydown-ESC', close);
+      this.input.keyboard.once('keydown-SPACE', close);
     });
   }
 

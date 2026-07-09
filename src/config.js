@@ -21,8 +21,10 @@ export const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     parent: 'game',
-    width: 960,
-    height: 540,
+    // 设计分辨率 1920×1080：backing 达 1080p，主流屏 1:1 原生锐利，根治文字模糊。
+    // UI 场景用相对坐标(W/2、H*k)自适应；WorldScene 用 camera.setZoom(2) 保持世界取景。
+    width: 1920,
+    height: 1080,
   },
   physics: {
     default: 'arcade',

@@ -35,6 +35,15 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       kb.off('keydown-ENTER', h);
     }
     this._keyHandlers = [];
+    if (this._escHandler) { kb.off('keydown-ESC', this._escHandler); this._escHandler = null; }
+  }
+
+  // 绑定 ESC = 退出当前对话（每节点重绑，_unbindKeys 清理）
+  _bindEscExit() {
+    const kb = this.scene.input.keyboard;
+    if (this._escHandler) kb.off('keydown-ESC', this._escHandler);
+    this._escHandler = () => this._forceExit();
+    kb.on('keydown-ESC', this._escHandler);
   }
 
   // 打字机逐字显示 + 叽喳声。用 scene.time（场景 pause 时自动停），不用 setInterval。
@@ -125,62 +134,79 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     // 若节点指定背景，emit 事件让外部场景切换
     if (node.bg) this.emit('bgChange', node.bg);
 
+    // 布局按屏幕分辨率自适应（1920×1080：大框大字，Steam 级观感）
     const { width, height } = this.scene.scale;
-    const boxW = 900;
-    const boxH = 158; // 容纳 speaker 行 + 正文 4 行（长文本分页，不溢出）
+    const boxW = Math.min(1400, width - 120);
+    const boxH = 240; // 容纳 speaker 行 + 正文 4 行 + 底部翻页/退出行
     const boxX = (width - boxW) / 2;
-    const boxY = height - boxH - 20; // 靠底，留 20px 边距
+    const boxY = height - boxH - 40;
+    const PAD = 32;
 
     const container = this.scene.add.container(0, 0);
-    container.setScrollFactor(0).setDepth(9500); // 钉屏:对话UI固定在镜头上,不随世界滚动
     this.ui = container;
-    container.setScrollFactor(0).setDepth(10000); // 摄像机滚动场景下钉死在屏幕
+    container.setScrollFactor(0).setDepth(10000); // 钉屏:对话UI固定在镜头上,不随世界滚动
+    // 双相机场景（WorldScene）：把对话交给 UI 相机（满分辨率、屏幕坐标、不被 zoom 放大）
+    if (typeof this.scene.attachToUICamera === 'function') this.scene.attachToUICamera(container);
 
-    // 对话框：半透明深色矩形，靠底居中
-    const box = this.scene.add.rectangle(boxX + boxW / 2, boxY + boxH / 2, boxW, boxH, 0x000000, 0.6);
+    // 全屏透明输入层：命中区=整个屏幕，点任何位置都能推进（根治"点击框错位"）。
+    // 深度低于对话框，选项按钮在其上层，点选项不会被它吞。
+    const catcher = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.001)
+      .setScrollFactor(0).setInteractive();
+    container.add(catcher);
+
+    // 对话框：半透明深色圆角底板 + 金色描边（更精致）
+    const box = this.scene.add.rectangle(boxX + boxW / 2, boxY + boxH / 2, boxW, boxH, 0x0a0a14, 0.86)
+      .setStrokeStyle(2, 0xd4a353, 0.6);
     container.add(box);
 
     // 幕名：对话框右上角小字（如有）
     if (this.currentActName) {
-      const actText = this.scene.add.text(boxX + boxW - 18, boxY + 4, this.currentActName, {
-        fontSize: '12px',
-        color: '#9aa0a6',
+      const actText = this.scene.add.text(boxX + boxW - PAD, boxY + 10, this.currentActName, {
+        fontSize: '18px', color: '#9aa0a6',
       }).setOrigin(1, 0);
       container.add(actText);
     }
 
-    // speaker：左上角小字（空串则不显示，只显旁白正文）
-    let textY = boxY + 14;
+    // 右上角「✕ 退出」按钮——随时可关闭当前对话
+    const exitBtn = this.scene.add.text(boxX + boxW - PAD, boxY + boxH - 12, '✕ 退出对话', {
+      fontSize: '17px', color: '#8a8a9e',
+    }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+    exitBtn.on('pointerover', () => exitBtn.setColor('#ff9a9a'));
+    exitBtn.on('pointerout', () => exitBtn.setColor('#8a8a9e'));
+    exitBtn.on('pointerdown', () => this._forceExit());
+    container.add(exitBtn);
+
+    // speaker：左上角名牌（空串则不显示）
+    let textY = boxY + 20;
     if (node.speaker && node.speaker.length > 0) {
-      const speakerText = this.scene.add.text(boxX + 18, textY, node.speaker, {
-        fontSize: '14px',
-        color: '#ffd24d',
+      const speakerText = this.scene.add.text(boxX + PAD, textY, node.speaker, {
+        fontSize: '22px', color: '#ffd24d', fontStyle: 'bold',
       });
       container.add(speakerText);
-      textY += 22;
+      textY += 36;
     }
-    // 正文：打字机逐字显示 + 按说话人声线的叽喳声（像素 RPG 标配）
-    // 长文本分页：框内最多显示 maxLines 行，超出的按页推进（页间点击/空格翻页，
-    // 最后一页才显示选项/结束）——文字绝不溢出框。
+    // 正文：打字机逐字 + 叽喳声；长文本分页
     const bodyStyle = {
-      fontSize: '17px',
+      fontSize: '26px',
       color: '#ffffff',
-      lineSpacing: 5,
-      wordWrap: { width: boxW - 36, useAdvancedWrap: true },
+      lineSpacing: 8,
+      wordWrap: { width: boxW - PAD * 2, useAdvancedWrap: true },
     };
-    const maxLines = node.speaker ? 4 : 5; // 有说话人名时正文少一行
-    this._pages = this._paginate(node.text || '', bodyStyle, boxW - 36, maxLines);
+    const maxLines = node.speaker ? 4 : 5;
+    this._pages = this._paginate(node.text || '', bodyStyle, boxW - PAD * 2, maxLines);
     this._pageIdx = 0;
-    const bodyText = this.scene.add.text(boxX + 18, textY, '', bodyStyle);
+    const bodyText = this.scene.add.text(boxX + PAD, textY, '', bodyStyle);
     container.add(bodyText);
-    // 翻页指示 ▼（还有下一页时显示）
-    this._moreHint = this.scene.add.text(boxX + boxW - 20, boxY + boxH - 8, '▼', {
-      fontSize: '14px', color: '#ffd24d',
-    }).setOrigin(1, 1).setVisible(false);
+    // 翻页指示 ▼
+    this._moreHint = this.scene.add.text(boxX + boxW / 2, boxY + boxH - 14, '▼ 点击继续', {
+      fontSize: '18px', color: '#ffd24d',
+    }).setOrigin(0.5, 1).setVisible(false);
     container.add(this._moreHint);
     this.scene.tweens.add({ targets: this._moreHint, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 });
     this._bodyText = bodyText;
     this._startTypewriter(bodyText, this._pages[0], node.speaker);
+    this._catcher = catcher;
+    this._bindEscExit(); // ESC 随时退出当前对话
 
     const rawChoices = node.choices || [];
     const isEndNode = !node.choices || node.choices.length === 0;
@@ -188,11 +214,10 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     // 情况1：真正的结束节点（原始 choices 为空）
     if (isEndNode) {
       const endLabel = this.scene.add
-        .text(boxX + boxW - 18, boxY + boxH - 12, '(结束)', {
-          fontSize: '14px',
-          color: '#9aa0a6',
+        .text(boxX + PAD, boxY + boxH - 14, '(结束)', {
+          fontSize: '17px', color: '#9aa0a6',
         })
-        .setOrigin(1, 1);
+        .setOrigin(0, 1);
       container.add(endLabel);
 
       const advance = () => {
@@ -204,10 +229,8 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         this._endDialogue();
       };
       this._advanced = false;
-      box.setInteractive({ useHandCursor: true });
-      box.on('pointerdown', advance);
-      // 统一交互：空格/回车也可推进
-      this._bindAdvanceKeys(advance);
+      catcher.on('pointerdown', advance);      // 点屏幕任意处推进（永不错位）
+      this._bindAdvanceKeys(advance);           // 空格/回车推进
       return;
     }
 
@@ -220,54 +243,50 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         `[DialogueEngine] 节点 "${nodeId}" 的 ${rawChoices.length} 个选项全部被条件过滤，使用兜底继续`
       );
       const fallbackChoice = rawChoices.find(c => !c.condition) || rawChoices[0];
-      const btnW = 380;
-      const btnH = 36;
-      const bx = (width - btnW) / 2;
-      const by = boxY - 12 - btnH;
+      const btnW = 560, btnH = 56;
+      const cx = width / 2, cy = boxY - 20 - btnH / 2;
       const btn = this.scene.add
-        .rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH, 0x2a2a3e)
-        .setInteractive({ useHandCursor: true });
-      const label = this.scene.add
-        .text(bx + btnW / 2, by + btnH / 2, '继续', {
-          fontSize: '15px',
-          color: '#e6e6e6',
-        })
-        .setOrigin(0.5);
-
+        .rectangle(cx, cy, btnW, btnH, 0x2a2a3e, 0.96)
+        .setStrokeStyle(2, 0x4a4a66).setInteractive({ useHandCursor: true });
+      const label = this.scene.add.text(cx, cy, '继续', { fontSize: '22px', color: '#e6e6e6' }).setOrigin(0.5);
       btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
       btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
       btn.on('pointerdown', () => {
+        AudioSystem.uiClick();
         if (node.action) this.emit('action', node.action, node);
         this._showNode(fallbackChoice.next);
       });
-
-      container.add(btn);
-      container.add(label);
+      container.add(btn); container.add(label);
+      this._bindAdvanceKeys(() => {
+        if (this._typing) { this._finishTyping(); return; }
+        if (this._hasMorePages()) { this._nextPage(node.speaker); return; }
+        if (node.action) this.emit('action', node.action, node);
+        this._showNode(fallbackChoice.next);
+      });
       return;
     }
 
-    // 情况3：正常渲染可见选项——按钮宽高随 label 自适应，长选项换行不溢出
-    const gap = 8;
-    const minW = 380, maxW = 860; // 最宽不超对话框
-    // 先测量每个选项：宽度取 min(实际文本宽+边距, maxW)，超宽则换行加高
+    // 情况3：正常渲染可见选项——按钮宽高随 label 自适应（1920 尺度），长选项换行不溢出
+    const gap = 12;
+    const minW = 560, maxW = boxW; // 最宽 = 对话框宽
     const metas = visibleChoices.map((choice) => {
-      const style = { fontSize: '15px', color: '#e6e6e6', align: 'center',
-        wordWrap: { width: maxW - 40, useAdvancedWrap: true } };
+      const style = { fontSize: '22px', color: '#e6e6e6', align: 'center',
+        wordWrap: { width: maxW - 60, useAdvancedWrap: true } };
       const probe = this.scene.add.text(-9999, -9999, choice.label, style).setVisible(false);
       const tw = probe.width, th = probe.height;
       probe.destroy();
-      const w = Phaser.Math.Clamp(tw + 40, minW, maxW);
-      const h = Math.max(36, th + 16);
+      const w = Phaser.Math.Clamp(tw + 60, minW, maxW);
+      const h = Math.max(52, th + 24);
       return { choice, style, w, h };
     });
     const totalH = metas.reduce((s, m) => s + m.h, 0) + (metas.length - 1) * gap;
-    let by = boxY - 12 - totalH;
+    let by = boxY - 18 - totalH;
 
     metas.forEach(({ choice, style, w, h }) => {
       const cx = width / 2, cy = by + h / 2;
       const btn = this.scene.add
         .rectangle(cx, cy, w, h, 0x2a2a3e, 0.96)
-        .setStrokeStyle(1, 0x4a4a66)
+        .setStrokeStyle(2, 0x4a4a66)
         .setInteractive({ useHandCursor: true });
       const label = this.scene.add.text(cx, cy, choice.label, style).setOrigin(0.5);
 
@@ -285,14 +304,13 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       by += h + gap;
     });
 
-    // 有选项的节点：点对话框本体也能跳字/翻页（选项按钮不受影响）
-    box.setInteractive();
-    box.on('pointerdown', () => {
+    // 点屏幕任意处（catcher）跳字/翻页——选项按钮在其上层，点选项不受影响
+    catcher.on('pointerdown', () => {
       if (this._typing) { this._finishTyping(); return; }
       if (this._hasMorePages()) this._nextPage(node.speaker);
     });
 
-    // 统一交互：只有一个选项（如"(继续)"）时，空格/回车也可推进
+    // 只有一个选项（如"(继续)"）时，空格/回车也可推进
     if (visibleChoices.length === 1) {
       const only = visibleChoices[0];
       const go = () => {
@@ -307,6 +325,13 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       this._advanced = false;
       this._bindAdvanceKeys(go);
     }
+  }
+
+  // 强制退出当前对话（✕ 按钮 / ESC）：立即结束并通知场景解冻
+  _forceExit() {
+    if (this._advanced) return;
+    this._advanced = true;
+    this._endDialogue();
   }
 
   // 条件判断：检查 choice.condition 中所有状态键是否满足 min（≥）/ max（≤）

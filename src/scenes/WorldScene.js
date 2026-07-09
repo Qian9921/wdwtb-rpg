@@ -387,16 +387,31 @@ export class WorldScene extends Phaser.Scene {
 
   // ==================== 玩家 ====================
   _createPlayer() {
-    // 四向走路动画：全部来自 Row1 的稳定帧组（质心恒定，不再分裂）
+    // 主角皮肤 = 捏人选的形象（wdwtb_profile.avatar.skinKey）,默认 adam
+    let skinKey = 'adam', skinTint = null;
+    try {
+      const prof = JSON.parse(localStorage.getItem('wdwtb_profile') || '{}');
+      if (prof?.avatar?.skinKey && this.textures.exists(prof.avatar.skinKey)) {
+        skinKey = prof.avatar.skinKey;
+        skinTint = prof.avatar.tint || null;
+      }
+    } catch (e) {}
+
+    // 四向走路动画：全部来自 Row1 的稳定帧组（质心恒定,不再分裂）;anim key 带皮肤名防冲突
+    this.walkPrefix = `walk_${skinKey}`;
     for (const [dir, [s, e]] of Object.entries(WALK)) {
-      this.anims.create({
-        key: `walk_${dir}`,
-        frames: this.anims.generateFrameNumbers('adam', { start: s, end: e }),
-        frameRate: 10, repeat: -1, // 10fps 配 130px/s 步频更贴地，消除"漂"感
-      });
+      const k = `${this.walkPrefix}_${dir}`;
+      if (!this.anims.exists(k)) {
+        this.anims.create({
+          key: k,
+          frames: this.anims.generateFrameNumbers(skinKey, { start: s, end: e }),
+          frameRate: 10, repeat: -1, // 10fps 配 130px/s 步频更贴地，消除"漂"感
+        });
+      }
     }
 
-    this.player = this.physics.add.sprite(MW / 2, MH - 70, 'adam', IDLE.down);
+    this.player = this.physics.add.sprite(MW / 2, MH - 70, skinKey, IDLE.down);
+    if (skinTint) this.player.setTint(skinTint);
     this.player.setScale(SCALE);
     this.player.setCollideWorldBounds(true);
     this.player.body.setSize(12, 14);
@@ -527,7 +542,7 @@ export class WorldScene extends Phaser.Scene {
         this.player.setFrame(IDLE[this.facing] ?? IDLE.down);
       }
     } else {
-      this.player.anims.play(`walk_${this.facing}`, true);
+      this.player.anims.play(`${this.walkPrefix}_${this.facing}`, true);
     }
 
     // ---- 交互:找最近可交互 NPC ----

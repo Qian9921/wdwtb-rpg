@@ -9,23 +9,31 @@ export class OpeningScene extends Phaser.Scene {
 
   preload() {
     this.load.json('assessment', './data/assessment.json');
+    // 角色皮肤（LimeZu 四款 16x32）：捏人用真实游戏立绘替代几何色块
+    for (const n of ['Adam', 'Alex', 'Amelia', 'Bob']) {
+      this.load.spritesheet(n.toLowerCase(), `./assets/limezu/characters/${n}.png`, {
+        frameWidth: 16, frameHeight: 32,
+      });
+    }
   }
 
   create() {
     AudioSystem.playBgm('title'); // 与标题同氛围（相同 mood 不重启，无缝衔接）
     this.cameras.main.setBackgroundColor('#1a1a2e');
-    this.hairColors = [
-      { name: '黑', color: 0x2b2b33 }, { name: '棕', color: 0x8B6914 },
-      { name: '金', color: 0xDAA520 }, { name: '粉', color: 0xFF69B4 },
+    // 角色皮肤模板（真实游戏立绘,主角形象=进办公室的形象）
+    this.charSkins = [
+      { key: 'alex', name: '利落短发 · 男', gender: 'male' },
+      { key: 'bob', name: '沉稳黑发 · 男', gender: 'male' },
+      { key: 'amelia', name: '栗色长发 · 女', gender: 'female' },
+      { key: 'adam', name: '慵懒绿发 · 中性', gender: 'neutral' },
     ];
-    this.skinColors = [
-      { name: '浅', color: 0xF5D6C6 }, { name: '麦', color: 0xD4A574 }, { name: '深', color: 0x8D6E63 },
+    // 色调滤镜：给立绘加一层轻染色,四款皮肤 × 五种色调 = 20 种组合
+    this.tints = [
+      { name: '原色', tint: null },
+      { name: '暖阳', tint: 0xffe8cc }, { name: '冷青', tint: 0xcce8ff },
+      { name: '桃粉', tint: 0xffd8e8 }, { name: '薄荷', tint: 0xd8ffe0 },
     ];
-    this.shirtColors = [
-      { name: '蓝', color: 0x4a6a8a }, { name: '紫', color: 0x6a4a6a },
-      { name: '绿', color: 0x4a8a6a }, { name: '棕', color: 0x8a6a4a },
-    ];
-    this.avatar = { hairIdx: 0, skinIdx: 0, shirtIdx: 0 };
+    this.avatar = { skinIdx: 0, tintIdx: 0 };
     this.answers = [];
     this.riasec = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
     this.big5 = { O: 0, C: 0, E: 0, A: 0, N: 0 };
@@ -48,45 +56,82 @@ export class OpeningScene extends Phaser.Scene {
     return btn;
   }
 
-  // ============ 阶段A：捏人 ============
+  // ============ 阶段A：捏人（真实立绘 + 走路动画预览） ============
   _buildCustomize() {
     this._clearUI();
     this.ui = this.add.container(0, 0);
-    this.ui.add(this.add.text(480, 44, '你是谁？', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5));
-    this.ui.add(this.add.text(480, 80, '先捏一个「即将走进职场的你」', { fontSize: '14px', color: '#8b8ba0' }).setOrigin(0.5));
+    this.ui.add(this.add.text(480, 40, '你是谁？', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5));
+    this.ui.add(this.add.text(480, 76, '选一个「即将走进职场的你」——这就是你在游戏里的样子', { fontSize: '14px', color: '#8b8ba0' }).setOrigin(0.5));
 
-    const cx = 480, cy = 190;
-    this.hairGfx = this.add.rectangle(cx, cy - 42, 46, 18, this.hairColors[0].color);
-    this.headGfx = this.add.circle(cx, cy - 18, 21, this.skinColors[0].color);
-    this.shirtGfx = this.add.rectangle(cx, cy + 14, 36, 44, this.shirtColors[0].color);
-    this.ui.add([this.hairGfx, this.headGfx, this.shirtGfx]);
-
-    const rows = [
-      { y: 280, label: '发色', arr: this.hairColors, key: 'hairIdx', gfx: this.hairGfx },
-      { y: 322, label: '肤色', arr: this.skinColors, key: 'skinIdx', gfx: this.headGfx },
-      { y: 364, label: '上衣', arr: this.shirtColors, key: 'shirtIdx', gfx: this.shirtGfx },
-    ];
-    rows.forEach(r => {
-      this.ui.add(this.add.text(340, r.y, r.label, { fontSize: '15px', color: '#aaaabc' }).setOrigin(0.5));
-      const nameTxt = this.add.text(480, r.y, r.arr[0].name, { fontSize: '15px', color: '#ffffff' }).setOrigin(0.5);
-      this.ui.add(nameTxt);
-      [['◀', -1, 420], ['▶', 1, 540]].forEach(([ch, dir, x]) => {
-        const b = this.add.text(x, r.y, ch, { fontSize: '17px', color: '#9aa0a6' })
-          .setOrigin(0.5).setInteractive({ useHandCursor: true });
-        b.on('pointerover', () => b.setColor('#ffd24d'));
-        b.on('pointerout', () => b.setColor('#9aa0a6'));
-        b.on('pointerdown', () => {
-          const len = r.arr.length;
-          this.avatar[r.key] = (this.avatar[r.key] + dir + len) % len;
-          const opt = r.arr[this.avatar[r.key]];
-          r.gfx.setFillStyle(opt.color);
-          nameTxt.setText(opt.name);
+    // 预览台：聚光底座 + 大立绘（原地走路动画,像试衣间）
+    const cx = 480, cy = 210;
+    this.ui.add(this.add.ellipse(cx, cy + 62, 120, 30, 0x2a2a44, 0.9));
+    this.ui.add(this.add.ellipse(cx, cy + 58, 92, 22, 0x3a3a5e, 0.9));
+    // 走路动画（每个皮肤独立 anim key）
+    for (const s of this.charSkins) {
+      const k = `open_walk_${s.key}`;
+      if (!this.anims.exists(k)) {
+        this.anims.create({
+          key: k,
+          frames: this.anims.generateFrameNumbers(s.key, { start: 42, end: 47 }), // 朝下走
+          frameRate: 7, repeat: -1,
         });
-        this.ui.add(b);
-      });
+      }
+    }
+    this.previewSpr = this.add.sprite(cx, cy + 40, this.charSkins[0].key, 3)
+      .setScale(5.5).setOrigin(0.5, 1);
+    this.previewSpr.play(`open_walk_${this.charSkins[0].key}`);
+    this.ui.add(this.previewSpr);
+
+    // 左右两侧小缩略图（可点选,当前高亮金框）
+    this.thumbFrames = [];
+    this.charSkins.forEach((s, i) => {
+      const tx = 300 + i * 120, ty = 350;
+      const frame = this.add.rectangle(tx, ty, 76, 96, 0x232338, 0.95)
+        .setStrokeStyle(2, i === 0 ? 0xd4a353 : 0x3a3a52)
+        .setInteractive({ useHandCursor: true });
+      const spr = this.add.sprite(tx, ty + 34, s.key, 3).setScale(2.4).setOrigin(0.5, 1);
+      const nm = this.add.text(tx, ty + 58, s.name.split(' · ')[1], { fontSize: '11px', color: '#9aa0b6' }).setOrigin(0.5, 0);
+      frame.on('pointerdown', () => this._pickSkin(i));
+      this.ui.add(frame); this.ui.add(spr); this.ui.add(nm);
+      this.thumbFrames.push(frame);
     });
 
-    this._button(480, 452, 200, 42, '下一步 →', () => { this.qIdx = 0; this._showQuestion(); });
+    // 色调选择（染色滤镜,一排色块）
+    this.ui.add(this.add.text(346, 448, '色调', { fontSize: '14px', color: '#aaaabc' }).setOrigin(0.5));
+    this.tintDots = [];
+    this.tints.forEach((t, i) => {
+      const dx = 400 + i * 44;
+      const dot = this.add.circle(dx, 448, 13, t.tint ?? 0x8888a0)
+        .setStrokeStyle(2, i === 0 ? 0xd4a353 : 0x3a3a52)
+        .setInteractive({ useHandCursor: true });
+      dot.on('pointerdown', () => this._pickTint(i));
+      this.ui.add(dot);
+      this.tintDots.push(dot);
+    });
+
+    this._button(480, 500, 200, 40, '下一步 →', () => { this.qIdx = 0; this._showQuestion(); });
+  }
+
+  _pickSkin(i) {
+    this.avatar.skinIdx = i;
+    const s = this.charSkins[i];
+    this.previewSpr.setTexture(s.key, 3);
+    this.previewSpr.play(`open_walk_${s.key}`);
+    this._applyTint();
+    this.thumbFrames.forEach((f, j) => f.setStrokeStyle(2, j === i ? 0xd4a353 : 0x3a3a52));
+  }
+
+  _pickTint(i) {
+    this.avatar.tintIdx = i;
+    this._applyTint();
+    this.tintDots.forEach((d, j) => d.setStrokeStyle(2, j === i ? 0xd4a353 : 0x3a3a52));
+  }
+
+  _applyTint() {
+    const t = this.tints[this.avatar.tintIdx];
+    if (t.tint) this.previewSpr.setTint(t.tint);
+    else this.previewSpr.clearTint();
   }
 
   // ============ 阶段B：7 道情境测评 ============
@@ -134,11 +179,15 @@ export class OpeningScene extends Phaser.Scene {
     const b = this.big5;
     const mbti = (b.E >= 0 ? 'E' : 'I') + (b.O >= 0 ? 'N' : 'S') + (b.A >= 0 ? 'F' : 'T') + (b.C >= 0 ? 'J' : 'P');
 
+    const skin = this.charSkins[this.avatar.skinIdx];
+    const tint = this.tints[this.avatar.tintIdx];
     const profile = {
       avatar: {
-        hair: this.hairColors[this.avatar.hairIdx].name,
-        skin: this.skinColors[this.avatar.skinIdx].name,
-        shirt: this.shirtColors[this.avatar.shirtIdx].name,
+        skinKey: skin.key,          // WorldScene 读它换主角贴图
+        skinName: skin.name,
+        gender: skin.gender,
+        tint: tint.tint,            // 染色滤镜(可空)
+        tintName: tint.name,
       },
       riasec: this.riasec, big5: this.big5,
       holland: hollandCode, mbti,

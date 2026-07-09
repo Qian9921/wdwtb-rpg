@@ -183,30 +183,33 @@ export class WorldScene extends Phaser.Scene {
     this._incomingDay = (data && data.day) || null;
     this._incomingStats = (data && data.stats) || null;
     // 剧情状态机（消除"一口气读完整幕"）：ready=待播本幕剧情 / working=经营期(剧情已播,过日子)
-    // 深度职业才用；轻量职业单文件一次播完。默认从存档恢复。
     this._story = { phase: 'ready', act: 1, daysInAct: 0 };
-    // 续档恢复：若存档与本场职业/幕次一致，取出已存状态供 create 还原（不丢中盘进度）
     this._savedStats = null;
-    this._savedQuests = null;   // 供 _loadQuestData restore
+    this._savedQuests = null;
     this._savedChoiceLog = null;
+    this._savedThought = null;
+    this._savedDay = null;
     try {
       const saved = SaveSystem.load();
-      if (saved && saved.career === this.career && saved.act === this.act && saved.stats) {
-        this._savedStats = saved.stats;
+      // 同职业续档 → 恢复全部进度；换职业 → 清旧档、全新开始（避免串档）
+      const sameCareer = saved && saved.career === this.career;
+      if (sameCareer) {
+        this._savedStats = saved.stats || null;   // 不再用 act 判据（BUG-9：换幕续档不丢血）
+        this._savedQuests = saved.quests || null;
+        this._savedChoiceLog = saved.choiceLog || null;
+        this._savedThought = saved.thought || null;
+        this._savedDay = saved.daySystem || null;
+        if (saved.story) this._story = { ...this._story, ...saved.story };
+      } else if (saved) {
+        SaveSystem.clear(); // 换职业：清掉上一个职业的进度
       }
-      // 任务/选择记忆/思维状态/天数/剧情阶段无论幕次都保留（跨幕累积）
-      if (saved && saved.quests) this._savedQuests = saved.quests;
-      if (saved && saved.choiceLog) this._savedChoiceLog = saved.choiceLog;
-      if (saved && saved.thought) this._savedThought = saved.thought;
-      if (saved && saved.daySystem) this._savedDay = saved.daySystem;
-      if (saved && saved.story) this._story = { ...this._story, ...saved.story };
     } catch (e) {}
     // story.act 是权威幕次
     this.act = this._story.act || this.act;
-    // 进场即存档
+    // 进场即存档（合并写，保留未提供字段）
     SaveSystem.saveProgress({
       career: this.career, act: this.act, stats: this._savedStats,
-      extra: { quests: this._savedQuests, choiceLog: this._savedChoiceLog, thought: this._savedThought, story: this._story },
+      extra: { quests: this._savedQuests, choiceLog: this._savedChoiceLog, thought: this._savedThought, daySystem: this._savedDay, story: this._story },
     });
   }
 
@@ -421,38 +424,48 @@ export class WorldScene extends Phaser.Scene {
     try { seen = localStorage.getItem('wdwtb_onboarded') === '1'; } catch (e) {}
     if (seen) return;
     const { width: W, height: H } = this.scale;
+    // 冻结玩家 + 隐藏游戏 HUD，让引导独占画面（否则和 HUD/剧情糊在一起，第一眼很乱）
+    this.dialogueActive = true;
+    this._hudHiddenForOnboard = [this.ePrompt, this.guideText, this.offWorkBtn, this.dayText];
+    if (this.statusUI) { if (this.statusUI.mini) this._hudHiddenForOnboard.push(this.statusUI.mini); if (this.statusUI.panel) this._hudHiddenForOnboard.push(this.statusUI.panel); }
+    this._hudHiddenForOnboard.forEach(o => o && o.setVisible(false));
+
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(11000);
-    const mask = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setInteractive();
+    const mask = this.add.rectangle(W / 2, H / 2, W, H, 0x08080f, 0.94).setInteractive(); // 近乎不透，盖住一切
     c.add(mask);
+    // 内容卡片（给文字一个容器，清晰不糊）
+    c.add(this.add.rectangle(W / 2, H / 2, 760, 420, 0x16161f, 0.98).setStrokeStyle(2, 0x3a3a5a));
     const steps = [
       { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一段关于「你想成为谁」的职场旅程。\n没有标准答案，只有你的选择。' },
       { icon: '🚶', title: '自由探索', text: 'WASD / 方向键 移动。\n手机上用左下角的虚拟摇杆。' },
       { icon: '💬', title: '与人互动', text: '走近头顶有 ❗/💬 的同事，按 E 交谈、接任务。\n走近 💻🪟🥤 等物件，按 E 使用。' },
       { icon: '🧠', title: '倾听内心', text: '按 T 听见脑海里的声音——\n它们会随你的状态和选择而变。' },
-      { icon: '🌙', title: '经营你的每一天', text: '右上角可以「下班回家」，休息、见家人、进入下一天。\n照顾好左上角的状态条，别把自己弄丢。' },
+      { icon: '🌙', title: '经营你的每一天', text: '右上角「下班回家」可休息、见家人、进入下一天。\n照顾好左上角的状态条，别把自己弄丢。' },
     ];
     let idx = 0;
     const iconT = this.add.text(W / 2, H / 2 - 130, '', { fontSize: '64px' }).setOrigin(0.5);
-    const titleT = this.add.text(W / 2, H / 2 - 40, '', { fontSize: '34px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
-    const bodyT = this.add.text(W / 2, H / 2 + 30, '', { fontSize: '24px', color: '#e8e8f4', align: 'center', lineSpacing: 10, wordWrap: { width: 800 } }).setOrigin(0.5);
-    const hintT = this.add.text(W / 2, H / 2 + 150, '点击继续 →', { fontSize: '20px', color: '#8b8ba0' }).setOrigin(0.5);
-    c.add([iconT, titleT, bodyT, hintT]);
+    const titleT = this.add.text(W / 2, H / 2 - 46, '', { fontSize: '32px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
+    const bodyT = this.add.text(W / 2, H / 2 + 28, '', { fontSize: '22px', color: '#e8e8f4', align: 'center', lineSpacing: 12, wordWrap: { width: 640 } }).setOrigin(0.5);
+    const dotsT = this.add.text(W / 2, H / 2 + 120, '', { fontSize: '16px', color: '#5a5a7a' }).setOrigin(0.5);
+    const hintT = this.add.text(W / 2, H / 2 + 160, '点击继续 →', { fontSize: '18px', color: '#8b8ba0' }).setOrigin(0.5);
+    c.add([iconT, titleT, bodyT, dotsT, hintT]);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
     const render = () => {
       const s = steps[idx];
       iconT.setText(s.icon); titleT.setText(s.title); bodyT.setText(s.text);
+      dotsT.setText(steps.map((_, i) => i === idx ? '●' : '○').join(' '));
       hintT.setText(idx < steps.length - 1 ? '点击继续 →' : '开始 ✓');
       Juice.pop(this, iconT, 1);
     };
-    const advance = () => {
-      idx++;
-      if (idx >= steps.length) {
-        try { localStorage.setItem('wdwtb_onboarded', '1'); } catch (e) {}
-        c.destroy(true);
-        return;
-      }
-      render();
+    const finish = () => {
+      try { localStorage.setItem('wdwtb_onboarded', '1'); } catch (e) {}
+      c.destroy(true);
+      // 恢复 HUD + 解冻
+      (this._hudHiddenForOnboard || []).forEach(o => o && o.setVisible(true));
+      if (this.ePrompt) this.ePrompt.setVisible(false); // ePrompt 由交互逻辑控制，默认隐藏
+      this.dialogueActive = false;
     };
+    const advance = () => { idx++; if (idx >= steps.length) finish(); else render(); };
     render();
     this.time.delayedCall(100, () => mask.on('pointerdown', advance));
   }
@@ -1034,7 +1047,13 @@ export class WorldScene extends Phaser.Scene {
     }).setOrigin(1, 1));
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
 
+    // 关闭时显式解绑全部键（once 只移除被触发的那个，剩下的会泄漏，
+    // 之后进正式剧情按空格会误触发旧 close、把剧情"踢出戏"——BUG-6）
+    const kb = this.input.keyboard;
     const close = () => {
+      kb.off('keydown-E', close);
+      kb.off('keydown-SPACE', close);
+      kb.off('keydown-ESC', close);
       c.destroy(true);
       this.dialogueActive = false;
       this._lineActive = false;
@@ -1043,9 +1062,9 @@ export class WorldScene extends Phaser.Scene {
     };
     this.time.delayedCall(120, () => {
       hit.on('pointerdown', close);
-      this.input.keyboard.once('keydown-E', close);
-      this.input.keyboard.once('keydown-SPACE', close);
-      this.input.keyboard.once('keydown-ESC', close);
+      kb.on('keydown-E', close);
+      kb.on('keydown-SPACE', close);
+      kb.on('keydown-ESC', close);
     });
   }
 
@@ -1199,7 +1218,7 @@ export class WorldScene extends Phaser.Scene {
   _goHome() {
     if (this.dialogueActive || this._goingHome) return;
     this._goingHome = true;
-    // 存档（含天数）后转场
+    // 存档（含天数 + 剧情阶段，缺 story 会导致下班后剧情进度被抹、卡在第一幕重播）
     SaveSystem.saveProgress({
       career: this.career, act: this.act, stats: this.stateSystem.getAll(),
       extra: {
@@ -1207,6 +1226,7 @@ export class WorldScene extends Phaser.Scene {
         choiceLog: this.choiceLog.serialize(),
         thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
         daySystem: this.daySystem.serialize(),
+        story: this._story,
       },
     });
     SceneRouter.goto(this, 'HomeScene', {
@@ -1493,11 +1513,16 @@ export class WorldScene extends Phaser.Scene {
     }).setOrigin(0.5, 1));
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(overlay);
 
-    const close = () => overlay.destroy(true);
+    const kb = this.input.keyboard;
+    const close = () => {
+      kb.off('keydown-ESC', close);
+      kb.off('keydown-SPACE', close);
+      overlay.destroy(true);
+    };
     this.time.delayedCall(100, () => {
       mask.on('pointerdown', close);
-      this.input.keyboard.once('keydown-ESC', close);
-      this.input.keyboard.once('keydown-SPACE', close);
+      kb.on('keydown-ESC', close);
+      kb.on('keydown-SPACE', close);
     });
   }
 

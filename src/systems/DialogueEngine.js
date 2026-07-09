@@ -100,9 +100,32 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     return this._pages && this._pageIdx < this._pages.length - 1;
   }
 
-  // 翻到下一页并重启打字机
+  // 按页文本算框高（当前页行数 → 高度，clamp 120~300）
+  _pageBoxH(pageText, speakerH) {
+    const probe = this.scene.add.text(-9999, -9999, '', this._bodyStyle || {}).setVisible(false);
+    const rows = Math.max(1, probe.getWrappedText(pageText || ' ').length);
+    probe.destroy();
+    return Phaser.Math.Clamp(24 + (speakerH || 0) + rows * 34 + 34 + 18, 120, 300);
+  }
+
+  // 翻页时按当前页重算框高、重定位顶部对齐元素（框/幕名/speaker/正文）；底部元素 Y 恒定
+  _resizeBoxForPage(pageText) {
+    if (!this._box || !this._box.scene) return;
+    const { height } = this.scene.scale;
+    const boxBottom = height - 40;
+    const boxH = this._pageBoxH(pageText, this._speakerH);
+    const boxTop = boxBottom - boxH;
+    this._box.setSize(this._boxW, boxH).setPosition(this._boxX + this._boxW / 2, boxTop + boxH / 2);
+    if (this._actText) this._actText.setPosition(this._boxX + this._boxW - this._PAD, boxTop + 10);
+    let ty = boxTop + 22;
+    if (this._speakerText) { this._speakerText.setPosition(this._boxX + this._PAD, ty); ty += 36; }
+    if (this._bodyText) this._bodyText.setPosition(this._boxX + this._PAD, ty);
+  }
+
+  // 翻到下一页并重启打字机（框高按新页重算）
   _nextPage(speaker) {
     this._pageIdx++;
+    this._resizeBoxForPage(this._pages[this._pageIdx]);
     this._startTypewriter(this._bodyText, this._pages[this._pageIdx], speaker);
     this._updateMoreHint();
   }
@@ -128,47 +151,67 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     const node = this.data.nodes[nodeId];
     this.currentId = nodeId;
 
+    // 坏节点兜底：剧情 JSON 里某个 next/start 指向不存在的节点时，node 为 undefined。
+    // 这里若不设防，下面 node.effects 会抛 TypeError（在选项点击回调里，无 try/catch）
+    // → 未捕获异常，玩家永久冻结只能刷新。兜底直接结束对话，不卡死。
+    if (!node) {
+      console.warn(`[DialogueEngine] 节点 "${nodeId}" 不存在，剧情数据有误，结束对话兜底`);
+      this._endDialogue();
+      return;
+    }
+
     // 进入节点：应用该节点的 effects（调 StateSystem.change）
     this._applyEffects(node.effects);
 
     // 若节点指定背景，emit 事件让外部场景切换
     if (node.bg) this.emit('bgChange', node.bg);
 
-    // 布局按屏幕分辨率自适应（1920×1080：大框大字，Steam 级观感）
+    // 布局：框锚定屏幕底部（底边恒定），框高按【当前页】实际行数逐页自适应——
+    // 短页矮框、长页高框，翻页重算。根治"框大文字少、下面一片空黑"的业余感。
     const { width, height } = this.scene.scale;
     const boxW = Math.min(1400, width - 120);
-    const boxH = 240; // 容纳 speaker 行 + 正文 4 行 + 底部翻页/退出行
     const boxX = (width - boxW) / 2;
-    const boxY = height - boxH - 40;
     const PAD = 32;
+    const bodyStyle = {
+      fontSize: '26px', color: '#ffffff', lineSpacing: 8,
+      wordWrap: { width: boxW - PAD * 2, useAdvancedWrap: true },
+    };
+    const maxLines = node.speaker ? 3 : 4; // 每页行数上限，分页更均匀
+    this._pages = this._paginate(node.text || '', bodyStyle, boxW - PAD * 2, maxLines);
+    this._pageIdx = 0;
+    const speakerH = (node.speaker && node.speaker.length > 0) ? 36 : 0;
+    // 保存布局参数供翻页重算
+    this._boxX = boxX; this._boxW = boxW; this._PAD = PAD; this._bodyStyle = bodyStyle; this._speakerH = speakerH;
+    const boxBottom = height - 40;
+    const boxH0 = this._pageBoxH(this._pages[0], speakerH);
+    const boxY = boxBottom - boxH0;
 
     const container = this.scene.add.container(0, 0);
     this.ui = container;
     container.setScrollFactor(0).setDepth(10000); // 钉屏:对话UI固定在镜头上,不随世界滚动
-    // 双相机场景（WorldScene）：把对话交给 UI 相机（满分辨率、屏幕坐标、不被 zoom 放大）
     if (typeof this.scene.attachToUICamera === 'function') this.scene.attachToUICamera(container);
 
     // 全屏透明输入层：命中区=整个屏幕，点任何位置都能推进（根治"点击框错位"）。
-    // 深度低于对话框，选项按钮在其上层，点选项不会被它吞。
     const catcher = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.001)
       .setScrollFactor(0).setInteractive();
     container.add(catcher);
 
-    // 对话框：半透明深色圆角底板 + 金色描边（更精致）
-    const box = this.scene.add.rectangle(boxX + boxW / 2, boxY + boxH / 2, boxW, boxH, 0x0a0a14, 0.86)
+    // 对话框：半透明深色底板 + 金色描边（高度会随页重算）
+    this._box = this.scene.add.rectangle(boxX + boxW / 2, boxY + boxH0 / 2, boxW, boxH0, 0x0a0a14, 0.88)
       .setStrokeStyle(2, 0xd4a353, 0.6);
-    container.add(box);
+    container.add(this._box);
 
-    // 幕名：对话框右上角小字（如有）
+    // 幕名：对话框右上角小字（如有）——顶部对齐，随框高重定位
+    this._actText = null;
     if (this.currentActName) {
-      const actText = this.scene.add.text(boxX + boxW - PAD, boxY + 10, this.currentActName, {
+      this._actText = this.scene.add.text(boxX + boxW - PAD, boxY + 10, this.currentActName, {
         fontSize: '18px', color: '#9aa0a6',
       }).setOrigin(1, 0);
-      container.add(actText);
+      container.add(this._actText);
     }
 
-    // 右上角「✕ 退出」按钮——随时可关闭当前对话
-    const exitBtn = this.scene.add.text(boxX + boxW - PAD, boxY + boxH - 12, '✕ 退出对话', {
+    // 右上角「✕ 退出」按钮——底部对齐，Y 恒定（框底不动）
+    const exitBtn = this.scene.add.text(boxX + boxW - PAD, boxBottom - 12, '✕ 退出对话', {
       fontSize: '17px', color: '#8a8a9e',
     }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
     exitBtn.on('pointerover', () => exitBtn.setColor('#ff9a9a'));
@@ -176,35 +219,25 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     exitBtn.on('pointerdown', () => this._forceExit());
     container.add(exitBtn);
 
-    // speaker：左上角名牌（空串则不显示）
-    let textY = boxY + 20;
-    if (node.speaker && node.speaker.length > 0) {
-      const speakerText = this.scene.add.text(boxX + PAD, textY, node.speaker, {
+    // speaker：左上角名牌（空串则不显示）——顶部对齐，随框高重定位
+    this._speakerText = null;
+    let textY = boxY + 22;
+    if (speakerH) {
+      this._speakerText = this.scene.add.text(boxX + PAD, textY, node.speaker, {
         fontSize: '22px', color: '#ffd24d', fontStyle: 'bold',
       });
-      container.add(speakerText);
+      container.add(this._speakerText);
       textY += 36;
     }
-    // 正文：打字机逐字 + 叽喳声；长文本分页
-    const bodyStyle = {
-      fontSize: '26px',
-      color: '#ffffff',
-      lineSpacing: 8,
-      wordWrap: { width: boxW - PAD * 2, useAdvancedWrap: true },
-    };
-    const maxLines = node.speaker ? 4 : 5;
-    this._pages = this._paginate(node.text || '', bodyStyle, boxW - PAD * 2, maxLines);
-    this._pageIdx = 0;
-    const bodyText = this.scene.add.text(boxX + PAD, textY, '', bodyStyle);
-    container.add(bodyText);
-    // 翻页指示 ▼
-    this._moreHint = this.scene.add.text(boxX + boxW / 2, boxY + boxH - 14, '▼ 点击继续', {
+    this._bodyText = this.scene.add.text(boxX + PAD, textY, '', bodyStyle);
+    container.add(this._bodyText);
+    // 翻页指示 ▼——底部对齐，Y 恒定
+    this._moreHint = this.scene.add.text(boxX + boxW / 2, boxBottom - 14, '▼ 点击继续', {
       fontSize: '18px', color: '#ffd24d',
     }).setOrigin(0.5, 1).setVisible(false);
     container.add(this._moreHint);
     this.scene.tweens.add({ targets: this._moreHint, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 });
-    this._bodyText = bodyText;
-    this._startTypewriter(bodyText, this._pages[0], node.speaker);
+    this._startTypewriter(this._bodyText, this._pages[0], node.speaker);
     this._catcher = catcher;
     this._bindEscExit(); // ESC 随时退出当前对话
 
@@ -251,22 +284,25 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       const label = this.scene.add.text(cx, cy, '继续', { fontSize: '22px', color: '#e6e6e6' }).setOrigin(0.5);
       btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
       btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
-      btn.on('pointerdown', () => {
-        AudioSystem.uiClick();
+      // 兜底也要应用 effects + 记录 choice（否则状态丢失、结局画像失真）
+      const doFallback = () => {
+        this._applyEffects(fallbackChoice.effects);
+        this.emit('choice', { nodeId, choice: fallbackChoice, act: this.currentAct });
         if (node.action) this.emit('action', node.action, node);
         this._showNode(fallbackChoice.next);
-      });
+      };
+      btn.on('pointerdown', () => { AudioSystem.uiClick(); doFallback(); });
       container.add(btn); container.add(label);
       this._bindAdvanceKeys(() => {
         if (this._typing) { this._finishTyping(); return; }
         if (this._hasMorePages()) { this._nextPage(node.speaker); return; }
-        if (node.action) this.emit('action', node.action, node);
-        this._showNode(fallbackChoice.next);
+        doFallback();
       });
       return;
     }
 
     // 情况3：正常渲染可见选项——按钮宽高随 label 自适应（1920 尺度），长选项换行不溢出
+    this._advanced = false; // 多选节点也要重置，否则 ESC/✕退出会失效（BUG-7）
     const gap = 12;
     const minW = 560, maxW = boxW; // 最宽 = 对话框宽
     const metas = visibleChoices.map((choice) => {

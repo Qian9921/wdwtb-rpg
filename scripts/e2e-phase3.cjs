@@ -17,7 +17,7 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
 
   console.log('\n=== 阶段三 可交互物件 + 内心独白 E2E ===\n');
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
-  await p.evaluate(() => localStorage.clear());
+  await p.evaluate(() => { localStorage.clear(); localStorage.setItem('wdwtb_onboarded', '1'); });
   await sleep(1200);
   await p.evaluate(() => window.__game.scene.start('WorldScene', { career: 'programmer', act: 1 }));
   await sleep(3000);

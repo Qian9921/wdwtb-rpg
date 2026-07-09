@@ -12,10 +12,13 @@
 const SAVE_KEY = 'wdwtb_save';
 
 export class SaveSystem {
-  // 存档：JSON.stringify 后写入 localStorage；失败返回 false，不抛错
+  // 存档：合并写（保留旧档中本次未提供的字段），失败返回 false，不抛错。
+  // 关键：改成"读旧档 + 合并"而非整体覆盖——根治"某个写档点漏字段就丢数据"的地雷
+  // （比如下班回家漏存 story 导致剧情进度被抹、深度职业卡在第一幕重播）。
   static save(data) {
     try {
-      const payload = { ...data, version: 2, updatedAt: Date.now() };
+      const prev = SaveSystem.load() || {};
+      const payload = { ...prev, ...data, version: 2, updatedAt: Date.now() };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
       return true;
     } catch (e) {

@@ -9,6 +9,7 @@ import { FamilyMessages } from '../systems/FamilyMessages.js';
 import { TouchControls } from '../systems/TouchControls.js';
 import { Juice } from '../systems/JuiceKit.js';
 import { SceneRouter } from '../systems/SceneRouter.js';
+import { SceneBackdrop } from '../systems/SceneBackdrop.js';
 import { QuestSystem } from '../systems/QuestSystem.js';
 import { ChoiceLog } from '../systems/ChoiceLog.js';
 import { ThoughtSystem } from '../systems/ThoughtSystem.js';
@@ -319,6 +320,8 @@ export class WorldScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(501));
     this._moodState = null;      // 当前情绪演出态（避免每帧重设 tween）
     this._lastHeartbeat = 0;     // 压力心跳音效节流
+    // 程序化场景背景：剧情演到通勤/大堂/家/医院等非办公室场景时，盖对应场景画面
+    this.sceneBackdrop = new SceneBackdrop(this);
 
     // 操作提示（屏幕顶部居中）
     trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · E 交互 · T 倾听内心 · ESC 菜单', {
@@ -934,6 +937,7 @@ export class WorldScene extends Phaser.Scene {
     this.dialogueActive = true;
     this.ePrompt.setVisible(false);
     if (this.guideText) this.guideText.setVisible(false);
+    if (this.offWorkBtn) this.offWorkBtn.setVisible(false); // 剧情场景中隐藏办公室按钮
     fetch(url)
       .then(res => { if (!res.ok) throw new Error(`加载剧情失败:HTTP ${res.status}`); return res.json(); })
       .then(data => {
@@ -1310,11 +1314,18 @@ export class WorldScene extends Phaser.Scene {
     const eng = this.dialogueEngine;
     const self = this;
 
-    eng.on('bgChange', bg => self._applyAmbient(bg));
+    eng.on('bgChange', bg => {
+      self._applyAmbient(bg);           // 办公室内的色调滤镜
+      if (self.sceneBackdrop) self.sceneBackdrop.show(bg); // 非办公室场景盖对应场景画面
+    });
 
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
       if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
+      if (self.offWorkBtn) self.offWorkBtn.setVisible(true);
+      // 剧情结束回办公室：移除场景背景 + 恢复办公室色调，露出办公室地图
+      if (self.sceneBackdrop) self.sceneBackdrop.show('office');
+      self._applyAmbient('office');
     });
 
     // 选择记忆：玩家每次选选项都记录（choiceLog 是结局 AI 画像的数据源）

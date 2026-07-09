@@ -13,3 +13,5 @@ art-assets/
 shot.png
 /tmp
 deploy/
+.edgeone/assets/
+.edgeone/edge-functions/

@@ -1,136 +1,181 @@
 import Phaser from 'phaser';
 
-// StatusBarUI：左上角 8 项状态 HUD。
-// 引擎共用 UI 模块，数值来自 StateSystem，监听 'change' 实时刷新。
-// 设计：半透明背景面板 + 每行「标签 · 进度条 · 数值」对齐；文字 resolution:2 保证清晰。
+// StatusBarUI：状态 HUD——参考星露谷"平时极简、按需展开"理念。
+// 迷你态（默认）：左上角一条紧凑横条，8 状态浓缩为色块小条，不挡视野。
+// 展开态：Tab 键或鼠标悬停迷你条 → 展开完整面板（标签+进度条+数值）。
+// 对话进行中自动降透明度，进一步让出画面。
 const GROUPS = [
-  {
-    name: '生理',
-    stats: [
-      { key: 'health', label: '健康' },
-      { key: 'energy', label: '精力' },
-    ],
-  },
-  {
-    name: '心理',
-    stats: [
-      { key: 'san', label: '心态' },
-      { key: 'stress', label: '压力' },
-    ],
-  },
-  {
-    name: '职业',
-    stats: [
-      { key: 'skill', label: '技能' },
-      { key: 'performance', label: '绩效' },
-      { key: 'money', label: '金钱' },
-    ],
-  },
-  {
-    name: '内在',
-    stats: [
-      { key: 'passion', label: '热情' },
-    ],
-  },
+  { name: '生理', stats: [{ key: 'health', label: '健康' }, { key: 'energy', label: '精力' }] },
+  { name: '心理', stats: [{ key: 'san', label: '心态' }, { key: 'stress', label: '压力' }] },
+  { name: '职业', stats: [{ key: 'skill', label: '技能' }, { key: 'performance', label: '绩效' }, { key: 'money', label: '金钱' }] },
+  { name: '内在', stats: [{ key: 'passion', label: '热情' }] },
 ];
+const ORDER = GROUPS.flatMap(g => g.stats); // 迷你条顺序 = 面板顺序
 
-// —— 面板与行的布局常量（设计分辨率 960×540 下）——
-const PANEL_X = 8;
-const PANEL_Y = 8;
-const PANEL_W = 184;
-const PAD = 10;          // 面板内边距
-const TITLE_H = 15;      // 组标题行高
-const ROW_H = 17;        // 状态行行高
-const GROUP_GAP = 6;     // 组间空隙
-const LABEL_X = PANEL_X + PAD;           // 标签左边缘 = 18
-const BAR_X = LABEL_X + 36;              // 进度条左边缘 = 54（标签固定占 36px）
-const BAR_WIDTH = 92;
-const BAR_HEIGHT = 8;
-const VALUE_X = BAR_X + BAR_WIDTH + 6;   // 数值右对齐到面板右内缘
+// —— 迷你条布局 ——
+const MINI_X = 8, MINI_Y = 8;
+const MINI_BAR_W = 30, MINI_BAR_H = 5, MINI_GAP = 4;
+const MINI_PAD = 8;
 
-const FILL_COLOR = 0x4ec9b0;   // 普通状态填充：青绿
-const BG_COLOR = 0x2a2a3a;     // 进度条底条：深灰
-const PASSION_COLOR = 0xff6b3d;// 热情填充：醒目橙红
-const TEXT_RES = 2;            // 文字分辨率倍数：抗糊
+// —— 展开面板布局（沿用上一版） ——
+const PANEL_X = 8, PANEL_Y = 8, PANEL_W = 184, PAD = 10;
+const TITLE_H = 15, ROW_H = 17, GROUP_GAP = 6;
+const LABEL_X = PANEL_X + PAD;
+const BAR_X = LABEL_X + 36;
+const BAR_WIDTH = 92, BAR_HEIGHT = 8;
+const VALUE_X = BAR_X + BAR_WIDTH + 6;
+
+const FILL_COLOR = 0x4ec9b0;
+const BG_COLOR = 0x2a2a3a;
+const PASSION_COLOR = 0xff6b3d;
+const WARN_COLOR = 0xe05555;    // 危险值(≤25 或压力≥75)迷你条变红提醒
+const TEXT_RES = 2;
 
 export class StatusBarUI {
   constructor(scene, stateSystem) {
     this.scene = scene;
     this.state = stateSystem;
-    this.rows = {};
+    this.rows = {};       // 展开面板行
+    this.miniFills = {};  // 迷你条填充
+    this.expanded = false;
 
-    // 先算出面板总高（一次干跑），再画背景板置于最底，内容压其上。
+    this._buildMini();
+    this._buildPanel();
+    this._setExpanded(false);
+
+    // Tab 切换展开/收起（Tab 默认会切浏览器焦点，禁掉）
+    this.tabKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
+    scene.input.keyboard.on('keydown-TAB', (e) => {
+      e.preventDefault();
+      this._setExpanded(!this.expanded);
+    });
+
+    stateSystem.on('change', (key, value) => this._updateRow(key, value));
+  }
+
+  // ---------- 迷你态：一块小横条 ----------
+  _buildMini() {
+    const n = ORDER.length;
+    const w = MINI_PAD * 2 + n * MINI_BAR_W + (n - 1) * MINI_GAP;
+    const h = MINI_PAD * 2 + MINI_BAR_H + 12; // 12 = 小标签行
+    this.mini = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(9998);
+
+    const bg = this.scene.add.rectangle(MINI_X, MINI_Y, w, h, 0x14141f, 0.72)
+      .setOrigin(0, 0).setStrokeStyle(1, 0x3a3a4e, 0.8)
+      .setInteractive({ useHandCursor: true });
+    this.mini.add(bg);
+    // 悬停展开，移出收起（星露谷式按需查看）
+    bg.on('pointerover', () => this._setExpanded(true));
+
+    ORDER.forEach((s, i) => {
+      const x = MINI_X + MINI_PAD + i * (MINI_BAR_W + MINI_GAP);
+      const y = MINI_Y + MINI_PAD + 10;
+      // 单字标签（健/精/心/压/技/绩/金/热）
+      this.mini.add(this.scene.add.text(x + MINI_BAR_W / 2, MINI_Y + MINI_PAD + 1, s.label[0], {
+        fontSize: '9px', color: s.key === 'passion' ? '#ffb080' : '#9a9ab0',
+      }).setOrigin(0.5, 0).setResolution(TEXT_RES));
+      this.mini.add(this.scene.add.rectangle(x, y, MINI_BAR_W, MINI_BAR_H, BG_COLOR).setOrigin(0, 0));
+      const fill = this.scene.add.rectangle(x, y, this._ratio(s.key) * MINI_BAR_W, MINI_BAR_H,
+        this._miniColor(s.key)).setOrigin(0, 0);
+      this.mini.add(fill);
+      this.miniFills[s.key] = fill;
+    });
+    // 展开提示
+    this.mini.add(this.scene.add.text(MINI_X + w + 6, MINI_Y + 8, 'Tab', {
+      fontSize: '9px', color: '#55556a',
+    }).setResolution(TEXT_RES));
+  }
+
+  // ---------- 展开态：完整面板 ----------
+  _buildPanel() {
+    this.panel = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(9998);
     const panelH = this._measureHeight();
-    this.scene.add
-      .rectangle(PANEL_X, PANEL_Y, PANEL_W, panelH, 0x14141f, 0.85)
+    const bg = this.scene.add.rectangle(PANEL_X, PANEL_Y, PANEL_W, panelH, 0x14141f, 0.88)
       .setOrigin(0, 0).setStrokeStyle(1, 0x3a3a4e, 0.9)
-      .setScrollFactor(0).setDepth(9997);
+      .setInteractive();
+    this.panel.add(bg);
+    bg.on('pointerout', () => this._setExpanded(false)); // 移出面板自动收回
 
     let y = PANEL_Y + PAD;
     for (const group of GROUPS) {
-      // 组标题
-      this.scene.add.text(LABEL_X, y, group.name, {
+      this.panel.add(this.scene.add.text(LABEL_X, y, group.name, {
         fontSize: '11px', color: '#8a8a9e',
-      }).setResolution(TEXT_RES).setScrollFactor(0).setDepth(9998);
+      }).setResolution(TEXT_RES));
       y += TITLE_H;
 
       for (const s of group.stats) {
         const isPassion = s.key === 'passion';
-        const value = stateSystem.get(s.key);
+        const value = this.state.get(s.key);
         const barCY = y + ROW_H / 2 - 1;
 
-        // 标签（左对齐，固定宽度区）
-        this.scene.add.text(LABEL_X, barCY, s.label, {
+        this.panel.add(this.scene.add.text(LABEL_X, barCY, s.label, {
           fontSize: '12px',
           color: isPassion ? '#ffd6a0' : '#d8d8e2',
           fontStyle: isPassion ? 'bold' : 'normal',
-        }).setOrigin(0, 0.5).setResolution(TEXT_RES).setScrollFactor(0).setDepth(9998);
+        }).setOrigin(0, 0.5).setResolution(TEXT_RES));
 
-        // 进度条：底条 + 填充条，左对齐（origin 0,0.5）
-        this.scene.add.rectangle(BAR_X, barCY, BAR_WIDTH, BAR_HEIGHT, BG_COLOR)
-          .setOrigin(0, 0.5).setScrollFactor(0).setDepth(9998);
-        const fill = this.scene.add
-          .rectangle(BAR_X, barCY, this._fillWidth(s.key, value), BAR_HEIGHT,
-            isPassion ? PASSION_COLOR : FILL_COLOR)
-          .setOrigin(0, 0.5).setScrollFactor(0).setDepth(9999);
+        this.panel.add(this.scene.add.rectangle(BAR_X, barCY, BAR_WIDTH, BAR_HEIGHT, BG_COLOR).setOrigin(0, 0.5));
+        const fill = this.scene.add.rectangle(BAR_X, barCY, this._ratio(s.key) * BAR_WIDTH, BAR_HEIGHT,
+          isPassion ? PASSION_COLOR : FILL_COLOR).setOrigin(0, 0.5);
+        this.panel.add(fill);
 
-        // 数值（右对齐到进度条右端）
         const valText = this.scene.add.text(VALUE_X, barCY, `${value}`, {
           fontSize: '11px', color: '#f0f0f4',
-        }).setOrigin(1, 0.5).setResolution(TEXT_RES).setScrollFactor(0).setDepth(9998);
+        }).setOrigin(1, 0.5).setResolution(TEXT_RES);
+        this.panel.add(valText);
 
-        this.rows[s.key] = { text: valText, fill, label: s.label };
+        this.rows[s.key] = { text: valText, fill };
         y += ROW_H;
       }
       y += GROUP_GAP;
     }
-
-    // 监听数值变化，实时刷新对应行
-    stateSystem.on('change', (key, value) => this._updateRow(key, value));
+    this.panel.add(this.scene.add.text(PANEL_X + PANEL_W - 8, PANEL_Y + 6, 'Tab 收起', {
+      fontSize: '9px', color: '#55556a',
+    }).setOrigin(1, 0).setResolution(TEXT_RES));
   }
 
-  // 干跑一遍累加高度（与构造函数布局逻辑一致），用于背景板尺寸
+  _setExpanded(on) {
+    this.expanded = on;
+    this.mini.setVisible(!on);
+    this.panel.setVisible(on);
+  }
+
+  // 对话/演出时调用：整个 HUD 让路（半透明）；结束恢复
+  setDimmed(dim) {
+    const a = dim ? 0.25 : 1;
+    this.mini.setAlpha(a);
+    this.panel.setAlpha(a);
+  }
+
+  _ratio(key) {
+    const v = this.state.get(key);
+    return Phaser.Math.Clamp((key === 'money' ? v / 1000 : v / 100), 0, 1);
+  }
+
+  // 迷你条颜色：热情橙色；危险状态红色（低于25 或 压力高于75）
+  _miniColor(key) {
+    const v = this.state.get(key);
+    if (key === 'stress' && v >= 75) return WARN_COLOR;
+    if (key !== 'stress' && key !== 'money' && v <= 25) return WARN_COLOR;
+    return key === 'passion' ? PASSION_COLOR : FILL_COLOR;
+  }
+
   _measureHeight() {
     let y = PAD;
-    for (const group of GROUPS) {
-      y += TITLE_H;
-      y += group.stats.length * ROW_H;
-      y += GROUP_GAP;
-    }
-    return y - GROUP_GAP + PAD + 4; // 去掉最后一组多加的空隙，补底部内边距（+4 余量防末行溢出）
-  }
-
-  // 填充宽度：普通项 value/100，money value/1000 且不超过满格
-  _fillWidth(key, value) {
-    const ratio = key === 'money' ? value / 1000 : value / 100;
-    return Phaser.Math.Clamp(ratio * BAR_WIDTH, 0, BAR_WIDTH);
+    for (const g of GROUPS) y += TITLE_H + g.stats.length * ROW_H + GROUP_GAP;
+    return y - GROUP_GAP + PAD + 4;
   }
 
   _updateRow(key, value) {
     const row = this.rows[key];
-    if (!row) return;
-    row.text.setText(`${value}`);
-    // setSize 改宽，origin (0,0.5) 保持左边缘固定，从左侧伸缩
-    row.fill.setSize(this._fillWidth(key, value), BAR_HEIGHT);
+    if (row) {
+      row.text.setText(`${value}`);
+      row.fill.setSize(this._ratio(key) * BAR_WIDTH, BAR_HEIGHT);
+    }
+    const mf = this.miniFills[key];
+    if (mf) {
+      mf.setSize(this._ratio(key) * MINI_BAR_W, MINI_BAR_H);
+      mf.setFillStyle(this._miniColor(key));
+    }
   }
 }

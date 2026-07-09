@@ -7,11 +7,13 @@ import { AudioSystem } from '../systems/AudioSystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
-// 素材事实（通过 Python 逐像素分析确认）：
+// 素材事实（2026-07 逐帧质心分析修正版）：
 // - Adam/Alex/Amelia/Bob.png: 384x224, 24cols x 7rows, frame 16x32
-//   Row0 = 闲置(4帧: down/left/right/up idle)
-//   Row1 = 向下走(帧24-31)  Row2 = 向上走(帧48-55)
-//   Row3 = 向左走(帧72-79)  Row4 = 向右走(帧96-103)
+//   Row0(f0-3) = idle: 0=右 1=上 2=左 3=下（质心与走路帧对齐）
+//   Row1(f24-47) = 走路，按 6 帧一组分四向：
+//     f24-29=右走  f30-35=上走  f36-41=左走  f42-47=下走
+//   ⚠️ 旧映射用了 row3/row4（f72+/f96+）——那是"坐下/翻手机"动作帧，
+//     质心在 x1.8↔x11.6 间来回跳，这就是"左右移动人物分裂"的根因。
 // - office_16.png: 256x848, 16x16 tiles；frame 85 = 蓝灰色办公地毯
 // - singles16: 全部 32x48px；roombuilder_16.png: 256x224, 16x16 tiles
 
@@ -20,8 +22,10 @@ const WALL = 32;
 const SCALE = 2;       // 角色缩放
 const FSCALE = 2.5;      // 家具缩放 (32x48 → 64x96)
 
-// idle 帧（Row0）：0=下 1=左 2=右 3=上
-const IDLE = { down: 0, left: 1, right: 2, up: 3 };
+// idle 帧（Row0，逐帧目检修正）：f0=右 f1=上 f2=左 f3=下
+const IDLE = { right: 0, up: 1, left: 2, down: 3 };
+// 走路帧组（Row1，f24-47 按 6 帧一组）：右/上/左/下
+const WALK = { right: [24, 29], up: [30, 35], left: [36, 41], down: [42, 47] };
 
 // 轻量职业：单文件全剧情（data/light_*.json），无分幕；深度职业走 {career}_act{n}.json
 const LIGHT_CAREERS = ['designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer'];
@@ -241,28 +245,16 @@ export class WorldScene extends Phaser.Scene {
 
   // ==================== 玩家 ====================
   _createPlayer() {
-    this.anims.create({
-      key: 'walk_down',
-      frames: this.anims.generateFrameNumbers('adam', { start: 24, end: 29 }),
-      frameRate: 8, repeat: -1,
-    });
-    this.anims.create({
-      key: 'walk_up',
-      frames: this.anims.generateFrameNumbers('adam', { start: 36, end: 41 }),
-      frameRate: 8, repeat: -1,
-    });
-    this.anims.create({
-      key: 'walk_left',
-      frames: this.anims.generateFrameNumbers('adam', { start: 72, end: 77 }),
-      frameRate: 8, repeat: -1,
-    });
-    this.anims.create({
-      key: 'walk_right',
-      frames: this.anims.generateFrameNumbers('adam', { start: 96, end: 101 }),
-      frameRate: 8, repeat: -1,
-    });
+    // 四向走路动画：全部来自 Row1 的稳定帧组（质心恒定，不再分裂）
+    for (const [dir, [s, e]] of Object.entries(WALK)) {
+      this.anims.create({
+        key: `walk_${dir}`,
+        frames: this.anims.generateFrameNumbers('adam', { start: s, end: e }),
+        frameRate: 10, repeat: -1, // 10fps 配 130px/s 步频更贴地，消除"漂"感
+      });
+    }
 
-    this.player = this.physics.add.sprite(MW / 2, MH - 70, 'adam', 0);
+    this.player = this.physics.add.sprite(MW / 2, MH - 70, 'adam', IDLE.down);
     this.player.setScale(SCALE);
     this.player.setCollideWorldBounds(true);
     this.player.body.setSize(12, 14);
@@ -340,6 +332,12 @@ export class WorldScene extends Phaser.Scene {
   update() {
     if (!this.player?.body) return;
 
+    // HUD 随对话状态自动让路（半透明），单点同步不怕遗漏
+    if (this.statusUI && this._lastDim !== this.dialogueActive) {
+      this._lastDim = this.dialogueActive;
+      this.statusUI.setDimmed(this.dialogueActive);
+    }
+
     // ESC 唤起暂停菜单（对话进行中不触发，交给对话自己的 ESC）
     if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.escKey)) {
       this.scene.pause();
@@ -355,7 +353,10 @@ export class WorldScene extends Phaser.Scene {
     // 对话中冻结移动，跳过交互检测
     if (this.dialogueActive) {
       this.player.setVelocity(0, 0);
-      if (this.player.anims.isPlaying) this.player.anims.pause();
+      if (this.player.anims.isPlaying) {
+        this.player.anims.stop();
+        this.player.setFrame(IDLE[this.facing] ?? IDLE.down);
+      }
       return;
     }
 
@@ -375,7 +376,11 @@ export class WorldScene extends Phaser.Scene {
     this.player.setDepth(this.player.y);
 
     if (vx === 0 && vy === 0) {
-      if (this.player.anims.isPlaying) this.player.anims.pause();
+      // 停步：停动画并回到该朝向的 idle 帧（不再定格在走路中间帧）
+      if (this.player.anims.isPlaying) {
+        this.player.anims.stop();
+        this.player.setFrame(IDLE[this.facing] ?? IDLE.down);
+      }
     } else {
       this.player.anims.play(`walk_${this.facing}`, true);
     }

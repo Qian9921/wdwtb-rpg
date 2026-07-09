@@ -1,93 +1,66 @@
 /**
  * EdgeOne Pages 边缘函数 — 代理腾讯混元 hy3 API
- * 部署后端点：https://<你的域名>/ai
+ * 路由：POST https://<域名>/ai   （functions/ai.js → /ai）
  *
- * 环境变量（在 EdgeOne 控制台 → 函数 → 环境变量 中配置，部署时自动绑定为全局常量）：
- *   HUNYUAN_API_KEY — 混元 API 的 Bearer Token
- *   （也兼容 DEEPSEEK_API_KEY 作为备选变量名）
+ * EdgeOne Pages Functions 规范：导出 onRequest(context)，
+ * 环境变量从 context.env 读取（控制台 → 项目 → 环境变量 配 HUNYUAN_API_KEY）。
+ * Key 只存在于边缘，绝不下发前端。
  */
 
-async function handleRequest(request) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+const HUNYUAN_URL = 'https://tokenhub.tencentmaas.com/v1/chat/completions';
 
-  // OPTIONS 预检
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: CORS });
   }
-
-  // 仅处理 POST
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const body = await request.json();
-    const { messages, model } = body;
-
-    // ---- API Key：从环境变量读取，不硬编码 ----
-    // EdgeOne 部署时自动将控制台环境变量绑定为全局常量
-    const apiKey =
-      (typeof HUNYUAN_API_KEY === 'string' && HUNYUAN_API_KEY) ||
-      (typeof DEEPSEEK_API_KEY === 'string' && DEEPSEEK_API_KEY) ||
-      '';
-
-    if (!apiKey) {
-      return new Response(JSON.stringify({
-        ok: false,
-        error: 'API key not configured. Please set HUNYUAN_API_KEY in EdgeOne console.',
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { messages, model } = await request.json();
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return json({ ok: false, error: 'messages required' });
     }
 
-    // ---- 调用混元 hy3（OpenAI 兼容格式）----
-    const upstream = await fetch('https://tokenhub.tencentmaas.com/v1/chat/completions', {
+    const apiKey = (env && (env.HUNYUAN_API_KEY || env.DEEPSEEK_API_KEY)) || '';
+    if (!apiKey) {
+      return json({ ok: false, error: 'API key not configured. Set HUNYUAN_API_KEY in EdgeOne console.' });
+    }
+
+    const upstream = await fetch(HUNYUAN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: model || 'hy3',
-        messages,
-      }),
+      body: JSON.stringify({ model: model || 'hy3', messages, stream: false }),
     });
 
     if (!upstream.ok) {
       const errText = await upstream.text().catch(() => '');
-      return new Response(JSON.stringify({
-        ok: false,
-        error: `Upstream API error ${upstream.status}: ${errText.slice(0, 200)}`,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ ok: false, error: `Upstream ${upstream.status}: ${errText.slice(0, 200)}` });
     }
 
     const data = await upstream.json();
     const text = data.choices?.[0]?.message?.content || '';
-
-    return new Response(JSON.stringify({ ok: true, text }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ ok: !!text, text });
   } catch (err) {
-    return new Response(JSON.stringify({
-      ok: false,
-      error: err.message || 'Unknown error',
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ ok: false, error: (err && err.message) || 'Unknown error' });
   }
 }
-
-addEventListener('fetch', event => event.respondWith(handleRequest(event.request)));

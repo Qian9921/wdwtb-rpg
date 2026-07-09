@@ -66,16 +66,32 @@ export class WorldScene extends Phaser.Scene {
     this.load.spritesheet('roombuilder', './assets/limezu/roombuilder_16.png', {
       frameWidth: 16, frameHeight: 16,
     });
-    // 家具 — 全部 32x48
+    // 家具 — LimeZu singles。ID 经 10× 放大逐张终审（/tmp/zoom_check.png /tmp/zoom2.png）：
+    // 337-339 是散钞票(≠绿植!) → 绿植真身在 office_16 瓦片图 r50；
+    // 110=橙椅侧面 111=橙老板椅正面 112=橙椅背面；83/84=白桌面板 85=白小桌。
     const P = './assets/limezu/singles16/Modern_Office_Singles_';
     const L = (k, id) => this.load.image(k, `${P}${id}.png`);
-    L('desk_wood', 211); L('desk_gray', 214); L('desk_L', 259);
-    L('chair_a', 86); L('chair_b', 87); L('chair_c', 88);
+    // 桌与桌面物
+    L('desk_wood', 211); L('desk_gray', 214);
     L('mon_a', 122); L('mon_b', 132); L('keyboard', 128);
-    L('papers', 155); L('lamp', 157);
-    L('cabinet_a', 185); L('cabinet_b', 186); L('cabinet_c', 187);
-    L('plant_a', 83); L('plant_b', 84); L('plant_c', 85);
-    L('printer', 137); L('water', 145);
+    L('laptop', 140); L('lamp', 141);
+    L('papers', 155); L('deskscreen', 167);
+    // 椅子（10× 终审）：270 灰高背朝右 / 197 灰圆背正面 / 111 橙老板椅正面 / 112 橙椅背面
+    L('chair_up', 112); L('chair_down', 197); L('chair_boss', 111); L('chair_side', 110);
+    // 会议区：画架白板(182-184 橙架白板) + 双屏演示架 + 米色地毯(220)
+    L('easel_a', 182); L('easel_b', 183); L('easel_c', 184);
+    L('duoscreen_dark', 275); L('duoscreen_white', 276);
+    L('rug', 220); L('rug_small', 188);
+    // 休息区沙发（灰网面 L 型 + 单人）
+    L('sofa_L', 205); L('sofa_1', 204);
+    // 储物：186/187 橙红书柜、195 高木柜、191 矮木柜、193 木长凳
+    L('shelf_a', 186); L('shelf_b', 187); L('shelf_tall', 195);
+    L('cab_wood', 191); L('bench', 193);
+    // 茶水间/设备角（10× 终审：173 饮水机 175 售货机 176 暗柜 328 复印台 317 服务器堆）
+    L('water', 173); L('vending', 175); L('fridge_dark', 176);
+    L('copier', 328); L('server', 317); L('fax', 156);
+    // 墙面装饰（证书）
+    L('cert_a', 113); L('cert_b', 114);
     L('sofa_a', 181); L('sofa_b', 182); L('bigscreen', 156);
   }
 
@@ -189,58 +205,111 @@ export class WorldScene extends Phaser.Scene {
       }
       return img;
     };
-    // 纯装饰(不加碰撞,叠在桌上的小物)
-    const deco = (key, x, y, s = FSCALE) =>
-      this.add.image(x, y, key).setScale(s).setOrigin(0.5, 0.75).setDepth(y + 2);
+    // 纯装饰(不加碰撞,叠在桌上的小物/墙面挂饰)
+    const deco = (key, x, y, s = FSCALE, dy = null) =>
+      this.add.image(x, y, key).setScale(s).setOrigin(0.5, 0.75).setDepth(dy ?? (y + 2));
 
-    // 一个完整工位 = 桌 + 显示器 + 键盘 + 椅子(椅子在桌前下方)
-    const workstation = (x, y, deskKey, monKey) => {
-      place(deskKey, x, y);                 // 桌
-      deco(monKey, x, y - 20);              // 显示器(桌上)
-      deco('keyboard', x, y - 2, FSCALE*0.9); // 键盘
-      place(['chair_a','chair_b','chair_c'][(x+y)%3], x, y + 46); // 椅子
+    // office_16 瓦片图直贴（frame = row*16 + col）——官方参考图的绿植/黑椅在这里
+    const T = 16 * FSCALE; // 一瓦显示尺寸 40px
+    const tile = (x, y, frame, dy = null) =>
+      this.add.image(x, y, 'office', frame).setScale(FSCALE).setOrigin(0.5, 0.5).setDepth(dy ?? y);
+    // 两瓦竖叠盆栽：底瓦(盆)在 y，顶瓦(叶)在 y-T；碰撞在盆
+    const plant2 = (x, y, topF, botF) => {
+      tile(x, y - T, topF, y);      // 叶(与盆同深度,人从后面走会被正确遮挡)
+      tile(x, y, botF, y);          // 盆
+      this._zone(x, y + 6, 26, 14);
+    };
+    const PLANT = { big: [134, 150], fern: [166, 182], bamboo: [214, 230] };
+    // 白置物架 2×2 瓦（13,7)-(14,8）
+    const shelfWhite = (x, y) => {
+      tile(x - T / 2, y - T, 215, y); tile(x + T / 2, y - T, 216, y);
+      tile(x - T / 2, y, 231, y);     tile(x + T / 2, y, 232, y);
+      this._zone(x, y + 8, 2 * T * 0.8, 16);
+    };
+    // 黑色办公椅（8,4)-(9,4) 两瓦竖叠：看到椅背 → 放桌南侧,人坐着面向桌子
+    const chairBack = (x, y) => {
+      tile(x, y - T, 132, y); tile(x, y, 148, y);
     };
 
-    // === 工位阵列:4列 × 3行 ===
-    this.deskCols = [175, 375, 575, 785];
-    this.deskRows = [120, 290, 460];
-    const cols = this.deskCols, rows = this.deskRows;
-    const monKeys = ['mon_a','mon_b'];
-    const deskKeys = ['desk_wood','desk_gray'];
-    for (let ri = 0; ri < rows.length; ri++) {
-      for (let ci = 0; ci < cols.length; ci++) {
-        workstation(cols[ci], rows[ri], deskKeys[ci%2], monKeys[(ci+ri)%2]);
-      }
-    }
-    // 工位间点缀:文件堆/台灯,让桌面丰富
-    deco('papers', cols[0]+34, rows[0]-6, FSCALE*0.8);
-    deco('lamp', cols[2]+34, rows[1]-6, FSCALE*0.8);
-    deco('papers', cols[3]+34, rows[2]-6, FSCALE*0.8);
+    // 一个完整工位 = 桌 + 桌上显示器/键盘 + 桌前的椅子（照 LimeZu 官方示例的组合方式）
+    // south 工位：黑椅背在桌南(玩家看到椅背) / north 工位：灰圆背椅正面在桌北
+    const workstation = (x, y, deskKey, monKey, side = 'south') => {
+      place(deskKey, x, y);                       // 桌
+      deco(monKey, x - 8, y - 18);                // 显示器(桌面偏左)
+      deco('keyboard', x + 14, y - 4, FSCALE * 0.8); // 键盘(桌面偏右)
+      if (side === 'south') chairBack(x, y + 46);
+      else place('chair_down', x, y - 54, FSCALE * 0.85);
+    };
 
-    // === 左墙:文件柜一排 ===
-    place('cabinet_a', 60, 110);
-    place('cabinet_b', 60, 240);
-    place('cabinet_c', 60, 370);
+    // ============================================================
+    // 布局蓝图（960×640，参考 LimeZu 官方 Office_Design 示例的分区语言）：
+    //   ┌────────────────────────────┬───────────────┐
+    //   │ 会议角(画架白板+双屏+地毯)   │ 茶水间(右上)   │
+    //   ├────────────────────────────┤ 饮水/售货/冰箱 │
+    //   │ 工位区 2 组×3 列 背靠背      ├───────────────┤
+    //   │ (老陈第一排,江野第二组)      │ 书柜墙(右侧)   │
+    //   ├────────────────────────────┴───────────────┤
+    //   │ 入口(下门) · 复印/服务器角 · 沙发休息区       │
+    //   └─────────────────────────────────────────────┘
+    // ============================================================
 
-    // === 绿植点缀(走道/角落) ===
-    place('plant_a', 62, 560);
-    place('plant_b', 275, 200);
-    place('plant_c', 480, 375);
-    place('plant_a', 680, 200);
-    place('plant_b', MW-60, 130);
-    place('plant_c', MW-60, 300);
+    // === 左上:会议角 ===
+    deco('rug', 210, 158, FSCALE * 1.6, 1);          // 地毯(垫底)
+    place('easel_a', 130, 112, FSCALE * 0.95);       // 画架白板×2 贴上墙
+    place('easel_b', 215, 112, FSCALE * 0.95);
+    place('duoscreen_dark', 315, 116, FSCALE * 0.95);// 双屏演示架
+    deco('cert_a', 400, 92, FSCALE * 0.75, 12);      // 墙面证书
+    deco('cert_b', 452, 92, FSCALE * 0.75, 12);
+    place('sofa_1', 130, 200, FSCALE * 0.95);        // 会议角坐凳
+    place('bench', 215, 202, FSCALE * 0.95);         // 木长凳
+    plant2(300, 205, ...PLANT.fern);                 // 绿植点缀
 
-    // === 右下:休息区(沙发+绿植) ===
-    place('sofa_a', 770, 570);
-    place('sofa_b', 850, 570);
-    place('plant_a', 700, 575);
+    // === 右上:茶水间 ===
+    place('water', 780, 122, FSCALE * 0.95);
+    place('vending', 852, 118, FSCALE * 1.0);
+    place('fridge_dark', 918, 118, FSCALE * 1.0);
+    plant2(730, 200, ...PLANT.big);
 
-    // === 中下:数据大屏(靠墙,科技感) ===
-    deco('bigscreen', 490, 585, FSCALE*1.1);
+    // === 中部:工位区——2 组 × 3 列,背靠背 ===
+    this.deskCols = [200, 420, 640];
+    const gA = 285, gB = 345;   // 第一组两排 y
+    const gC = 465, gD = 525;   // 第二组两排 y
+    this.deskRows = [gA, gC, gD]; // NPC 站位引用(行0=gA,行1=gC)
+    const deskKeys = ['desk_wood', 'desk_gray'];
+    const monKeys = ['mon_a', 'mon_b'];
+    this.deskCols.forEach((cx, ci) => {
+      // 组1:上排椅在南(朝上坐,面向桌子) / 下排椅在北(朝下坐) → 背靠背
+      workstation(cx, gA, deskKeys[ci % 2], monKeys[ci % 2], 'south');
+      workstation(cx, gB + 8, deskKeys[(ci + 1) % 2], monKeys[(ci + 1) % 2], 'north');
+      // 组2
+      workstation(cx, gC, deskKeys[(ci + 1) % 2], monKeys[ci % 2], 'south');
+      workstation(cx, gD + 8, deskKeys[ci % 2], monKeys[(ci + 1) % 2], 'north');
+    });
+    // 桌面点缀(散落感:文件/台灯/笔电/座机)
+    deco('papers', this.deskCols[0] + 42, gA - 10, FSCALE * 0.75);
+    deco('laptop', this.deskCols[1] + 40, gB - 4, FSCALE * 0.7);
+    deco('lamp', this.deskCols[1] + 44, gC - 10, FSCALE * 0.7);
+    deco('deskscreen', this.deskCols[2] + 42, gA - 8, FSCALE * 0.65);
+    deco('papers', this.deskCols[2] + 42, gD - 4, FSCALE * 0.7);
 
-    // === 左下:设备角(打印机+饮水机) ===
-    place('printer', 150, 575);
-    place('water', 220, 575);
+    // === 右侧:白置物架墙(官方 13,7-14,8 的 2×2 货架) ===
+    shelfWhite(MW - 70, 300);
+    shelfWhite(MW - 70, 400);
+    place('cab_wood', MW - 66, 490, FSCALE * 0.95);
+
+    // === 左侧:绿植带(office_16 真·盆栽,两瓦竖叠) ===
+    plant2(62, 280, ...PLANT.big);
+    plant2(62, 390, ...PLANT.fern);
+    plant2(62, 500, ...PLANT.bamboo);
+
+    // === 底部:入口两侧 ===
+    // 左下:设备角(复印机+服务器+传真)
+    place('copier', 140, 590, FSCALE * 1.0);
+    place('server', 225, 588, FSCALE * 0.95);
+    place('fax', 295, 585, FSCALE * 0.8);
+    // 右下:休息区(L 沙发 + 盆栽)
+    place('sofa_L', 800, 590, FSCALE * 1.1);
+    plant2(890, 585, ...PLANT.big);
   }
 
   // ==================== 玩家 ====================
@@ -274,27 +343,28 @@ export class WorldScene extends Phaser.Scene {
     // NPC 站在工位椅子处（cy+55），朝向决定 idle 帧
     const C = this.deskCols, R = this.deskRows;
 
-    // 老陈：资深架构师，中间显眼工位（col1,row1），朝下面向玩家
-    // 江野：活泼新人，邻座（col2,row1）
-    // 周哥：老油条，靠窗（右侧 col3,row0），朝上看窗外摸鱼
+    // 站位与新布局对齐（真实感：人待在合理的位置上）：
+    // 老陈：资深架构师——第一组中列工位，站在自己桌旁，朝下等你报到
+    // 江野：活泼新人——第二组左列工位旁
+    // 周哥：老油条——茶水间摸鱼，端着咖啡朝下
     const defs = [
       {
         id: 'laochen', name: '老陈', tex: 'bob',
-        x: C[1], y: R[1] + 55, facing: 'down',
+        x: C[1], y: R[0] + 58, facing: 'down',
         label: '老陈 · 资深架构师', mark: '❗', markColor: '#ffdd33',
         act: 1, // 走近报到 → 播第一幕
       },
       {
         id: 'jiangye', name: '江野', tex: 'alex',
-        x: C[2], y: R[1] + 55, facing: 'down',
+        x: C[0], y: R[1] + 58, facing: 'down',
         label: '江野 · 新同事', mark: '💬', markColor: '#7ec8ff',
         line: '江野挤挤眼:"新来的?老陈在那边,先去他那报个到——别怕,他凶归凶,心是热的。"',
       },
       {
         id: 'zhouge', name: '周哥', tex: 'amelia',
-        x: C[3], y: R[0] + 55, facing: 'up',
+        x: 800, y: 195, facing: 'down',
         label: '周哥 · 老前辈', mark: '💬', markColor: '#7ec8ff',
-        line: '周哥头也不抬,盯着窗外:"年轻人,悠着点。这行啊,活是干不完的。"',
+        line: '周哥端着咖啡,慢悠悠:"年轻人,悠着点。这行啊,活是干不完的。"',
       },
     ];
 

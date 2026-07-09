@@ -30,6 +30,72 @@ const WALK = { right: [24, 29], up: [30, 35], left: [36, 41], down: [42, 47] };
 // 轻量职业：单文件全剧情（data/light_*.json），无分幕；深度职业走 {career}_act{n}.json
 const LIGHT_CAREERS = ['designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer'];
 
+// 职业主题：每个职业不同的地板/墙色/氛围光 + NPC 名字与开场寒暄。
+// 场景骨架(工位/会议角/茶水间)共享——像同一栋写字楼里不同公司的楼层,
+// 但色彩、命名、氛围完全不同,一眼能认出"这是哪一行"。
+const CAREER_THEMES = {
+  programmer: {
+    floor: 138, wall: 0x5a5a6e, tint: null,
+    npcs: { senior: ['老陈', '资深架构师'], peer: ['江野', '新同事'], vet: ['周哥', '老前辈'] },
+    peerLine: '江野挤挤眼:"新来的?老陈在那边,先去他那报个到——别怕,他凶归凶,心是热的。"',
+    vetLine: '周哥端着咖啡,慢悠悠:"年轻人,悠着点。这行啊,活是干不完的。"',
+  },
+  product: {
+    floor: 189, wall: 0x5e5a6a, tint: 0xfff4e8,
+    npcs: { senior: ['林姐', '产品总监'], peer: ['小杜', '交互设计'], vet: ['大鹏', '资深产品'] },
+    peerLine: '小杜抱着原型图:"新来的产品?林姐在等你——她语速快,你带个本子记。"',
+    vetLine: '大鹏盯着数据看板:"需求会改的,别急着画原型。先想清楚为什么。"',
+  },
+  admin: {
+    floor: 106, wall: 0x5a6062, tint: 0xf0f6f0,
+    npcs: { senior: ['王主任', '办公室主任'], peer: ['小方', '同批入职'], vet: ['刘姐', '老科员'] },
+    peerLine: '小方压低声音:"王主任人不坏,就是规矩多。记得先敲门。"',
+    vetLine: '刘姐整理着文件:"稳是稳,但稳也有稳的熬法。你慢慢就懂了。"',
+  },
+  designer: {
+    floor: 186, wall: 0x635a6e, tint: 0xfdeef4,
+    npcs: { senior: ['Kay', '设计总监'], peer: ['阿棠', '插画师'], vet: ['老葛', '资深视觉'] },
+    peerLine: '阿棠头也不抬地画着:"Kay 在那边。她看作品不看人,放轻松。"',
+    vetLine: '老葛眯眼看着屏幕:"甲方说\'再改改\'的时候,先深呼吸。"',
+  },
+  operation: {
+    floor: 125, wall: 0x5a5e6e, tint: 0xfff8e0,
+    npcs: { senior: ['雅姐', '运营负责人'], peer: ['小鹿', '内容运营'], vet: ['强哥', '增长老兵'] },
+    peerLine: '小鹿盯着后台数据:"雅姐在等你。今天数据不错,她心情应该好。"',
+    vetLine: '强哥转着笔:"流量是假的,留存是真的。记住这句就够了。"',
+  },
+  teacher: {
+    floor: 173, wall: 0x5e6258, tint: 0xf2f8ea,
+    npcs: { senior: ['陈校长', '教学校长'], peer: ['小许', '同组新老师'], vet: ['吴老师', '老教师'] },
+    peerLine: '小许抱着教案:"陈校长在办公室等你,第一次见面别紧张。"',
+    vetLine: '吴老师批着作业:"讲台站久了就知道,教的是书,带的是人。"',
+  },
+  doctor: {
+    floor: 94, wall: 0x586066, tint: 0xeef6f8,
+    npcs: { senior: ['张主任', '科室主任'], peer: ['小蒋', '规培同期'], vet: ['护士长', '二十年资历'] },
+    peerLine: '小蒋整理着病历:"张主任查房去了,马上回。白大褂穿好。"',
+    vetLine: '护士长快步走过:"这里没有慢班。跟上节奏,照顾好自己。"',
+  },
+  civilservant: {
+    floor: 154, wall: 0x5c5e60, tint: 0xf4f4ee,
+    npcs: { senior: ['赵科长', '窗口科科长'], peer: ['小闵', '同批考入'], vet: ['老周', '临退老同志'] },
+    peerLine: '小闵冲你点头:"赵科长在里面。材料备齐,他就好说话。"',
+    vetLine: '老周喝着茶:"章要盖对,人要对得起章。就这么简单。"',
+  },
+  sales: {
+    floor: 141, wall: 0x635e58, tint: 0xfff0e0,
+    npcs: { senior: ['Vincent', '销售总监'], peer: ['小柯', '同期入职'], vet: ['彪哥', '销冠'] },
+    peerLine: '小柯整理着客户名单:"Vincent 在等你。他只看结果,但人不坏。"',
+    vetLine: '彪哥挂了电话:"单子是跑出来的,不是等出来的。走,带你见客户。"',
+  },
+  lawyer: {
+    floor: 170, wall: 0x565660, tint: 0xf6f2ea,
+    npcs: { senior: ['沈律师', '合伙人'], peer: ['小袁', '实习律师'], vet: ['何律', '资深诉讼'] },
+    peerLine: '小袁抱着一摞卷宗:"沈律在会议室。案卷先看三遍再开口。"',
+    vetLine: '何律合上卷宗:"法条是死的,当事人是活的。别忘了这点。"',
+  },
+};
+
 export class WorldScene extends Phaser.Scene {
   constructor() { super('WorldScene'); }
 
@@ -92,7 +158,6 @@ export class WorldScene extends Phaser.Scene {
     L('copier', 328); L('server', 317); L('fax', 156);
     // 墙面装饰（证书）
     L('cert_a', 113); L('cert_b', 114);
-    L('sofa_a', 181); L('sofa_b', 182); L('bigscreen', 156);
   }
 
   create() {
@@ -126,8 +191,10 @@ export class WorldScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999);
 
-    // 引导语（钉屏，底部）——找老陈报到
-    this.guideText = this.add.text(MW / 2, 500, '📋 新人报到:去找资深架构师「老陈」(工位上方有 ❗),走近按 E', {
+    // 引导语（钉屏，底部）——按职业主题生成"找谁报到"
+    const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    const [gName, gTitle] = gTheme.npcs.senior;
+    this.guideText = this.add.text(MW / 2, 500, `📋 新人报到:去找${gTitle}「${gName}」(头顶有 ❗),走近按 E`, {
       fontSize: '13px',
       fill: '#ffe08a',
       backgroundColor: '#00000099',
@@ -147,9 +214,9 @@ export class WorldScene extends Phaser.Scene {
       fontSize: '10px', fill: '#7a7a8a',
     }).setOrigin(1, 1).setScrollFactor(0).setDepth(9999);
 
-    // 调试自验证钩子:?autochen=1 → 传送到老陈并自动触发第一幕(仅用于截图验证)
+    // 调试自验证钩子:?autochen=1 → 传送到报到 NPC 并自动触发第一幕(仅用于截图验证)
     if (typeof window !== 'undefined' && window.location.search.includes('autochen=1')) {
-      const chen = this.npcs.find(n => n.id === 'laochen');
+      const chen = this.npcs.find(n => n.id === 'senior');
       if (chen) {
         this.player.setPosition(chen.spr.x, chen.spr.y + 40);
         this.time.delayedCall(800, () => this._interact(chen));
@@ -159,15 +226,21 @@ export class WorldScene extends Phaser.Scene {
 
   // ==================== 地板 ====================
   _buildFloor() {
-    this.add.tileSprite(0, 0, MW, MH, 'roombuilder', 136)
+    const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    this.add.tileSprite(0, 0, MW, MH, 'roombuilder', theme.floor)
       .setOrigin(0)
       .setDepth(0);
+    // 职业氛围光：极淡的全屏色调,一进场就能感到"行业气质"不同
+    if (theme.tint) {
+      this.add.rectangle(0, 0, MW, MH, theme.tint, 0.06).setOrigin(0).setDepth(2);
+    }
   }
 
   // ==================== 墙壁 ====================
   _buildWalls() {
-    const wallColor = 0x5a5a6e;
-    const wallTop = 0x6a6a7e;
+    const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    const wallColor = theme.wall;
+    const wallTop = wallColor + 0x101010;
     const t = WALL;
 
     this.add.rectangle(0, 0, MW, t, wallColor).setOrigin(0).setDepth(10);
@@ -343,28 +416,30 @@ export class WorldScene extends Phaser.Scene {
     // NPC 站在工位椅子处（cy+55），朝向决定 idle 帧
     const C = this.deskCols, R = this.deskRows;
 
-    // 站位与新布局对齐（真实感：人待在合理的位置上）：
-    // 老陈：资深架构师——第一组中列工位，站在自己桌旁，朝下等你报到
-    // 江野：活泼新人——第二组左列工位旁
-    // 周哥：老油条——茶水间摸鱼，端着咖啡朝下
+    // 站位与新布局对齐；名字/头衔/寒暄按职业主题注入——
+    // 每个职业进来遇到的是"自己行业的人"。
+    const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    const [seniorName, seniorTitle] = theme.npcs.senior;
+    const [peerName, peerTitle] = theme.npcs.peer;
+    const [vetName, vetTitle] = theme.npcs.vet;
     const defs = [
       {
-        id: 'laochen', name: '老陈', tex: 'bob',
+        id: 'senior', name: seniorName, tex: 'bob',
         x: C[1], y: R[0] + 58, facing: 'down',
-        label: '老陈 · 资深架构师', mark: '❗', markColor: '#ffdd33',
+        label: `${seniorName} · ${seniorTitle}`, mark: '❗', markColor: '#ffdd33',
         act: 1, // 走近报到 → 播第一幕
       },
       {
-        id: 'jiangye', name: '江野', tex: 'alex',
+        id: 'peer', name: peerName, tex: 'alex',
         x: C[0], y: R[1] + 58, facing: 'down',
-        label: '江野 · 新同事', mark: '💬', markColor: '#7ec8ff',
-        line: '江野挤挤眼:"新来的?老陈在那边,先去他那报个到——别怕,他凶归凶,心是热的。"',
+        label: `${peerName} · ${peerTitle}`, mark: '💬', markColor: '#7ec8ff',
+        line: theme.peerLine,
       },
       {
-        id: 'zhouge', name: '周哥', tex: 'amelia',
+        id: 'vet', name: vetName, tex: 'amelia',
         x: 800, y: 195, facing: 'down',
-        label: '周哥 · 老前辈', mark: '💬', markColor: '#7ec8ff',
-        line: '周哥端着咖啡,慢悠悠:"年轻人,悠着点。这行啊,活是干不完的。"',
+        label: `${vetName} · ${vetTitle}`, mark: '💬', markColor: '#7ec8ff',
+        line: theme.vetLine,
       },
     ];
 

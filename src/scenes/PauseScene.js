@@ -82,12 +82,19 @@ export class PauseScene extends Phaser.Scene {
       fontSize: '14px', color: '#8b8bb0',
     }).setOrigin(0.5));
 
-    let y = 230;
-    this._menuButton(y, '▶  继续游戏', () => this._close()); y += 58;
-    this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 58;
-    this._menuButton(y, '🎒  物品', () => this._showItems()); y += 58;
-    this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 58;
-    this._menuButton(y, '⚙  设置', () => this._showSettings()); y += 58;
+    let y = 216;
+    this._menuButton(y, '▶  继续游戏', () => this._close()); y += 54;
+    this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 54;
+    this._menuButton(y, '🎒  物品', () => this._showItems()); y += 54;
+    this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 54;
+    this._menuButton(y, '⚙  设置', () => this._showSettings()); y += 54;
+    this._menuButton(y, '🚪  返回职业大厅', () => {
+      this._confirm('返回职业大厅？当前进度已自动存档。', () => {
+        this.scene.stop(this.origin);
+        this.scene.stop();
+        this.scene.start('HubScene');
+      });
+    }, 320, 0x3a3222); y += 54;
 
     this.panel.add(this.add.text(this.W / 2, this.H - 24, 'ESC 继续游戏', {
       fontSize: '12px', color: '#5a5a7a',

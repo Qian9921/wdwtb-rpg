@@ -12,6 +12,7 @@ export class MindscapeScene extends Phaser.Scene {
   constructor() { super('MindscapeScene'); }
 
   init(data) {
+    this._exiting = false; // 场景重进时复位防重入标志
     this.data0 = data || {};
     this.stateSystem = data?.stateSystem || null;
     this.returnScene = data?.returnScene || null; // 返回哪个场景(如WorldScene)恢复
@@ -49,6 +50,15 @@ export class MindscapeScene extends Phaser.Scene {
 
     // 稍候浮现内心独白 → 再给疗愈选择
     this.time.delayedCall(200, () => this._showMonologue());
+
+    // 右上角离开按钮 + ESC：随时可以离开内心世界（不强留玩家）
+    const exitBtn = this.add.text(this.W - 16, 14, '离开 ›', {
+      fontSize: '13px', color: '#8a8a9e',
+    }).setOrigin(1, 0).setDepth(50).setInteractive({ useHandCursor: true });
+    exitBtn.on('pointerover', () => exitBtn.setColor('#fff2c0'));
+    exitBtn.on('pointerout', () => exitBtn.setColor('#8a8a9e'));
+    exitBtn.on('pointerdown', () => this._exit());
+    this.input.keyboard.on('keydown-ESC', () => this._exit());
   }
 
   // ===== 天空/氛围(冷暖插值) =====
@@ -291,6 +301,8 @@ export class MindscapeScene extends Phaser.Scene {
   }
 
   _exit() {
+    if (this._exiting) return; // 防重入：手动离开与自动返回可能双触发
+    this._exiting = true;
     this.cameras.main.fadeOut(600, 10, 8, 20);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       if (this.returnScene) {

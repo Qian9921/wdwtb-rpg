@@ -147,8 +147,9 @@ export class EndingScene extends Phaser.Scene {
     y = this._divider(ui, width / 2, y, cardW - 160);
 
     const btnY = y + 16;
-    this._button(ui, width / 2 - 130, btnY, 200, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
-    this._button(ui, width / 2 + 130, btnY, 200, 36, '保存画像 📷', 0x3a3a2a, () => this._sharePortrait());
+    this._button(ui, width / 2 - 220, btnY, 190, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
+    this._button(ui, width / 2, btnY, 190, 36, '保存画像 📷', 0x3a3a2a, () => this._sharePortrait());
+    this._button(ui, width / 2 + 220, btnY, 190, 36, '返回标题', 0x33283a, () => this.scene.start('TitleScene'));
   }
 
   // 保存心之画像：截当前画布为 PNG 下载（玩家可发社交平台，自然传播）

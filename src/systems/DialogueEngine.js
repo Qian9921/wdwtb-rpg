@@ -56,7 +56,10 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         if (i % 2 === 0 && ch && !'，。！？…、：；·「」『』（）\n ,.!?()'.includes(ch)) {
           AudioSystem.blip(speaker);
         }
-        if (i >= fullText.length) { this._typing = false; this._typeTimer = null; }
+        if (i >= fullText.length) {
+          this._typing = false; this._typeTimer = null;
+          this._updateMoreHint();
+        }
       },
     });
   }
@@ -66,6 +69,39 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     if (this._typeTimer) { this._typeTimer.remove(); this._typeTimer = null; }
     if (this._typeTarget && this._typeFull != null) this._typeTarget.setText(this._typeFull);
     this._typing = false;
+    this._updateMoreHint();
+  }
+
+  // 文本分页：用一个临时 Text 逐行测量，按 maxLines 切页。返回页数组（至少一页）。
+  _paginate(fullText, style, wrapWidth, maxLines) {
+    if (!fullText) return [''];
+    const probe = this.scene.add.text(-9999, -9999, fullText, style).setVisible(false);
+    const lines = probe.getWrappedText(fullText);
+    probe.destroy();
+    if (lines.length <= maxLines) return [fullText];
+    const pages = [];
+    for (let i = 0; i < lines.length; i += maxLines) {
+      pages.push(lines.slice(i, i + maxLines).join('\n'));
+    }
+    return pages;
+  }
+
+  // 是否还有下一页
+  _hasMorePages() {
+    return this._pages && this._pageIdx < this._pages.length - 1;
+  }
+
+  // 翻到下一页并重启打字机
+  _nextPage(speaker) {
+    this._pageIdx++;
+    this._startTypewriter(this._bodyText, this._pages[this._pageIdx], speaker);
+    this._updateMoreHint();
+  }
+
+  _updateMoreHint() {
+    if (this._moreHint && this._moreHint.scene) {
+      this._moreHint.setVisible(this._hasMorePages() && !this._typing);
+    }
   }
 
   // 接收对话树 JSON 对象，从其 start 节点开始演出
@@ -91,7 +127,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
 
     const { width, height } = this.scene.scale;
     const boxW = 900;
-    const boxH = 140;
+    const boxH = 158; // 容纳 speaker 行 + 正文 4 行（长文本分页，不溢出）
     const boxX = (width - boxW) / 2;
     const boxY = height - boxH - 20; // 靠底，留 20px 边距
 
@@ -124,13 +160,27 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       textY += 22;
     }
     // 正文：打字机逐字显示 + 按说话人声线的叽喳声（像素 RPG 标配）
-    const bodyText = this.scene.add.text(boxX + 18, textY, '', {
-      fontSize: '18px',
+    // 长文本分页：框内最多显示 maxLines 行，超出的按页推进（页间点击/空格翻页，
+    // 最后一页才显示选项/结束）——文字绝不溢出框。
+    const bodyStyle = {
+      fontSize: '17px',
       color: '#ffffff',
+      lineSpacing: 5,
       wordWrap: { width: boxW - 36, useAdvancedWrap: true },
-    });
+    };
+    const maxLines = node.speaker ? 4 : 5; // 有说话人名时正文少一行
+    this._pages = this._paginate(node.text || '', bodyStyle, boxW - 36, maxLines);
+    this._pageIdx = 0;
+    const bodyText = this.scene.add.text(boxX + 18, textY, '', bodyStyle);
     container.add(bodyText);
-    this._startTypewriter(bodyText, node.text || '', node.speaker);
+    // 翻页指示 ▼（还有下一页时显示）
+    this._moreHint = this.scene.add.text(boxX + boxW - 20, boxY + boxH - 8, '▼', {
+      fontSize: '14px', color: '#ffd24d',
+    }).setOrigin(1, 1).setVisible(false);
+    container.add(this._moreHint);
+    this.scene.tweens.add({ targets: this._moreHint, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 });
+    this._bodyText = bodyText;
+    this._startTypewriter(bodyText, this._pages[0], node.speaker);
 
     const rawChoices = node.choices || [];
     const isEndNode = !node.choices || node.choices.length === 0;
@@ -147,6 +197,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
 
       const advance = () => {
         if (this._typing) { this._finishTyping(); return; } // 打字中先跳字
+        if (this._hasMorePages()) { this._nextPage(node.speaker); return; } // 还有页先翻页
         if (this._advanced) return;
         this._advanced = true;
         if (node.action) this.emit('action', node.action, node);
@@ -195,26 +246,30 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       return;
     }
 
-    // 情况3：正常渲染可见选项
-    const btnW = 380;
-    const btnH = 36;
+    // 情况3：正常渲染可见选项——按钮宽高随 label 自适应，长选项换行不溢出
     const gap = 8;
-    const totalH = visibleChoices.length * btnH + (visibleChoices.length - 1) * gap;
-    const topY = boxY - 12 - totalH;
+    const minW = 380, maxW = 860; // 最宽不超对话框
+    // 先测量每个选项：宽度取 min(实际文本宽+边距, maxW)，超宽则换行加高
+    const metas = visibleChoices.map((choice) => {
+      const style = { fontSize: '15px', color: '#e6e6e6', align: 'center',
+        wordWrap: { width: maxW - 40, useAdvancedWrap: true } };
+      const probe = this.scene.add.text(-9999, -9999, choice.label, style).setVisible(false);
+      const tw = probe.width, th = probe.height;
+      probe.destroy();
+      const w = Phaser.Math.Clamp(tw + 40, minW, maxW);
+      const h = Math.max(36, th + 16);
+      return { choice, style, w, h };
+    });
+    const totalH = metas.reduce((s, m) => s + m.h, 0) + (metas.length - 1) * gap;
+    let by = boxY - 12 - totalH;
 
-    visibleChoices.forEach((choice, i) => {
-      const bx = (width - btnW) / 2;
-      const by = topY + i * (btnH + gap);
-
+    metas.forEach(({ choice, style, w, h }) => {
+      const cx = width / 2, cy = by + h / 2;
       const btn = this.scene.add
-        .rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH, 0x2a2a3e)
+        .rectangle(cx, cy, w, h, 0x2a2a3e, 0.96)
+        .setStrokeStyle(1, 0x4a4a66)
         .setInteractive({ useHandCursor: true });
-      const label = this.scene.add
-        .text(bx + btnW / 2, by + btnH / 2, choice.label, {
-          fontSize: '15px',
-          color: '#e6e6e6',
-        })
-        .setOrigin(0.5);
+      const label = this.scene.add.text(cx, cy, choice.label, style).setOrigin(0.5);
 
       btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
       btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
@@ -227,6 +282,14 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
 
       container.add(btn);
       container.add(label);
+      by += h + gap;
+    });
+
+    // 有选项的节点：点对话框本体也能跳字/翻页（选项按钮不受影响）
+    box.setInteractive();
+    box.on('pointerdown', () => {
+      if (this._typing) { this._finishTyping(); return; }
+      if (this._hasMorePages()) this._nextPage(node.speaker);
     });
 
     // 统一交互：只有一个选项（如"(继续)"）时，空格/回车也可推进
@@ -234,6 +297,7 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       const only = visibleChoices[0];
       const go = () => {
         if (this._typing) { this._finishTyping(); return; } // 打字中先跳字
+        if (this._hasMorePages()) { this._nextPage(node.speaker); return; } // 还有页先翻页
         if (this._advanced) return;
         this._advanced = true;
         this._applyEffects(only.effects);

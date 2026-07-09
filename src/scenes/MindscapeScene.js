@@ -39,13 +39,17 @@ export class MindscapeScene extends Phaser.Scene {
     this.W = W; this.H = H;
     AudioSystem.playBgm('mindscape'); // 空灵慢板，衬内心空间
 
-    // 溶入黑场
-    this.cameras.main.fadeIn(600, 10, 8, 20);
+    this._buildPalette();  // 按 mood 定调色板（低落/迷雾/治愈，都精心和谐）
+    // 溶入黑场（用调色板天空色，衔接更自然）
+    this.cameras.main.fadeIn(700, (this.pal.skyTop >> 16) & 255, (this.pal.skyTop >> 8) & 255, this.pal.skyTop & 255);
 
-    this._renderSky();
-    this._renderIsland();
-    this._renderPlant();
-    this._renderFloatingWords();
+    this._renderSky();       // 渐变天空 + 雾
+    this._renderMountains();  // 远景山峦剪影（视差层次）
+    this._renderGlowOrb();    // 月/日柔光辉光
+    this._renderStardust();   // 星尘（ADD 辉光 + twinkle）
+    this._renderIsland();     // 浮岛 + 倒影
+    this._renderPlant();      // 精致的树 + 光晕
+    this._renderFloatingWords(); // 负面词（低落时）
     this._renderTitle();
 
     // 稍候浮现内心独白 → 再给疗愈选择
@@ -61,110 +65,198 @@ export class MindscapeScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => this._exit());
   }
 
-  // ===== 天空/氛围(冷暖插值) =====
-  _renderSky() {
-    const m = this.mood / 100;
-    // 低落 深渊靛 #1b1b2e → 治愈 暖夜紫 #2e2a3e,高治愈再偏暖
-    const lerp = (a, b) => Math.round(a + (b - a) * m);
-    const bg = Phaser.Display.Color.GetColor(
-      lerp(0x1b, 0x2e), lerp(0x1b, 0x2a), lerp(0x2e, 0x3e)
-    );
-    this.cameras.main.setBackgroundColor(bg);
-
-    if (this.mood < 40) {
-      // 低落:阴云 + 裂缝
-      for (let i = 0; i < 5; i++) {
-        this.add.ellipse(
-          Phaser.Math.Between(80, this.W - 80), Phaser.Math.Between(40, 160),
-          Phaser.Math.Between(160, 280), Phaser.Math.Between(40, 70),
-          0x14141f, 0.55
-        ).setDepth(1);
-      }
-      const g = this.add.graphics().setDepth(1);
-      g.lineStyle(2, 0x101018, 0.8);
-      for (let i = 0; i < 5; i++) {
-        const x = Phaser.Math.Between(100, this.W - 100);
-        g.beginPath(); g.moveTo(x, 180);
-        g.lineTo(x + Phaser.Math.Between(-40, 40), this.H - 120);
-        g.strokePath();
-      }
-    } else if (this.mood > 65) {
-      // 治愈:天光 + 光缝
-      for (let i = 0; i < 6; i++) {
-        this.add.circle(
-          Phaser.Math.Between(60, this.W - 60), Phaser.Math.Between(40, 200),
-          Phaser.Math.Between(18, 42), 0xf5c86b, 0.10
-        ).setDepth(1);
-      }
-      // 顶部一束天光
-      const beam = this.add.triangle(this.W / 2, 0, -60, 0, 60, 0, 220, 360, 0xf5e0a0, 0.06).setDepth(1);
+  // ===== 调色板：按 mood 分三档，每档精心和谐（参考 Gris/Journey 情绪美学）=====
+  _buildPalette() {
+    const m = this.mood;
+    if (m < 40) {
+      // 低落：深靛蓝夜，冷色，稀疏冷白星，枯树微光
+      this.pal = {
+        mood: 'low',
+        skyTop: 0x0a0e2a, skyBot: 0x1b1c3e,
+        mountains: [0x11132e, 0x171a38, 0x1e2244],
+        orb: 0xb8c4e8, orbGlow: 0x7a88c0,
+        star: 0x9aa8d8, starCount: 34,
+        island: 0x2a2e4a, islandDark: 0x1c1f38,
+        trunk: 0x3a3850, leaf: 0x484d68, leafGlow: null,
+        fog: 0x2a2c50,
+      };
+    } else if (m > 65) {
+      // 治愈：暖紫→粉金渐变，温暖，密集金星尘，生机树+暖光晕
+      this.pal = {
+        mood: 'heal',
+        skyTop: 0x2a1e48, skyBot: 0x5e3f62,
+        mountains: [0x3a2a56, 0x4a3560, 0x5c4468],
+        orb: 0xffe0a0, orbGlow: 0xffb868,
+        star: 0xffd880, starCount: 80,
+        island: 0x46583e, islandDark: 0x2e3a2e,
+        trunk: 0x6a5240, leaf: 0x74c49a, leafGlow: 0xa8ecc8,
+        fog: null,
+      };
     } else {
-      // 迷雾
-      this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x8888aa, 0.10).setDepth(1);
+      // 迷雾：灰蓝紫，朦胧，薄雾层，半生机
+      this.pal = {
+        mood: 'mid',
+        skyTop: 0x18203e, skyBot: 0x342e50,
+        mountains: [0x222448, 0x2a2a52, 0x34305c],
+        orb: 0xcac0dc, orbGlow: 0x9a8cc0,
+        star: 0xb4acce, starCount: 52,
+        island: 0x3c3c56, islandDark: 0x2a2a42,
+        trunk: 0x5a5248, leaf: 0x7a9a80, leafGlow: null,
+        fog: 0x8a84b0,
+      };
     }
   }
 
-  // ===== 中心浮地(内心岛屿) =====
+  _ensureDot() {
+    if (this.textures.exists('_ms_dot')) return;
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff, 1); g.fillCircle(5, 5, 5);
+    g.generateTexture('_ms_dot', 10, 10); g.destroy();
+  }
+
+  // ===== 渐变天空 + 薄雾 =====
+  _renderSky() {
+    const g = this.add.graphics().setDepth(0);
+    // 垂直渐变（顶深→底暖），Phaser 四角渐变填全屏
+    g.fillGradientStyle(this.pal.skyTop, this.pal.skyTop, this.pal.skyBot, this.pal.skyBot, 1);
+    g.fillRect(0, 0, this.W, this.H);
+    // 迷雾层（呼吸）
+    if (this.pal.fog && this.pal.mood !== 'heal') {
+      const fog = this.add.rectangle(this.W / 2, this.H * 0.66, this.W, this.H * 0.55, this.pal.fog, 0.07).setDepth(3);
+      this.tweens.add({ targets: fog, alpha: 0.14, duration: 4500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
+  }
+
+  // ===== 远景山峦剪影（多层视差，营造景深）=====
+  _renderMountains() {
+    const { W, H } = this;
+    this.pal.mountains.forEach((col, layer) => {
+      const g = this.add.graphics().setDepth(1);
+      g.fillStyle(col, 1);
+      const baseY = H * (0.5 + layer * 0.09);
+      const amp = 70 - layer * 16;
+      const seg = 9;
+      g.beginPath();
+      g.moveTo(0, H);
+      g.lineTo(0, baseY);
+      for (let i = 0; i <= seg; i++) {
+        const x = (W / seg) * i;
+        const y = baseY + Math.sin(i * 1.2 + layer * 2.3) * amp;
+        g.lineTo(x, y);
+      }
+      g.lineTo(W, H);
+      g.closePath();
+      g.fillPath();
+    });
+  }
+
+  // ===== 月/日柔光辉光（ADD 混合多层同心圆）=====
+  _renderGlowOrb() {
+    const mx = this.W * 0.76, my = this.H * 0.22;
+    const r = this.pal.mood === 'heal' ? 46 : 38;
+    for (let i = 8; i >= 1; i--) {
+      this.add.circle(mx, my, r * (0.5 + i * 0.42), this.pal.orbGlow, 0.045)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(1);
+    }
+    const core = this.add.circle(mx, my, r, this.pal.orb, 0.95).setDepth(2);
+    this.tweens.add({ targets: core, scale: 1.06, duration: 3800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+  }
+
+  // ===== 星尘：静态星点 twinkle（ADD 辉光）+ 治愈态上升光尘 =====
+  _renderStardust() {
+    for (let i = 0; i < this.pal.starCount; i++) {
+      const x = Phaser.Math.Between(0, this.W);
+      const y = Phaser.Math.Between(0, this.H * 0.72);
+      const r = Phaser.Math.FloatBetween(0.7, 2.3);
+      const star = this.add.circle(x, y, r, this.pal.star, Phaser.Math.FloatBetween(0.3, 0.9))
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(2);
+      this.tweens.add({
+        targets: star, alpha: Phaser.Math.FloatBetween(0.1, 0.4),
+        duration: Phaser.Math.Between(1600, 4200), yoyo: true, repeat: -1,
+        ease: 'Sine.inOut', delay: Phaser.Math.Between(0, 2200),
+      });
+    }
+    // 治愈态：从下方缓缓上升的暖金光尘（希望感）
+    if (this.pal.mood === 'heal') {
+      this._ensureDot();
+      this.add.particles(0, 0, '_ms_dot', {
+        x: { min: 0, max: this.W }, y: this.H + 12,
+        frequency: 280, lifespan: 9500,
+        scale: { min: 0.4, max: 1.4 }, alpha: { start: 0.85, end: 0 },
+        speedY: { min: -30, max: -12 }, speedX: { min: -8, max: 8 },
+        tint: 0xffd880, blendMode: 'ADD',
+      }).setDepth(2);
+    }
+  }
+
+  // ===== 中心浮岛 + 水面倒影 =====
   _renderIsland() {
-    const cx = this.W / 2, cy = this.H / 2 + 40;
-    const m = this.mood / 100;
-    // 岛屿颜色:枯褐 → 生机绿褐
-    const top = Phaser.Display.Color.GetColor(
-      Math.round(0x4a + (0x6a - 0x4a) * m),
-      Math.round(0x44 + (0x8a - 0x44) * m),
-      Math.round(0x3a + (0x5a - 0x3a) * m)
-    );
-    // 主岛(椭圆浮地)
-    this.add.ellipse(cx, cy + 60, 340, 120, top, 0.95).setDepth(2);
-    this.add.ellipse(cx, cy + 60, 340, 120).setStrokeStyle(2, 0x2a2a38).setDepth(2);
-    // 治愈态:岛下发光根须
-    if (this.mood > 65) {
-      this.add.ellipse(cx, cy + 110, 200, 40, 0xf5c86b, 0.12).setDepth(1);
-    }
-    // 环绕碎块(心事碎片),缓慢浮动
-    for (let i = 0; i < 4; i++) {
-      const a = (Math.PI * 2 / 4) * i;
-      const bx = cx + Math.cos(a) * 260;
-      const by = cy + Math.sin(a) * 90;
-      const frag = this.add.rectangle(bx, by, 34, 22, top, 0.8).setDepth(2).setAngle(Phaser.Math.Between(-20, 20));
-      this.tweens.add({ targets: frag, y: by - 10, duration: 1800 + i * 300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    const cx = this.W / 2, cy = this.H * 0.6;
+    this.plantCX = cx; this.plantCY = cy - 8;
+    // 倒影（岛下方，暗淡模糊感）
+    this.add.ellipse(cx, cy + 96, 300, 46, this.pal.islandDark, 0.28).setDepth(2);
+    // 岛体（双层做厚度：底暗 + 顶亮）
+    this.add.ellipse(cx, cy + 48, 330, 92, this.pal.islandDark, 0.95).setDepth(3);
+    this.add.ellipse(cx, cy + 40, 330, 86, this.pal.island, 1).setDepth(3);
+    // 岛面柔光高光
+    this.add.ellipse(cx, cy + 34, 250, 52, this.pal.island, 0.4)
+      .setBlendMode(Phaser.BlendModes.ADD).setDepth(3);
+    // 治愈态：岛下发光根须
+    if (this.pal.mood === 'heal') {
+      const glow = this.add.ellipse(cx, cy + 78, 270, 66, this.pal.orbGlow, 0.14)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(2);
+      this.tweens.add({ targets: glow, alpha: 0.24, scaleX: 1.1, duration: 2800, yoyo: true, repeat: -1 });
     }
   }
 
-  // ===== 中心绿植(情感锚点,状态灯塔) =====
+  // ===== 中心的树（情感锚点）：弯曲枝干 + 蓬松渐变叶簇 + 光晕 =====
   _renderPlant() {
-    const cx = this.W / 2, cy = this.H / 2 + 40;
-    const m = this.mood / 100;
-    // 茎
-    const stemCol = Phaser.Display.Color.GetColor(
-      Math.round(0x6a + (0x3a - 0x6a) * m),
-      Math.round(0x5a + (0x8a - 0x5a) * m),
-      Math.round(0x3a + (0x4a - 0x3a) * m)
-    );
-    this.plantStem = this.add.rectangle(cx, cy + 20, 6, 70, stemCol).setDepth(5);
-    // 叶(数量随mood)
-    const leafCol = Phaser.Display.Color.GetColor(
-      Math.round(0x8a + (0x4e - 0x8a) * m),
-      Math.round(0x7a + (0xc9 - 0x7a) * m),
-      Math.round(0x4a + (0xb0 - 0x4a) * m)
-    );
+    const cx = this.plantCX, cy = this.plantCY + 34; // 树根落在岛面
+    const g = this.add.graphics().setDepth(5);
+    // 主干（略呈锥形）
+    g.fillStyle(this.pal.trunk, 1);
+    g.beginPath();
+    g.moveTo(cx - 6, cy);
+    g.lineTo(cx - 3, cy - 74);
+    g.lineTo(cx + 3, cy - 74);
+    g.lineTo(cx + 6, cy);
+    g.closePath();
+    g.fillPath();
+    // 分枝
+    g.lineStyle(3, this.pal.trunk, 1);
+    g.beginPath();
+    g.moveTo(cx, cy - 52); g.lineTo(cx - 26, cy - 76);
+    g.moveTo(cx, cy - 60); g.lineTo(cx + 24, cy - 88);
+    g.strokePath();
+
+    // 蓬松树冠（多个渐变椭圆叠加成有机形态），叶数随 mood
     this.leaves = [];
-    const leafCount = 2 + Math.floor(this.mood / 14);
-    for (let i = 0; i < leafCount; i++) {
-      const side = i % 2 === 0 ? -1 : 1;
-      const lf = this.add.ellipse(cx + side * (12 + i * 3), cy - 5 - i * 9, 16, 9, leafCol, 0.95)
-        .setDepth(5).setAngle(side * 25);
-      this.leaves.push(lf);
+    const topY = cy - 94;
+    const cluster = this.pal.mood === 'low' ? 4 : this.pal.mood === 'mid' ? 8 : 12;
+    for (let i = 0; i < cluster; i++) {
+      const a = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const rr = Phaser.Math.FloatBetween(0, 44);
+      const lx = cx + Math.cos(a) * rr;
+      const ly = topY + Math.sin(a) * rr * 0.68;
+      const sz = Phaser.Math.Between(26, 46);
+      const leaf = this.add.ellipse(lx, ly, sz, sz * 0.82, this.pal.leaf, 0.82).setDepth(5);
+      this.leaves.push(leaf);
+      // 缓慢呼吸
+      this.tweens.add({
+        targets: leaf, scaleX: 1.08, scaleY: 1.08,
+        duration: Phaser.Math.Between(2200, 3800), yoyo: true, repeat: -1,
+        ease: 'Sine.inOut', delay: i * 90,
+      });
     }
-    // 治愈态光晕
-    if (this.mood > 65) {
-      this.plantGlow = this.add.circle(cx, cy - 10, 46, 0x66ffcc, 0.12).setDepth(4);
-      this.tweens.add({ targets: this.plantGlow, alpha: 0.22, scale: 1.15, duration: 1400, yoyo: true, repeat: -1 });
+    // 树冠光晕（治愈态）
+    if (this.pal.leafGlow) {
+      this.plantGlow = this.add.circle(cx, topY, 62, this.pal.leafGlow, 0.14)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(4);
+      this.tweens.add({ targets: this.plantGlow, alpha: 0.26, scale: 1.16, duration: 2400, yoyo: true, repeat: -1 });
     }
-    this.plantCX = cx; this.plantCY = cy;
   }
 
-  // ===== 飘浮的负面词(压力具象) =====
+  // ===== 飘浮的负面词（压力具象，低落时）=====
   _renderFloatingWords() {
     if (this.mood >= 55) return;
     const words = ['KPI', '又改需求', '是不是我不行', 'deadline', '还没做完', '对不起'];
@@ -172,11 +264,14 @@ export class MindscapeScene extends Phaser.Scene {
     this.words = [];
     for (let i = 0; i < n; i++) {
       const w = Phaser.Utils.Array.GetRandom(words);
-      const x = Phaser.Math.Between(120, this.W - 120);
-      const y = Phaser.Math.Between(80, this.H - 160);
-      const t = this.add.text(x, y, w, { fontSize: '15px', color: '#556', fontStyle: 'italic' })
-        .setAlpha(0.5).setDepth(3);
-      this.tweens.add({ targets: t, y: y - 20, alpha: 0.15, duration: 2600 + i * 400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      const x = Phaser.Math.Between(160, this.W - 160);
+      const y = Phaser.Math.Between(130, this.H * 0.58);
+      const t = this.add.text(x, y, w, { fontSize: '20px', color: '#6a6a90', fontStyle: 'italic' })
+        .setOrigin(0.5).setAlpha(0.32).setDepth(4);
+      this.tweens.add({
+        targets: t, y: y - 26, alpha: 0.08,
+        duration: 3200 + i * 400, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
       this.words.push(t);
     }
   }

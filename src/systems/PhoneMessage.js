@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioSystem } from './AudioSystem.js';
 
 // PhoneMessage：仿微信手机消息弹窗 —— 展示剧情中家人发来的消息。
 // 纯 UI 渲染层（"怎么显示"）；显示什么由 FamilyMessages（数据层）决定。
@@ -90,6 +91,10 @@ export class PhoneMessage {
 
     // 适配双相机：main 相机忽略（不受 zoom 放大），uiCamera 默认渲染
     if (typeof scene.attachToUICamera === 'function') scene.attachToUICamera([backdrop, c]);
+
+    // ---- 反馈：通知音 + 轻微屏震（家人消息到达的"重量"）----
+    AudioSystem.notify();
+    if (scene.cameras.main) scene.cameras.main.shake(150, 0.004);
 
     // ---- 滑入动画（350ms）----
     scene.tweens.add({

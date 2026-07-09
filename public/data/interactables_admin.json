@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "career": "admin",
+    "title": "行政办公室可交互物件",
+    "desc": "地图上可走近按 E 触发的物件：电脑(事务处理小游戏)、售货机(买饮料回状态)、白板(任务板)、窗户(内心独白)、绿植(浇水)、咖啡机(提神)。pos 是世界坐标（SkyOffice 地图 1280×960），与办公室共用。"
+  },
+  "interactables": [
+    {
+      "id": "computer",
+      "pos": [880, 400],
+      "icon": "💻",
+      "prompt": "处理日常事务",
+      "action": "minigame:affairs",
+      "cooldown": "daily"
+    },
+    {
+      "id": "vending",
+      "pos": [1136, 560],
+      "icon": "🥤",
+      "prompt": "买瓶饮料",
+      "action": "buy_drink",
+      "cost": { "money": -5 },
+      "effect": { "energy": 12, "san": 3 }
+    },
+    {
+      "id": "whiteboard",
+      "pos": [400, 300],
+      "icon": "📋",
+      "prompt": "看看任务板",
+      "action": "quest_board"
+    },
+    {
+      "id": "window",
+      "pos": [240, 200],
+      "icon": "🪟",
+      "prompt": "望向窗外",
+      "action": "monologue:auto"
+    },
+    {
+      "id": "plant",
+      "pos": [1008, 240],
+      "icon": "🪴",
+      "prompt": "给绿植浇水",
+      "action": "water_plant",
+      "effect": { "san": 6, "passion": 2 },
+      "cooldown": "daily"
+    },
+    {
+      "id": "coffee",
+      "pos": [560, 560],
+      "icon": "☕",
+      "prompt": "接杯咖啡",
+      "action": "buy_drink",
+      "cost": { "money": -3 },
+      "effect": { "energy": 15, "stress": -3 }
+    }
+  ]
+}

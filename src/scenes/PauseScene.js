@@ -25,6 +25,9 @@ export class PauseScene extends Phaser.Scene {
     this.career = data?.career || 'programmer';
     this.act = data?.act || 1;
     this.stats = this.stateSystem ? this.stateSystem.getAll() : null;
+    this.questSystem = data?.questSystem || null;  // 真实任务数据源（替代硬编码 goalByAct）
+    this.choiceLog = data?.choiceLog || null;
+    this.openPanel = data?.openPanel || null;      // 直接打开某面板（如白板打开 'quests'）
   }
 
   create() {
@@ -35,7 +38,9 @@ export class PauseScene extends Phaser.Scene {
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a12, 0.82).setInteractive();
     // 面板容器（切换用）
     this.panel = this.add.container(0, 0);
-    this._showMain();
+    // 白板等物件可直接打开任务页；否则进主菜单
+    if (this.openPanel === 'quests') this._showQuests();
+    else this._showMain();
 
     // ESC 关闭
     this.input.keyboard.on('keydown-ESC', () => {
@@ -66,6 +71,7 @@ export class PauseScene extends Phaser.Scene {
     btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
     // 框要在文字下方：先加框再加文字
     this.panel.add(btn); this.panel.add(txt);
+    btn.label = txt; // 供调用方动态改文字（如辅助模式开关）
     return btn;
   }
 
@@ -185,12 +191,78 @@ export class PauseScene extends Phaser.Scene {
   }
 
   // ===== 任务日志 =====
+  // 有 questSystem 时渲染真实任务列表（进行中/可接/已完成）；否则回落幕次概览。
   _showQuests() {
     this._clear(); this.inSub = true;
     this._title('任务日志'); this._backButton();
 
+    // 无任务系统 → 回落幕次概览（向后兼容）
+    if (!this.questSystem) { this._showQuestsFallback(); return; }
+
+    const cx = this.W / 2;
+    let y = 130;
+
+    // ---- 进行中任务（含目标勾选）----
+    const active = this.questSystem.active();
+    this.panel.add(this.add.text(cx, y, '◆ 进行中', { fontSize: '17px', color: '#ffd68a' }).setOrigin(0.5));
+    y += 30;
+    if (active.length === 0) {
+      this.panel.add(this.add.text(cx, y, '（暂无进行中的任务，去找头顶有 ❗ 的同事）', {
+        fontSize: '13px', color: '#7a7a9a',
+      }).setOrigin(0.5));
+      y += 26;
+    } else {
+      for (const q of active) {
+        const ready = this.questSystem.isReady(q.id);
+        this.panel.add(this.add.text(cx, y, `${ready ? '✓' : '▸'} ${q.title}${ready ? '（可交付）' : ''}`, {
+          fontSize: '15px', color: ready ? '#7eff7e' : '#e8e8f4', fontStyle: 'bold',
+        }).setOrigin(0.5));
+        y += 22;
+        // 目标勾选清单
+        const prog = this.questSystem.accepted[q.id];
+        for (const o of (q.objectives || [])) {
+          const oDone = prog && prog.objectives[o.id];
+          this.panel.add(this.add.text(cx, y, `   ${oDone ? '☑' : '☐'} ${o.text}`, {
+            fontSize: '13px', color: oDone ? '#8bd68b' : '#a8a8c0',
+          }).setOrigin(0.5));
+          y += 19;
+        }
+        y += 8;
+      }
+    }
+
+    // ---- 可接任务 ----
+    const avail = this.questSystem.available({ act: this.act });
+    if (avail.length > 0) {
+      y += 6;
+      this.panel.add(this.add.text(cx, y, '◇ 可接取', { fontSize: '15px', color: '#8b8bb0' }).setOrigin(0.5));
+      y += 26;
+      for (const q of avail) {
+        this.panel.add(this.add.text(cx, y, `· ${q.title}（找 ${this._npcName(q.giver)}）`, {
+          fontSize: '13px', color: '#9a9ac0',
+        }).setOrigin(0.5));
+        y += 20;
+      }
+    }
+
+    // ---- 已完成计数 ----
+    const doneCount = this.questSystem.done().length;
+    if (doneCount > 0) {
+      y += 10;
+      this.panel.add(this.add.text(cx, y, `✓ 已完成 ${doneCount} 个任务`, {
+        fontSize: '13px', color: '#7a9a7a',
+      }).setOrigin(0.5));
+    }
+  }
+
+  // NPC id → 显示名（任务给取者提示用）
+  _npcName(id) {
+    return { senior: '导师', peer: '同事', vet: '前辈' }[id] || '同事';
+  }
+
+  // 回落：无任务系统时的幕次概览（保留原逻辑）
+  _showQuestsFallback() {
     const cn = CAREER_NAMES[this.career] || this.career;
-    // 当前幕目标（按职业+幕次概括）
     const goalByAct = {
       1: `熟悉「${cn}」的第一天：见导师、领工位、种下绿植、写下给自己的信。`,
       2: '上手第一份真正的工作，在成就与代价之间找到自己的节奏。',
@@ -203,8 +275,6 @@ export class PauseScene extends Phaser.Scene {
     this.panel.add(this.add.text(this.W / 2, y0 + 34, goalByAct[this.act] || '继续你的职场故事。', {
       fontSize: '15px', color: '#e8e8f4', wordWrap: { width: 620, useAdvancedWrap: true }, align: 'center', lineSpacing: 8,
     }).setOrigin(0.5));
-
-    // 已完成的幕
     this.panel.add(this.add.text(this.W / 2, y0 + 110, '◇ 已经走过', { fontSize: '15px', color: '#8b8bb0' }).setOrigin(0.5));
     let done = '';
     for (let a = 1; a < this.act; a++) done += `· 第${a}幕 ${ACT_NAMES[a]}\n`;
@@ -247,13 +317,21 @@ export class PauseScene extends Phaser.Scene {
     slider(230, '音效', 'sfx');
 
     // 全屏切换
-    this._menuButton(300, '⛶  全屏 / 退出全屏', () => {
+    this._menuButton(290, '⛶  全屏 / 退出全屏', () => {
       if (this.scale.isFullscreen) this.scale.stopFullscreen();
       else this.scale.startFullscreen();
     }, 300);
 
+    // 辅助模式（Celeste 式）：开启后负面状态消耗减半，让任何人都能走到结局
+    const assistOn = () => !!settings.assist;
+    const assistBtn = this._menuButton(345, '', () => {
+      settings.assist = !settings.assist; save();
+      assistBtn.label.setText(`💗  叙事辅助：${assistOn() ? '开' : '关'}（减轻状态消耗）`);
+    }, 300, assistOn() ? 0x2a4436 : 0x2a2a3e);
+    assistBtn.label.setText(`💗  叙事辅助：${assistOn() ? '开' : '关'}（减轻状态消耗）`);
+
     // 返回标题（确认）
-    this._menuButton(360, '🏠  返回标题', () => {
+    this._menuButton(405, '🏠  返回标题', () => {
       this._confirm('确定返回标题？当前进度会保留在存档。', () => {
         this.scene.stop(this.origin);
         this.scene.stop();

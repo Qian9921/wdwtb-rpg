@@ -1,0 +1,174 @@
+{
+  "_meta": {
+    "career": "admin",
+    "title": "高校行政职业任务集",
+    "desc": "5 幕主线+支线+日常任务。主线串起公文、盖章、会务的行政日常，支线提供探索与关怀，日常给多天循环填充内容。"
+  },
+  "quests": [
+    {
+      "id": "q_first_doc",
+      "title": "你的第一份公文",
+      "giver": "senior",
+      "type": "main",
+      "desc": "王主任让你起草一份通知，格式一定要规范，写好拿给他看。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "先找小方要一份公文模板" },
+        { "id": "o2", "kind": "interact", "target": "computer", "text": "在办公电脑上拟写通知" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "把公文送王主任审核" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 200 }
+    },
+    {
+      "id": "q_admin_mentor",
+      "title": "向刘姐取经",
+      "giver": "vet",
+      "type": "side",
+      "desc": "前辈刘姐在学校干了十几年，去听听她的处事之道。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和刘姐聊聊行政这行的门道" }
+      ],
+      "reward": { "san": 8, "skill": 2 }
+    },
+    {
+      "id": "q_stamp",
+      "title": "跑章",
+      "giver": "senior",
+      "type": "daily",
+      "desc": "王主任让你把一摞材料的公章都盖齐，别漏了页。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "affairs", "text": "完成盖章核对的事务闯关" }
+      ],
+      "reward": { "performance": 2, "energy": -3 }
+    },
+    {
+      "id": "q_meeting_prep",
+      "title": "筹备一场会议",
+      "giver": "senior",
+      "type": "main",
+      "desc": "学院要开教学工作会，王主任把会务筹备交给你。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "打电话通知各系参会" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "排会场、备材料的事务闯关" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "向王主任确认会议流程" }
+      ],
+      "reward": { "skill": 6, "performance": 4, "money": 300 }
+    },
+    {
+      "id": "q_coffee_admin",
+      "title": "茶水间歇口气",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小方说忙一上午了，拉你去茶水间倒杯水歇会儿。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "vending", "text": "在售货机接杯热饮" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_plant_admin",
+      "title": "照料办公室的绿植",
+      "giver": "vet",
+      "type": "side",
+      "desc": "刘姐说办公室那盆吊兰有些干了，帮着浇浇水。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "plant", "text": "给绿植浇水" }
+      ],
+      "reward": { "san": 10, "passion": 3 }
+    },
+    {
+      "id": "q_enrollment_rush",
+      "title": "开学季的忙乱",
+      "giver": "senior",
+      "type": "main",
+      "desc": "开学报到千头万绪，王主任让你统筹迎新的各项事务。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "在白板上排开迎新的分工" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "完成迎新事务的调度闯关" }
+      ],
+      "reward": { "performance": 8, "money": 500, "energy": -20, "stress": 10 }
+    },
+    {
+      "id": "q_window_admin",
+      "title": "望向窗外",
+      "giver": "peer",
+      "type": "side",
+      "desc": "忙得头晕，小方叫你到窗边看看操场上的学生透透气。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向校园" }
+      ],
+      "reward": { "san": 12, "stress": -8 }
+    },
+    {
+      "id": "q_help_peer_admin",
+      "title": "帮小方理台账",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小方的报销台账对不上账，问你能不能搭把手。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "听小方说明对不上的地方" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "帮小方核对台账的事务闯关" }
+      ],
+      "reward": { "san": 6, "skill": 3, "passion": 4 }
+    },
+    {
+      "id": "q_audit_crisis",
+      "title": "迎检的至暗时刻",
+      "giver": "senior",
+      "type": "main",
+      "desc": "上级临时通知来检查，材料却缺了一环，王主任让你连夜补齐。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "computer", "text": "在电脑前赶补迎检材料" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "和王主任对一遍应检口径" }
+      ],
+      "reward": { "skill": 8, "stress": 15, "performance": 5 }
+    },
+    {
+      "id": "q_call_home_admin",
+      "title": "给家里打个电话",
+      "giver": "vet",
+      "type": "side",
+      "desc": "刘姐看你加班好几天了，劝你给家里报个平安。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "找个安静的地方打电话" }
+      ],
+      "reward": { "san": 15, "passion": 5, "stress": -10 }
+    },
+    {
+      "id": "q_year_summary",
+      "title": "年终的总结",
+      "giver": "senior",
+      "type": "main",
+      "desc": "年底了，王主任让你把这一年学院的行政工作汇总成材料。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "affairs", "text": "完成年度材料的汇总闯关" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "把总结交给王主任" }
+      ],
+      "reward": { "skill": 6, "performance": 6, "money": 400 }
+    },
+    {
+      "id": "q_whiteboard_admin",
+      "title": "白板上的选择",
+      "giver": "senior",
+      "type": "main",
+      "desc": "王主任在白板上写下几条路，让你想想接下来往哪个方向走。",
+      "trigger": { "act": 5 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "看看白板上的几条路" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "和王主任谈你的决定" }
+      ],
+      "reward": { "passion": 10, "san": 10 }
+    }
+  ]
+}

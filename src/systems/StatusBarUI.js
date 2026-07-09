@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Juice } from './JuiceKit.js';
 
 // StatusBarUI：状态 HUD——参考星露谷"平时极简、按需展开"理念。
 // 迷你态（默认）：左上角一条紧凑横条，8 状态浓缩为色块小条，不挡视野。
@@ -38,6 +39,7 @@ export class StatusBarUI {
     this.rows = {};       // 展开面板行
     this.miniFills = {};  // 迷你条填充
     this.expanded = false;
+    this._prevValues = stateSystem.getAll(); // 飘字用：记录上次值，算 delta
 
     this._buildMini();
     this._buildPanel();
@@ -50,7 +52,17 @@ export class StatusBarUI {
       this._setExpanded(!this.expanded);
     });
 
-    stateSystem.on('change', (key, value) => this._updateRow(key, value));
+    stateSystem.on('change', (key, value) => {
+      // key=null 表示 restore 批量恢复（StateSystem），刷新所有行
+      if (key === null) { ORDER.forEach(s => this._updateRow(s.key, this.state.get(s.key))); return; }
+      // 飘字反馈：数值变化时显示 +5/-3 浮起（数值驱动 RPG 的核心手感）
+      const prev = this._prevValues[key];
+      this._prevValues[key] = value;
+      if (prev != null && typeof prev === 'number' && value !== prev) {
+        this._floatStat(key, value - prev);
+      }
+      this._updateRow(key, value);
+    });
   }
 
   // ---------- 迷你态：一块小横条 ----------
@@ -177,5 +189,19 @@ export class StatusBarUI {
       mf.setSize(this._ratio(key) * MINI_BAR_W, MINI_BAR_H);
       mf.setFillStyle(this._miniColor(key));
     }
+  }
+
+  // 飘字：状态变化时在迷你条上方浮起 +5/-3。delta 正绿负红。
+  // 钉屏 + UI 相机坐标（屏幕左上角迷你条位置）。money delta 可能很大，截断显示。
+  _floatStat(key, delta) {
+    if (delta === 0 || !this.scene?.add?.text) return;
+    const idx = ORDER.findIndex(s => s.key === key);
+    if (idx < 0) return;
+    const x = MINI_X + MINI_PAD + idx * (MINI_BAR_W + MINI_GAP) + MINI_BAR_W / 2;
+    const y = MINI_Y - 4;
+    const sign = delta > 0 ? '+' : '';
+    const txt = Math.abs(delta) > 999 ? `${sign}${delta > 0 ? '↑' : '↓'}` : `${sign}${delta}`;
+    const color = delta > 0 ? '#6aaa6a' : '#e8735a';
+    Juice.floatText(this.scene, x, y, txt, color);
   }
 }

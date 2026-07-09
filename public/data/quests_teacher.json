@@ -1,0 +1,96 @@
+{
+  "_meta": {
+    "career": "teacher",
+    "title": "教师职业任务集",
+    "desc": "轻量单幕任务集。主线带你从备课到上课，支线与日常提供探索、关怀与循环内容。"
+  },
+  "quests": [
+    {
+      "id": "q_first_lesson",
+      "title": "备好你的第一堂课",
+      "giver": "senior",
+      "type": "main",
+      "desc": "陈校长让你独立备一节公开课，教案写好先给他把关。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "找小许借往届的教案参考" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "在办公室完成备课的事务闯关" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "把教案交给陈校长把关" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 200 }
+    },
+    {
+      "id": "q_teacher_mentor",
+      "title": "向吴老师取经",
+      "giver": "vet",
+      "type": "side",
+      "desc": "前辈吴老师教了大半辈子书，去听听他怎么带学生。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和吴老师聊聊教书这行的门道" }
+      ],
+      "reward": { "san": 8, "skill": 2 }
+    },
+    {
+      "id": "q_class_time",
+      "title": "站上讲台",
+      "giver": "senior",
+      "type": "main",
+      "desc": "公开课这天到了，陈校长和同事都来听课，站上讲台讲好这一节。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "在黑板上写下今天的课题" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "完成课堂讲授的事务闯关" }
+      ],
+      "reward": { "skill": 6, "performance": 4, "money": 300, "stress": 8 }
+    },
+    {
+      "id": "q_parent_call",
+      "title": "和家长的一通电话",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小许提醒你有个学生最近状态不对，得跟家长沟通一下。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "打电话和家长耐心沟通" }
+      ],
+      "reward": { "skill": 4, "passion": 4, "stress": 6 }
+    },
+    {
+      "id": "q_grade_papers",
+      "title": "批改作业",
+      "giver": "senior",
+      "type": "daily",
+      "desc": "一摞作业本堆在桌上，陈校长说别拖着，今天批完。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "computer", "text": "在办公桌前批改作业" }
+      ],
+      "reward": { "performance": 3, "energy": -8, "stress": 5 }
+    },
+    {
+      "id": "q_teacher_rest",
+      "title": "课间歇口气",
+      "giver": "peer",
+      "type": "side",
+      "desc": "连上两节课嗓子发干，小许拉你去接杯水歇会儿。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "vending", "text": "在售货机接杯热水" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_teacher",
+      "title": "望向窗外的操场",
+      "giver": "vet",
+      "type": "side",
+      "desc": "吴老师说累了就到窗边看看学生跑操，心里会敞亮些。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向操场" }
+      ],
+      "reward": { "san": 12, "passion": 5, "stress": -8 }
+    }
+  ]
+}

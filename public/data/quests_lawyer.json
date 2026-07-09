@@ -1,0 +1,84 @@
+{
+  "_meta": {
+    "career": "lawyer",
+    "title": "律师职业任务集",
+    "desc": "轻量职业任务集：主线围绕案卷与庭审，支线补充人情与自我调节，帮你在严谨里守住良心。"
+  },
+  "quests": [
+    {
+      "id": "q_first_brief",
+      "title": "整理你的第一份案卷",
+      "giver": "senior",
+      "type": "main",
+      "desc": "沈律师把一宗案子的材料交给你，让你梳理证据、列出争议点。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "找小袁要案卷归档规范" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "在工位完成案卷梳理闯关" },
+        { "id": "o3", "kind": "interact", "target": "computer", "text": "在电脑上整理证据清单" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 250 }
+    },
+    {
+      "id": "q_vet_advice",
+      "title": "向何律请教",
+      "giver": "vet",
+      "type": "side",
+      "desc": "何律办过无数疑难案件，去听听他对这一行的理解。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和何律聊聊执业心得" }
+      ],
+      "reward": { "san": 8, "skill": 3 }
+    },
+    {
+      "id": "q_court",
+      "title": "第一次出庭",
+      "giver": "senior",
+      "type": "main",
+      "desc": "沈律师让你协助庭审，准备好质证和答辩要点。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "affairs", "text": "完成庭审答辩闯关" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "向沈律师复盘庭审表现" }
+      ],
+      "reward": { "skill": 6, "performance": 8, "stress": 10, "money": 400 }
+    },
+    {
+      "id": "q_water_plant",
+      "title": "照料所里的绿植",
+      "giver": "peer",
+      "type": "daily",
+      "desc": "小袁说前台那盆绿植该浇水了，帮个忙吧。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "plant", "text": "给绿植浇水" }
+      ],
+      "reward": { "san": 10, "passion": 3 }
+    },
+    {
+      "id": "q_coffee_break",
+      "title": "熬夜看卷后的咖啡",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小袁看你眼睛都熬红了，递来一杯咖啡让你缓缓。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "coffee", "text": "接过那杯咖啡" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_gaze",
+      "title": "结案之后",
+      "giver": "vet",
+      "type": "side",
+      "desc": "案子终于了结，何律让你到窗边静一静，别急着接下一单。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向远处" }
+      ],
+      "reward": { "san": 12, "stress": -8 }
+    }
+  ]
+}

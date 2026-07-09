@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "career": "sales",
+    "title": "销售职业任务集",
+    "desc": "轻量职业任务集：主线追着业绩跑，支线补充人脉与心态，帮你在压力里守住那股拼劲。"
+  },
+  "quests": [
+    {
+      "id": "q_first_call",
+      "title": "打通第一个客户电话",
+      "giver": "senior",
+      "type": "main",
+      "desc": "Vincent 把一批客户名单交给你，让你先电话破冰。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "找小柯要话术脚本" },
+        { "id": "o2", "kind": "interact", "target": "phone", "text": "拿起电话给客户打过去" },
+        { "id": "o3", "kind": "minigame", "target": "review", "text": "完成一轮客户沟通闯关" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 200 }
+    },
+    {
+      "id": "q_vet_advice",
+      "title": "跟彪哥学签单",
+      "giver": "vet",
+      "type": "side",
+      "desc": "彪哥是团队里的销冠，去请教他怎么谈成大单。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和彪哥聊聊签单心得" }
+      ],
+      "reward": { "san": 8, "skill": 3 }
+    },
+    {
+      "id": "q_pitch",
+      "title": "拿下季度大单",
+      "giver": "senior",
+      "type": "main",
+      "desc": "Vincent 把一个重点客户交给你，让你准备方案去谈。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "review", "text": "完成方案推演闯关" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "向 Vincent 汇报谈判结果" }
+      ],
+      "reward": { "skill": 6, "performance": 8, "stress": 10, "money": 500 }
+    },
+    {
+      "id": "q_coffee_break",
+      "title": "跑单间隙喝杯咖啡",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小柯看你跑了一天,拉你去接杯咖啡歇口气。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "coffee", "text": "在茶水间接杯咖啡" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_gaze",
+      "title": "被拒之后",
+      "giver": "vet",
+      "type": "side",
+      "desc": "又被客户挂了电话,彪哥让你到窗边站站,别往心里去。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向街道" }
+      ],
+      "reward": { "san": 12, "stress": -8 }
+    }
+  ]
+}

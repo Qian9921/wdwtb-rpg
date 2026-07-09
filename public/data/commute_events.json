@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "title": "通勤事件池",
+    "desc": "晨间通勤随机事件，每天早上抽一条。玩家做选择，微调当日状态/心情。轻量、生活化、有代入感。"
+  },
+  "events": [
+    {
+      "id": "subway_seat",
+      "text": "地铁上难得有个空座。旁边站着一位看起来很累的老人。",
+      "options": [
+        { "label": "让座给老人", "effect": { "san": 5, "energy": -3 }, "reply": "老人连声道谢，你心里暖了一下。" },
+        { "label": "假装没看见", "effect": { "energy": 5, "san": -3 }, "reply": "你坐下了，但整段路都有点不自在。" }
+      ]
+    },
+    {
+      "id": "rain",
+      "text": "出门才发现下雨了，你没带伞。地铁站还有五百米。",
+      "options": [
+        { "label": "冒雨冲过去", "effect": { "health": -4, "energy": -5, "passion": 3 }, "reply": "淋成落汤鸡，但莫名有种痛快感。" },
+        { "label": "在便利店买把伞", "effect": { "money": -20, "stress": -2 }, "reply": "二十块钱买个从容，值。" }
+      ]
+    },
+    {
+      "id": "message",
+      "text": "地铁上刷到大学室友的朋友圈——ta 又换了份高薪工作。",
+      "options": [
+        { "label": "点个赞，真心祝福", "effect": { "san": 4, "passion": 2 }, "reply": "为朋友高兴，也提醒自己别慌。" },
+        { "label": "默默划过去", "effect": { "stress": 5, "passion": -3 }, "reply": "那点焦虑，像地铁隧道一样黑。" }
+      ]
+    },
+    {
+      "id": "coffee_cart",
+      "text": "地铁口的咖啡车飘来香味。你今天有点困。",
+      "options": [
+        { "label": "买一杯提提神", "effect": { "money": -15, "energy": 10 }, "reply": "热咖啡下肚，世界清晰了一点。" },
+        { "label": "省下钱，忍一忍", "effect": { "money": 0, "energy": -3 }, "reply": "省是省了，就是整个上午都昏昏沉沉。" }
+      ]
+    },
+    {
+      "id": "busker",
+      "text": "换乘通道里，有个年轻人在弹唱。唱得不算好，但很认真。",
+      "options": [
+        { "label": "停下来听一会儿", "effect": { "passion": 5, "energy": -2 }, "reply": "那股认真劲儿，让你想起了刚工作时的自己。" },
+        { "label": "赶时间，快步走过", "effect": { "energy": 2 }, "reply": "琴声在身后越来越远。" }
+      ]
+    },
+    {
+      "id": "old_photo",
+      "text": "手机相册弹出'去年今天'——是你入职第一天的自拍，笑得很灿烂。",
+      "options": [
+        { "label": "看看当时的自己", "effect": { "san": 3, "passion": 4 }, "reply": "那时的眼神真亮啊。现在呢？" },
+        { "label": "关掉，继续赶路", "effect": { "stress": 2 }, "reply": "有些对比，早上不适合看。" }
+      ]
+    }
+  ]
+}

@@ -295,6 +295,8 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       btn.on('pointerdown', () => {
         AudioSystem.uiClick();
         this._applyEffects(choice.effects);
+        // 记录选择：emit 'choice' 事件，外部场景写入 ChoiceLog（选择记忆/结局画像数据源）
+        this.emit('choice', { nodeId, choice, act: this.currentAct });
         if (node.action) this.emit('action', node.action, node);
         this._showNode(choice.next);
       });

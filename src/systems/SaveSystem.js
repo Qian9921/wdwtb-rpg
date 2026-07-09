@@ -1,11 +1,22 @@
 // SaveSystem：localStorage 存读档。纯浏览器存储，不依赖 Phaser。
+//
+// 存档结构（增强版，向后兼容旧 {career, act}）：
+//   {
+//     version: 2,
+//     career: 'programmer',           // 当前职业
+//     act: 3,                         // 当前幕次
+//     stats: { health, energy, ... }, // StateSystem 的 8 项数值（续档恢复用）
+//     updatedAt: 1234567890           // 存档时间戳
+//   }
+// 捏人画像单独存 wdwtb_profile（OpeningScene 维护，不与此处耦合）。
 const SAVE_KEY = 'wdwtb_save';
 
 export class SaveSystem {
   // 存档：JSON.stringify 后写入 localStorage；失败返回 false，不抛错
   static save(data) {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      const payload = { ...data, version: 2, updatedAt: Date.now() };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
       return true;
     } catch (e) {
       return false;
@@ -21,6 +32,11 @@ export class SaveSystem {
     } catch (e) {
       return null;
     }
+  }
+
+  // 便捷存档：封装常用字段（career/act/stats）。其余字段可选经 extra 合并。
+  static saveProgress({ career, act, stats, extra }) {
+    return SaveSystem.save({ career, act, stats, ...(extra || {}) });
   }
 
   // 删除存档

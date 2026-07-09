@@ -1,0 +1,84 @@
+{
+  "_meta": {
+    "career": "operation",
+    "title": "运营职业任务集",
+    "desc": "轻量职业任务集：主线追着数据与活动跑，支线补充灵感与心态，帮你在琐碎里找到成就感。"
+  },
+  "quests": [
+    {
+      "id": "q_first_post",
+      "title": "发出你的第一条推文",
+      "giver": "senior",
+      "type": "main",
+      "desc": "雅姐把账号交给你，让你写一条推文并排期发布。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "找小鹿要选题日历" },
+        { "id": "o2", "kind": "minigame", "target": "review", "text": "在工位完成内容打磨闯关" },
+        { "id": "o3", "kind": "interact", "target": "computer", "text": "在电脑上把推文排期发布" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 180 }
+    },
+    {
+      "id": "q_vet_advice",
+      "title": "跟强哥取经",
+      "giver": "vet",
+      "type": "side",
+      "desc": "强哥做爆款活动是一把好手，去请教他涨粉的门道。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和强哥聊聊运营心得" }
+      ],
+      "reward": { "san": 8, "skill": 3 }
+    },
+    {
+      "id": "q_campaign",
+      "title": "策划一场引爆活动",
+      "giver": "senior",
+      "type": "main",
+      "desc": "雅姐让你操盘一场周年活动，从选题到复盘全程跟进。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "review", "text": "完成活动方案推演闯关" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "向雅姐汇报活动数据" }
+      ],
+      "reward": { "skill": 6, "performance": 8, "stress": 10, "money": 450 }
+    },
+    {
+      "id": "q_water_plant",
+      "title": "照料工位小盆栽",
+      "giver": "peer",
+      "type": "daily",
+      "desc": "小鹿说你工位那盆多肉快渴死了，顺手浇个水吧。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "plant", "text": "给多肉浇水" }
+      ],
+      "reward": { "san": 10, "passion": 3 }
+    },
+    {
+      "id": "q_coffee_break",
+      "title": "盯数据盯累了",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小鹿看你盯后台一下午,拉你去接杯咖啡换换脑子。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "coffee", "text": "在茶水间接杯咖啡" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_gaze",
+      "title": "数据不理想的时候",
+      "giver": "vet",
+      "type": "side",
+      "desc": "这条内容又扑了，强哥让你到窗边站站，灵感往往在放空时来。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向天空" }
+      ],
+      "reward": { "san": 12, "stress": -8, "passion": 4 }
+    }
+  ]
+}

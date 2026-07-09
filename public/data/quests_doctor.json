@@ -1,0 +1,97 @@
+{
+  "_meta": {
+    "career": "doctor",
+    "title": "医生/护士职业任务集",
+    "desc": "轻量单幕任务集。主线带你从查房到值班，支线与日常提供探索、关怀与循环内容。"
+  },
+  "quests": [
+    {
+      "id": "q_first_round",
+      "title": "你的第一次查房",
+      "giver": "senior",
+      "type": "main",
+      "desc": "张主任带你查房，让你先熟悉几位病人的情况再汇报。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "找小蒋交接病人的基本情况" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "完成查房记录的事务闯关" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "把病人情况汇报给张主任" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 200 }
+    },
+    {
+      "id": "q_doctor_mentor",
+      "title": "向护士长取经",
+      "giver": "vet",
+      "type": "side",
+      "desc": "护士长在科室里最有经验，去听听她怎么把病人照顾周全。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和护士长聊聊科室里的门道" }
+      ],
+      "reward": { "san": 8, "skill": 2 }
+    },
+    {
+      "id": "q_medical_record",
+      "title": "写病历",
+      "giver": "senior",
+      "type": "main",
+      "desc": "张主任让你把今天的病历补齐，字迹和用药一样都不能错。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "computer", "text": "在工作站录入病历" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "完成病历核对的事务闯关" }
+      ],
+      "reward": { "skill": 6, "performance": 4, "money": 300, "stress": 8 }
+    },
+    {
+      "id": "q_night_shift",
+      "title": "值一个夜班",
+      "giver": "senior",
+      "type": "main",
+      "desc": "今晚轮到你值夜班，张主任叮嘱你守好这一夜，随时应对情况。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "守着值班电话待命" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "完成夜间处置的事务闯关" }
+      ],
+      "reward": { "performance": 6, "money": 400, "energy": -20, "stress": 12 }
+    },
+    {
+      "id": "q_comfort_patient",
+      "title": "安抚一位病人",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小蒋说 8 床的病人情绪不太好，去床边陪他说说话。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "听小蒋说明病人的顾虑" }
+      ],
+      "reward": { "san": 6, "passion": 6, "stress": -4 }
+    },
+    {
+      "id": "q_doctor_rest",
+      "title": "值班间隙歇口气",
+      "giver": "peer",
+      "type": "daily",
+      "desc": "忙了大半天没顾上喝水，小蒋催你去接杯水补一补。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "vending", "text": "在售货机接杯热水" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_doctor",
+      "title": "望向窗外喘口气",
+      "giver": "vet",
+      "type": "side",
+      "desc": "护士长说这行见得多，累了就到窗边站一会儿，别把自己绷太紧。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向天空" }
+      ],
+      "reward": { "san": 12, "passion": 5, "stress": -8 }
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "_meta": {
+    "career": "civilservant",
+    "title": "公务员职业任务集",
+    "desc": "轻量职业任务集：主线串起科室日常，支线提供人情与成长，帮你在体制里找到自己的节奏。"
+  },
+  "quests": [
+    {
+      "id": "q_first_document",
+      "title": "起草你的第一份文件",
+      "giver": "senior",
+      "type": "main",
+      "desc": "赵科长把一份通知交给你，让你按规范拟稿后送审。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "先问小闵要往年的模板" },
+        { "id": "o2", "kind": "minigame", "target": "affairs", "text": "在工位完成公文拟稿闯关" },
+        { "id": "o3", "kind": "interact", "target": "computer", "text": "在电脑上把稿子送审" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 150 }
+    },
+    {
+      "id": "q_vet_advice",
+      "title": "听老周唠两句",
+      "giver": "vet",
+      "type": "side",
+      "desc": "老周在科里干了二十年，去听听他对这份工作的看法。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和老周聊聊体制内的门道" }
+      ],
+      "reward": { "san": 8, "skill": 2 }
+    },
+    {
+      "id": "q_reception",
+      "title": "窗口接待群众",
+      "giver": "senior",
+      "type": "main",
+      "desc": "赵科长安排你去便民窗口顶一上午，帮群众办理业务。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "affairs", "text": "完成窗口办事闯关" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "向赵科长汇报接待情况" }
+      ],
+      "reward": { "skill": 4, "performance": 5, "stress": 6, "money": 200 }
+    },
+    {
+      "id": "q_water_plant",
+      "title": "照料办公室的绿萝",
+      "giver": "peer",
+      "type": "daily",
+      "desc": "小闵说角落那盆绿萝有点蔫，帮忙浇浇水吧。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "plant", "text": "给绿萝浇水" }
+      ],
+      "reward": { "san": 10, "passion": 3 }
+    },
+    {
+      "id": "q_tea_break",
+      "title": "茶水间歇一会儿",
+      "giver": "peer",
+      "type": "side",
+      "desc": "忙了一上午，小闵招呼你去茶水间喝口水缓缓。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "vending", "text": "在茶水间接杯热饮" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_window_gaze",
+      "title": "望向大院外",
+      "giver": "vet",
+      "type": "side",
+      "desc": "老周说做久了容易钻牛角尖，让你到窗边透透气。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边看看院子" }
+      ],
+      "reward": { "san": 12, "stress": -8 }
+    }
+  ]
+}

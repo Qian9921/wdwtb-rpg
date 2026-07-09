@@ -186,6 +186,61 @@ export const AudioSystem = {
     } catch (e) {}
   },
 
+  // ---- 通用单音工具：内部复用，减少重复样板 ----
+  // freqStart→freqEnd 滑音，type 波形，dur 秒，gain 峰值
+  _tone(freqStart, freqEnd, type, dur, gain) {
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freqStart, now);
+      if (freqEnd !== freqStart) osc.frequency.exponentialRampToValueAtTime(freqEnd, now + dur);
+      g.gain.setValueAtTime(gain, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.connect(g); g.connect(sfxGain);
+      osc.start(now); osc.stop(now + dur + 0.02);
+    } catch (e) {}
+  },
+
+  // 手机通知音：两声升调（微信式），家人消息到达时播
+  notify() {
+    this._tone(660, 880, 'sine', 0.10, 0.16);
+    setTimeout(() => this._tone(880, 1100, 'sine', 0.12, 0.14), 130);
+  },
+
+  // 成功音：明亮上扬三和弦，答对/完成任务/疗愈时播
+  success() {
+    this._tone(523, 523, 'triangle', 0.10, 0.16);              // C5
+    setTimeout(() => this._tone(659, 659, 'triangle', 0.10, 0.16), 90);   // E5
+    setTimeout(() => this._tone(784, 988, 'triangle', 0.18, 0.18), 180);  // G5→B5
+  },
+
+  // 错误音：低沉下沉，答错/危机/状态触底时播
+  error() {
+    this._tone(330, 165, 'sawtooth', 0.22, 0.14);
+  },
+
+  // 脚步声：极轻短促 click，移动时偶尔播（调用法控制频率）
+  footstep() {
+    this._tone(120 + Math.random() * 30, 80, 'square', 0.04, 0.04);
+  },
+
+  // 任务完成音：比 success 更有仪式感（升调更长）
+  questDone() {
+    this._tone(523, 659, 'triangle', 0.12, 0.14);
+    setTimeout(() => this._tone(659, 784, 'triangle', 0.12, 0.14), 110);
+    setTimeout(() => this._tone(784, 1047, 'triangle', 0.30, 0.18), 220);
+  },
+
+  // 升级/重要解锁音：明亮琶音
+  levelUp() {
+    [523, 659, 784, 1047].forEach((f, i) => {
+      setTimeout(() => this._tone(f, f, 'triangle', 0.12, 0.14), i * 70);
+    });
+  },
+
   // PauseScene 滑块实时调音量（0-100）
   setVolume(key, val) {
     if (!ctx) return;

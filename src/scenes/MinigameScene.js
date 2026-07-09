@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { Juice } from '../systems/JuiceKit.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 // MinigameScene：通用小游戏框架，先实现"写代码闯关"选择题。深色 IDE 风格。
 const DEFAULT_QUESTIONS = [
@@ -223,9 +225,20 @@ export class MinigameScene extends Phaser.Scene {
     this.ui = this.add.container(0, 0);
     const c = this.ui;
 
+    // Juice 反馈：答对粒子+音效，答错屏震+顿帧（让对错有"重量"）
+    if (isCorrect) {
+      Juice.burst(this, 480, 130, 0x3fb950, 14);
+      AudioSystem.success();
+    } else {
+      Juice.shake(this, 0.012, 200);
+      AudioSystem.error();
+    }
+
     const icon = isCorrect ? '✓' : '✗';
     const clr = isCorrect ? '#3fb950' : '#f85149';
-    c.add(this.add.text(480, 130, icon, { fontSize: '56px', color: clr }).setOrigin(0.5));
+    const iconTxt = this.add.text(480, 130, icon, { fontSize: '56px', color: clr }).setOrigin(0.5);
+    c.add(iconTxt);
+    Juice.pop(this, iconTxt, 1); // 弹性入场
     c.add(this.add.text(480, 200, isCorrect ? '回答正确！' : '回答错误', {
       fontSize: '24px', color: clr,
     }).setOrigin(0.5));

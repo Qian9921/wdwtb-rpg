@@ -7,6 +7,13 @@ import { AudioSystem } from '../systems/AudioSystem.js';
 import { PhoneMessage } from '../systems/PhoneMessage.js';
 import { FamilyMessages } from '../systems/FamilyMessages.js';
 import { TouchControls } from '../systems/TouchControls.js';
+import { Juice } from '../systems/JuiceKit.js';
+import { SceneRouter } from '../systems/SceneRouter.js';
+import { QuestSystem } from '../systems/QuestSystem.js';
+import { ChoiceLog } from '../systems/ChoiceLog.js';
+import { ThoughtSystem } from '../systems/ThoughtSystem.js';
+import { AIClient } from '../systems/AIClient.js';
+import { DaySystem } from '../systems/DaySystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -167,8 +174,29 @@ export class WorldScene extends Phaser.Scene {
     this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
-    // 进场即存档，保证"继续游戏"总能回到当前职业与幕次
-    SaveSystem.save({ career: this.career, act: this.act });
+    // 多天循环：从 CommuteScene 传入的 day + stats 快照（有则用，无则从存档/默认）
+    this._incomingDay = (data && data.day) || null;
+    this._incomingStats = (data && data.stats) || null;
+    // 续档恢复：若存档与本场职业/幕次一致，取出已存状态供 create 还原（不丢中盘进度）
+    this._savedStats = null;
+    this._savedQuests = null;   // 供 _loadQuestData restore
+    this._savedChoiceLog = null;
+    try {
+      const saved = SaveSystem.load();
+      if (saved && saved.career === this.career && saved.act === this.act && saved.stats) {
+        this._savedStats = saved.stats;
+      }
+      // 任务/选择记忆/思维状态/天数无论幕次都保留（跨幕累积）
+      if (saved && saved.quests) this._savedQuests = saved.quests;
+      if (saved && saved.choiceLog) this._savedChoiceLog = saved.choiceLog;
+      if (saved && saved.thought) this._savedThought = saved.thought;
+      if (saved && saved.daySystem) this._savedDay = saved.daySystem;
+    } catch (e) {}
+    // 进场即存档，保证"继续游戏"总能回到当前职业与幕次（保留已存的任务/选择记忆/思维，不覆盖丢失）
+    SaveSystem.saveProgress({
+      career: this.career, act: this.act, stats: this._savedStats,
+      extra: { quests: this._savedQuests, choiceLog: this._savedChoiceLog, thought: this._savedThought },
+    });
   }
 
   preload() {
@@ -225,6 +253,14 @@ export class WorldScene extends Phaser.Scene {
 
     // 核心系统（状态 + 状态条 HUD + 对话引擎）
     this.stateSystem = new StateSystem();
+    // 状态恢复优先级：通勤场景传入的快照 > 存档 > 默认（保证跨场景数值连续）
+    if (this._incomingStats) this.stateSystem.restore(this._incomingStats);
+    else if (this._savedStats) this.stateSystem.restore(this._savedStats);
+    // 多天循环系统（day 从通勤场景传入或存档恢复）
+    this.daySystem = new DaySystem();
+    if (this._savedDay) this.daySystem.restore(this._savedDay);
+    if (this._incomingDay) this.daySystem.day = this._incomingDay;
+    this.daySystem.setPhase('work'); // 进办公室即 work 阶段
     this.statusUI = new StatusBarUI(this, this.stateSystem);
     this.dialogueEngine = new DialogueEngine(this, this.stateSystem);
     this._setupDialogueEvents();
@@ -236,10 +272,26 @@ export class WorldScene extends Phaser.Scene {
     // 状态触底监听：health/san/passion 跌破 20 时推送一条"至暗"家人消息
     this.stateSystem.on('threshold', (info) => this._onStateThreshold(info));
     this._phoneTriggeredFor = new Set(); // 去重：每个状态键只触发一次危机消息
+    // 任务系统 + 选择记忆（结局 AI 画像的数据源）
+    this.questSystem = new QuestSystem(this.stateSystem);
+    this.choiceLog = new ChoiceLog();
+    this._loadQuestData();
+    // 任务完成时反馈（粒子+音效）
+    this.questSystem.on('completed', (id) => {
+      Juice.celebrate(this, this.player.x, this.player.y - 30, 0xffd24d);
+    });
+    // 内心独白系统（思维内阁）+ 可交互物件
+    this.thoughtSystem = new ThoughtSystem();
+    this._loadThoughtData();
+    this._loadInteractables();
+    this._interactables = [];       // 场景中的交互物件 sprite 列表
+    this._cooldowns = {};           // 物件冷却记录 { id: true }（daily 冷却，跨天清）
+    this._lastThoughtTime = 0;      // 上次思维气泡时间（节流）
 
     // 交互键
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.tKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T); // T=倾听内心（思维内阁）
 
     // ===== 双相机架构：main 相机 zoom 2 渲染世界，uiCamera 原生 1:1 渲染 HUD =====
     // 主相机放大世界会连带放大钉屏 UI，故 HUD 交给独立的满分辨率 UI 相机，二者互相 ignore。
@@ -248,12 +300,26 @@ export class WorldScene extends Phaser.Scene {
     const trackUI = (o) => { this.uiObjects.push(o); return o; };
 
     // 操作提示（屏幕顶部居中）
-    trackUI(this.add.text(SW / 2, 14, 'WASD / 方向键 移动 · 走近 NPC 按 E 交谈 · ESC 菜单', {
+    trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · E 交互 · T 倾听内心 · ESC 菜单', {
       fontSize: '22px',
       fill: '#dfe3ff',
       backgroundColor: '#000000aa',
       padding: { x: 14, y: 7 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999));
+
+    // 天数/时段 HUD（屏幕右上角）
+    this.dayText = trackUI(this.add.text(SW - 20, 16, '', {
+      fontSize: '22px', fill: '#ffe08a', backgroundColor: '#00000099', padding: { x: 14, y: 7 },
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(9999));
+    this._updateDayHud();
+
+    // "下班回家"按钮（屏幕右上角，天数下方）
+    this.offWorkBtn = trackUI(this.add.text(SW - 20, 64, '🏠 下班回家', {
+      fontSize: '20px', fill: '#dfe3ff', backgroundColor: '#3a3a5aee', padding: { x: 14, y: 8 },
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(9999).setInteractive({ useHandCursor: true }));
+    this.offWorkBtn.on('pointerover', () => this.offWorkBtn.setBackgroundColor('#4a4a7aee'));
+    this.offWorkBtn.on('pointerout', () => this.offWorkBtn.setBackgroundColor('#3a3a5aee'));
+    this.offWorkBtn.on('pointerdown', () => this._goHome());
 
     // 引导语（屏幕底部）——按职业主题生成"找谁报到"
     const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
@@ -294,7 +360,9 @@ export class WorldScene extends Phaser.Scene {
     // 移动端触屏控制（摇杆+按钮）：非触屏设备自动空跑，不影响键盘
     this.touchControls = new TouchControls(this);
     this.touchControls.onInteract(() => {
-      if (!this.dialogueActive && this.activeNpc) this._interact(this.activeNpc);
+      if (this.dialogueActive) return;
+      if (this.activeNpc) this._interact(this.activeNpc);
+      else if (this.activeObject) this._interactObject(this.activeObject);
     });
     this.touchControls.onMenu(() => {
       if (!this.dialogueActive) {
@@ -304,6 +372,8 @@ export class WorldScene extends Phaser.Scene {
           stateSystem: this.stateSystem,
           career: this.career,
           act: this.act,
+          questSystem: this.questSystem,
+          choiceLog: this.choiceLog,
         });
       }
     });
@@ -316,6 +386,51 @@ export class WorldScene extends Phaser.Scene {
         this.time.delayedCall(800, () => this._interact(chen));
       }
     }
+
+    // 首次游玩：新手引导 overlay（只在第一次进办公室显示，之后记 localStorage 不再弹）
+    this._maybeShowOnboarding();
+  }
+
+  // 新手引导：首次进办公室弹一次操作教学，逐步揭示机制（onboarding）。
+  _maybeShowOnboarding() {
+    let seen = false;
+    try { seen = localStorage.getItem('wdwtb_onboarded') === '1'; } catch (e) {}
+    if (seen) return;
+    const { width: W, height: H } = this.scale;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(11000);
+    const mask = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72).setInteractive();
+    c.add(mask);
+    const steps = [
+      { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一段关于「你想成为谁」的职场旅程。\n没有标准答案，只有你的选择。' },
+      { icon: '🚶', title: '自由探索', text: 'WASD / 方向键 移动。\n手机上用左下角的虚拟摇杆。' },
+      { icon: '💬', title: '与人互动', text: '走近头顶有 ❗/💬 的同事，按 E 交谈、接任务。\n走近 💻🪟🥤 等物件，按 E 使用。' },
+      { icon: '🧠', title: '倾听内心', text: '按 T 听见脑海里的声音——\n它们会随你的状态和选择而变。' },
+      { icon: '🌙', title: '经营你的每一天', text: '右上角可以「下班回家」，休息、见家人、进入下一天。\n照顾好左上角的状态条，别把自己弄丢。' },
+    ];
+    let idx = 0;
+    const iconT = this.add.text(W / 2, H / 2 - 130, '', { fontSize: '64px' }).setOrigin(0.5);
+    const titleT = this.add.text(W / 2, H / 2 - 40, '', { fontSize: '34px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
+    const bodyT = this.add.text(W / 2, H / 2 + 30, '', { fontSize: '24px', color: '#e8e8f4', align: 'center', lineSpacing: 10, wordWrap: { width: 800 } }).setOrigin(0.5);
+    const hintT = this.add.text(W / 2, H / 2 + 150, '点击继续 →', { fontSize: '20px', color: '#8b8ba0' }).setOrigin(0.5);
+    c.add([iconT, titleT, bodyT, hintT]);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const render = () => {
+      const s = steps[idx];
+      iconT.setText(s.icon); titleT.setText(s.title); bodyT.setText(s.text);
+      hintT.setText(idx < steps.length - 1 ? '点击继续 →' : '开始 ✓');
+      Juice.pop(this, iconT, 1);
+    };
+    const advance = () => {
+      idx++;
+      if (idx >= steps.length) {
+        try { localStorage.setItem('wdwtb_onboarded', '1'); } catch (e) {}
+        c.destroy(true);
+        return;
+      }
+      render();
+    };
+    render();
+    this.time.delayedCall(100, () => mask.on('pointerdown', advance));
   }
 
   // 把动态 UI（对话框/仪式弹窗/气泡）指派给 UI 相机：
@@ -510,7 +625,15 @@ export class WorldScene extends Phaser.Scene {
         stateSystem: this.stateSystem,
         career: this.career,
         act: this.act,
+        questSystem: this.questSystem,
+        choiceLog: this.choiceLog,
       });
+      return;
+    }
+
+    // T=倾听内心：主动触发一次内心独白（思维内阁）
+    if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.tKey)) {
+      this._triggerMonologue('auto');
       return;
     }
 
@@ -580,25 +703,89 @@ export class WorldScene extends Phaser.Scene {
 
   _updateInteraction() {
     const RANGE = 78;
-    let nearest = null, nd = RANGE;
+    // 统一交互框架：NPC 和交互物件用同一套 RANGE + [E] 逻辑，取最近的那个。
+    let nearest = null, nd = RANGE, nearestType = null;
     for (const npc of this.npcs) {
-      const d = Phaser.Math.Distance.Between(
-        this.player.x, this.player.y, npc.spr.x, npc.spr.y
-      );
-      if (d < nd) { nd = d; nearest = npc; }
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.spr.x, npc.spr.y);
+      if (d < nd) { nd = d; nearest = npc; nearestType = 'npc'; }
+    }
+    for (const obj of (this._interactables || [])) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
+      if (d < nd) { nd = d; nearest = obj; nearestType = 'object'; }
     }
 
-    this.activeNpc = nearest;
+    this.activeNpc = nearestType === 'npc' ? nearest : null;
+    this.activeObject = nearestType === 'object' ? nearest : null;
     if (nearest) {
-      this.ePrompt.setText(`［ E ］与 ${nearest.name} 交谈`).setVisible(true);
-      // 触屏：显示交互按钮
+      const label = nearestType === 'npc' ? `与 ${nearest.name} 交谈` : nearest.prompt;
+      this.ePrompt.setText(`［ E ］${label}`).setVisible(true);
       if (this.touchControls) this.touchControls.setInteractVisible(true);
       if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
-        this._interact(nearest);
+        if (nearestType === 'npc') this._interact(nearest);
+        else this._interactObject(nearest);
       }
     } else {
       this.ePrompt.setVisible(false);
       if (this.touchControls) this.touchControls.setInteractVisible(false);
+    }
+  }
+
+  // 交互物件触发：执行 def.action。冷却物件每天限一次。
+  _interactObject(obj) {
+    if (this.dialogueActive) return;
+    // 冷却检查（daily）
+    if (obj.cooldown === 'daily' && this._cooldowns[obj.id]) {
+      this._showThoughtBubble('（这个今天已经用过了。）', '#9a9ac0');
+      return;
+    }
+    const action = obj.action || '';
+    // buy_drink：即时状态交易（花 money 换 energy/san）
+    if (action === 'buy_drink') {
+      const cost = obj.cost || {};
+      const money = this.stateSystem.get('money');
+      const needMoney = Math.abs(cost.money || 0);
+      if (money < needMoney) {
+        this._showThoughtBubble('（钱不太够……下次吧。）', '#e8735a');
+        return;
+      }
+      for (const [k, v] of Object.entries(cost)) this.stateSystem.change(k, v);
+      for (const [k, v] of Object.entries(obj.effect || {})) this.stateSystem.change(k, v);
+      Juice.celebrate(this, this.player.x, this.player.y - 30, 0x6aaa6a);
+      this._showLine('', `${obj.icon} 喝下去，精神了一点。`);
+      if (obj.cooldown === 'daily') this._cooldowns[obj.id] = true;
+      return;
+    }
+    // water_plant：复用仪式弹窗 + 状态
+    if (action === 'water_plant') {
+      for (const [k, v] of Object.entries(obj.effect || {})) this.stateSystem.change(k, v);
+      this._showRitual('🌱 你给绿萝浇了水。它好像在灯光下轻轻颤了一下。');
+      Juice.burst(this, this.player.x, this.player.y - 20, 0x6aaa6a, 10);
+      if (obj.cooldown === 'daily') this._cooldowns[obj.id] = true;
+      return;
+    }
+    // quest_board：打开任务板（暂停+暂停菜单任务页）
+    if (action === 'quest_board') {
+      this.scene.pause();
+      this.scene.launch('PauseScene', {
+        origin: 'WorldScene', stateSystem: this.stateSystem,
+        career: this.career, act: this.act,
+        questSystem: this.questSystem, choiceLog: this.choiceLog,
+        openPanel: 'quests',
+      });
+      return;
+    }
+    // monologue:*：触发内心独白
+    if (action.startsWith('monologue')) {
+      const key = action.split(':')[1] || 'auto';
+      this._triggerMonologue(key);
+      if (obj.cooldown === 'daily') this._cooldowns[obj.id] = true;
+      return;
+    }
+    // minigame:*：走对话引擎的 action 路由（复用现有逻辑）
+    if (action.startsWith('minigame')) {
+      this.dialogueEngine.emit('action', action, {});
+      if (obj.cooldown === 'daily') this._cooldowns[obj.id] = true;
+      return;
     }
   }
 
@@ -632,8 +819,63 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    // 其余 NPC → 一句轻量寒暄气泡
-    if (npc.line) this._showLine(npc.name, npc.line);
+    // 任务交互：该 NPC 有可交付任务 → 完成；有可接任务 → 接取并寒暄
+    if (this.questSystem) {
+      const ctx = { act: this.act };
+      const mark = this.questSystem.npcMark(npc.id, ctx);
+      if (mark === 'deliver') {
+        // 交付所有该 NPC 身上已就绪的任务
+        for (const q of this.questSystem.active()) {
+          if (q.giver === npc.id && this.questSystem.isReady(q.id)) {
+            this.questSystem.complete(q.id);
+            this._showLine(npc.name, `「${q.title}」完成！${q.reward ? '状态提升。' : ''}`);
+            this._updateNpcMarks();
+            return;
+          }
+        }
+      }
+      if (mark === 'available') {
+        // 接取该 NPC 身上第一个可接任务
+        for (const q of this.questSystem.available(ctx)) {
+          if (q.giver === npc.id) {
+            this.questSystem.accept(q.id);
+            this._showLine(npc.name, `新任务：「${q.title}」\n${q.desc}`);
+            this._updateNpcMarks();
+            return;
+          }
+        }
+      }
+      // 上报 talk 进度（该 NPC 是某进行中任务的 talk 目标）
+      this.questSystem.progress('talk', npc.id);
+      this._updateNpcMarks();
+    }
+
+    // 其余 NPC → 寒暄。有选择历史时，NPC 可能说一句"记得你做过什么"的个性化台词（AI 生成）。
+    if (npc.line) this._showNpcLineWithMemory(npc);
+  }
+
+  // NPC 记忆台词：AI 按玩家选择历史生成个性化反应，让"世界记得你"。
+  // 门槛：有足够选择记录 + 30% 概率触发（保持稀有）；否则/失败用固定寒暄。
+  _showNpcLineWithMemory(npc) {
+    const summary = this._choiceSummaryShort();
+    const shouldTryAI = summary && this.choiceLog.length >= 3 && Math.random() < 0.3;
+    if (!shouldTryAI) { this._showLine(npc.name, npc.line); return; }
+    // 先显示固定寒暄（即时反馈），AI 成功后覆盖成个性化版本
+    this._showLine(npc.name, npc.line);
+    const sys = `你是职场 RPG 里的 NPC「${npc.name}」，一个${npc.label || '同事'}。`
+      + `根据玩家最近的行为，说一句自然的、像老同事随口一提的话，体现"我注意到你最近的状态"。`
+      + `1 句，口语化，中文，不说教、不评判，带点关心。`;
+    const user = `玩家最近的行为：${summary}。以「${npc.name}」的口吻说一句话。`;
+    AIClient.call(
+      [{ role: 'system', content: sys }, { role: 'user', content: user }],
+      { model: 'hy3', timeoutMs: 7000, fallbackFn: () => ({ text: '' }) }
+    ).then(res => {
+      const t = (res.text || '').trim();
+      if (t && res.source === 'ai' && t.length < 50 && this._lineActive) {
+        // AI 成功且当前寒暄气泡还在 → 覆盖成个性化台词
+        this._updateLineText(`${t}`);
+      }
+    }).catch(() => {});
   }
 
   // 轻量单句气泡（非正式剧情）——钉屏 UI 相机，1920 尺度，点击/E/空格关闭
@@ -651,12 +893,15 @@ export class WorldScene extends Phaser.Scene {
       .setScrollFactor(0).setInteractive();
     c.add(hit);
     c.add(this.add.rectangle(bx + bw / 2, by + 80, bw, 160, 0x0a0a14, 0.86).setStrokeStyle(2, 0xd4a353, 0.5));
-    c.add(this.add.text(bx + PAD, by + 20, name, {
+    if (name) c.add(this.add.text(bx + PAD, by + 20, name, {
       fontSize: '22px', color: '#ffd24d', fontStyle: 'bold',
     }));
-    c.add(this.add.text(bx + PAD, by + 56, text, {
+    const bodyTxt = this.add.text(bx + PAD, by + 56, text, {
       fontSize: '26px', color: '#ffffff', lineSpacing: 8, wordWrap: { width: bw - PAD * 2, useAdvancedWrap: true },
-    }));
+    });
+    c.add(bodyTxt);
+    this._lineBodyText = bodyTxt; // 供 AI 记忆台词覆盖
+    this._lineActive = true;
     c.add(this.add.text(bx + bw - PAD, by + 150, '［点击 / E 继续］', {
       fontSize: '18px', color: '#9aa0a6',
     }).setOrigin(1, 1));
@@ -665,6 +910,8 @@ export class WorldScene extends Phaser.Scene {
     const close = () => {
       c.destroy(true);
       this.dialogueActive = false;
+      this._lineActive = false;
+      this._lineBodyText = null;
       if (this.guideText) this.guideText.setVisible(true);
     };
     this.time.delayedCall(120, () => {
@@ -673,6 +920,177 @@ export class WorldScene extends Phaser.Scene {
       this.input.keyboard.once('keydown-SPACE', close);
       this.input.keyboard.once('keydown-ESC', close);
     });
+  }
+
+  // 覆盖当前寒暄气泡的正文（AI 记忆台词生成成功时调用）
+  _updateLineText(text) {
+    if (this._lineActive && this._lineBodyText && this._lineBodyText.scene) {
+      this._lineBodyText.setText(text);
+    }
+  }
+
+  // ==================== 任务数据加载 ====================
+  // 按 career 加载 quests_{career}.json。失败静默降级（任务系统空跑，不阻塞游戏）。
+  // 续档时先 restore 再 load（restore 不依赖定义，load 后进度自动接上）。
+  _loadQuestData() {
+    // 从 init 缓存的存档字段恢复任务进度 + 选择记忆（跨幕累积）
+    if (this._savedQuests && this.questSystem) this.questSystem.restore(this._savedQuests);
+    if (this._savedChoiceLog && this.choiceLog) this.choiceLog.restore(this._savedChoiceLog);
+    // 异步加载任务定义
+    const url = `./data/quests_${this.career}.json`;
+    fetch(url)
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+      .then(data => {
+        if (this.questSystem) {
+          this.questSystem.load(data);
+          this._updateNpcMarks();
+        }
+      })
+      .catch(err => {
+        // 轻量职业可能无任务文件，静默处理
+        if (!String(err).includes('404')) console.warn('[WorldScene] 任务数据加载失败:', err.message);
+      });
+  }
+
+  // 刷新 NPC 头顶任务标记（可接 ❗ / 可交付 ❓）
+  _updateNpcMarks() {
+    if (!this.npcs || !this.questSystem) return;
+    const ctx = { act: this.act };
+    for (const npc of this.npcs) {
+      const mark = this.questSystem.npcMark(npc.id, ctx);
+      if (mark === 'available' && npc.mark) {
+        npc.mark.setText('❗').setColor('#ffdd33');
+      } else if (mark === 'deliver' && npc.mark) {
+        npc.mark.setText('❓').setColor('#7eff7e');
+      } else if (mark === 'progress' && npc.mark) {
+        npc.mark.setText('…').setColor('#7ec8ff');
+      }
+      // 无任务标记的 NPC 保持原样（寒暄用 💬）
+    }
+  }
+
+  // ==================== 内心独白（思维内阁）====================
+  // 加载 monologues.json 台词池 + 恢复存档的思维状态
+  // ==================== 多天循环 ====================
+  // 更新天数/时段 HUD
+  _updateDayHud() {
+    if (this.dayText && this.daySystem) {
+      this.dayText.setText(`第 ${this.daySystem.day} 天 · ${this.daySystem.phaseName()}`);
+    }
+  }
+
+  // 下班回家：转场到 HomeScene，带当前状态快照 + 天数
+  _goHome() {
+    if (this.dialogueActive || this._goingHome) return;
+    this._goingHome = true;
+    // 存档（含天数）后转场
+    SaveSystem.saveProgress({
+      career: this.career, act: this.act, stats: this.stateSystem.getAll(),
+      extra: {
+        quests: this.questSystem.serialize(),
+        choiceLog: this.choiceLog.serialize(),
+        thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
+        daySystem: this.daySystem.serialize(),
+      },
+    });
+    SceneRouter.goto(this, 'HomeScene', {
+      career: this.career, act: this.act,
+      day: this.daySystem.day, stats: this.stateSystem.getAll(),
+    });
+  }
+
+  _loadThoughtData() {
+    if (this._savedThought && this.thoughtSystem) this.thoughtSystem.restore(this._savedThought);
+    fetch('./data/monologues.json')
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+      .then(data => { if (this.thoughtSystem) this.thoughtSystem.load(data); })
+      .catch(() => { /* 独白不可用不阻塞游戏 */ });
+  }
+
+  // 触发一次内心独白：模板即时呈现，可选 AI 生成个性化版本覆盖。
+  // sceneKey='auto' 时按当前状态自动选人格；否则指定 scene 键。
+  _triggerMonologue(sceneKey) {
+    if (!this.thoughtSystem || !this.thoughtSystem.isReady()) return;
+    const stats = this.stateSystem.getAll();
+    const thought = this.thoughtSystem.think(stats);
+    if (!thought) {
+      // 无人格触发（状态平淡）：给一句中性提示，不空窗
+      this._showThoughtBubble('（此刻，脑子里很安静。）', '#9a9ac0');
+      return;
+    }
+    // 先用模板台词即时呈现
+    this._showThoughtBubble(`${thought.voice.name}：${thought.text}`, thought.voice.color);
+    // 可选 AI 生成个性化独白（结合选择历史），成功则再补一条
+    const summary = this._choiceSummaryShort();
+    const { sys, user } = this.thoughtSystem.buildAIPrompt(thought.voice, stats, summary);
+    AIClient.call(
+      [{ role: 'system', content: sys }, { role: 'user', content: user }],
+      { model: 'hy3', timeoutMs: 8000, fallbackFn: () => ({ text: '' }) }
+    ).then(res => {
+      const aiText = (res.text || '').trim();
+      if (aiText && res.source === 'ai' && aiText.length < 60) {
+        // AI 生成成功且简短 → 覆盖显示（更懂你的版本）
+        this._showThoughtBubble(`${thought.voice.name}：${aiText}`, thought.voice.color);
+      }
+    }).catch(() => {});
+  }
+
+  // 选择历史简述（喂 AI 独白用）
+  _choiceSummaryShort() {
+    if (!this.choiceLog || this.choiceLog.length === 0) return '';
+    const counts = this.choiceLog.tagCounts();
+    const top = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1])[0];
+    return top ? `反复${top[0]}${top[1]}次` : '';
+  }
+
+  // 思维气泡：屏幕上方中央浮现一句内心独白，钉屏 UI 相机，自动淡出
+  _showThoughtBubble(text, color) {
+    const { width } = this.scale;
+    const y = 120;
+    const bubble = this.add.container(0, 0).setScrollFactor(0).setDepth(9700);
+    const txt = this.add.text(width / 2, y, text, {
+      fontSize: '24px', color: color || '#dfe3ff', fontStyle: 'italic',
+      backgroundColor: '#0a0a14dd', padding: { x: 20, y: 12 },
+      wordWrap: { width: 900, useAdvancedWrap: true }, align: 'center',
+    }).setOrigin(0.5, 0);
+    bubble.add(txt);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(bubble);
+    bubble.setAlpha(0);
+    // 淡入 → 停留 → 淡出
+    this.tweens.add({ targets: bubble, alpha: 1, duration: 400, ease: 'Cubic.out' });
+    this.time.delayedCall(4200, () => {
+      this.tweens.add({
+        targets: bubble, alpha: 0, duration: 600,
+        onComplete: () => bubble.destroy(true),
+      });
+    });
+  }
+
+  // ==================== 可交互物件 ====================
+  // 加载 interactables_{career}.json，在地图上渲染带图标的交互点
+  _loadInteractables() {
+    fetch(`./data/interactables_${this.career}.json`)
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+      .then(data => { this._buildInteractables(data.interactables || []); })
+      .catch(() => { /* 无交互物件文件不阻塞游戏 */ });
+  }
+
+  // 渲染交互物件（图标浮标在世界坐标，随镜头滚动）
+  _buildInteractables(defs) {
+    this._interactableDefs = defs;
+    for (const def of defs) {
+      const [x, y] = def.pos;
+      // 图标浮标（世界坐标，主相机渲染）
+      const icon = this.add.text(x, y - 20, def.icon, { fontSize: '26px' })
+        .setOrigin(0.5, 1).setDepth(y);
+      this.tweens.add({
+        targets: icon, y: icon.y - 5,
+        duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+      // UI 相机不渲染世界物件图标（归主相机）
+      if (this.uiCamera) this.uiCamera.ignore(icon);
+      this._interactables.push({ ...def, x, y, icon });
+    }
   }
 
   // ==================== 剧情引擎事件（移植自 OfficeScene）====================
@@ -687,6 +1105,17 @@ export class WorldScene extends Phaser.Scene {
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
       if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
+    });
+
+    // 选择记忆：玩家每次选选项都记录（choiceLog 是结局 AI 画像的数据源）
+    eng.on('choice', ({ nodeId, choice, act }) => {
+      if (self.choiceLog) {
+        self.choiceLog.record({
+          act, nodeId,
+          choiceLabel: choice.label,
+          tag: choice.tag || null, // 剧情数据可给 choice 加 tag 标注行为类型
+        });
+      }
     });
 
     eng.on('action', (action, node) => {
@@ -711,6 +1140,9 @@ export class WorldScene extends Phaser.Scene {
               if (ok === total) { self.stateSystem.change('skill', 5); self.stateSystem.change('passion', 4); }
               else if (ok > 0) { self.stateSystem.change('skill', 3); self.stateSystem.change('energy', -3); }
               else { self.stateSystem.change('stress', 3); self.stateSystem.change('skill', 1); }
+              // 上报任务进度（minigame 类型匹配 objective kind=minigame）
+              self.questSystem.progress('minigame', action.split(':')[1]);
+              self._updateNpcMarks();
               self.scene.stop('MinigameScene');
               self.scene.resume();
             },
@@ -723,8 +1155,19 @@ export class WorldScene extends Phaser.Scene {
             returnScene: 'WorldScene',
             monoScene: 'auto',
           });
+          // 修复 no-op bug：原 _advanceAfterAction 在 DialogueEngine 不存在。
+          // mindscape 返回后正确推进：若该节点有 choices 让玩家选，否则结束对话。
           self.events.once('mindscapeReturn', () => {
-            self.dialogueEngine._advanceAfterAction && self.dialogueEngine._advanceAfterAction();
+            const eng = self.dialogueEngine;
+            if (!eng || !eng.currentId) return;
+            const n = eng.data && eng.data.nodes[eng.currentId];
+            if (n && n.choices && n.choices.length) {
+              // 有选项：重新渲染当前节点（展示选择）
+              eng._showNode(eng.currentId);
+            } else {
+              // 无选项：结束本段对话
+              eng._endDialogue();
+            }
           });
           break;
         case 'next_act':
@@ -735,9 +1178,12 @@ export class WorldScene extends Phaser.Scene {
           self._showFamilyByAct(self.act, node && node.phoneKeyword);
           break;
         case 'ending':
-          self.scene.start('EndingScene', {
+          // 转场淡出（替代硬切），让结局有仪式感
+          SceneRouter.goto(self, 'EndingScene', {
             ending: self.career,
+            career: self.career,
             stats: self.stateSystem.getAll(),
+            choiceLog: self.choiceLog.serialize(),
           });
           break;
         default:
@@ -830,16 +1276,27 @@ export class WorldScene extends Phaser.Scene {
       })
       .then(data => {
         this.act = next;
-        SaveSystem.save({ career: this.career, act: this.act }); // 过幕即存，续档回到最新一幕
+        // 过幕即存，含状态数值 + 任务进度 + 选择记忆
+        SaveSystem.saveProgress({
+          career: this.career, act: this.act, stats: this.stateSystem.getAll(),
+          extra: {
+            quests: this.questSystem.serialize(),
+            choiceLog: this.choiceLog.serialize(),
+            thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
+          },
+        });
+        this._updateNpcMarks(); // 新幕刷新任务标记
         this.dialogueEngine._clearUI();
         this.dialogueEngine.start(data);
         // 幕次推进：推一条家人消息（每幕1条，呼应"低频高杀伤"的设计）
         this._showFamilyByAct(next);
       })
       .catch(() => {
-        this.scene.start('EndingScene', {
+        SceneRouter.goto(this, 'EndingScene', {
           ending: this.career,
+          career: this.career,
           stats: this.stateSystem.getAll(),
+          choiceLog: this.choiceLog.serialize(),
         });
       });
   }

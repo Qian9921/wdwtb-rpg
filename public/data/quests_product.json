@@ -1,0 +1,174 @@
+{
+  "_meta": {
+    "career": "product",
+    "title": "产品经理职业任务集",
+    "desc": "5 幕主线+支线+日常任务。主线串起从需求到上线的产品成长路，支线提供探索与关怀，日常给多天循环填充内容。"
+  },
+  "quests": [
+    {
+      "id": "q_first_prd",
+      "title": "你的第一份需求文档",
+      "giver": "senior",
+      "type": "main",
+      "desc": "林姐把一个小功能交给你，让你写清楚需求文档再找她过一遍。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "先找小杜问清楚现有功能逻辑" },
+        { "id": "o2", "kind": "interact", "target": "computer", "text": "在工位电脑上写需求文档" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "把文档拿给林姐过一遍" }
+      ],
+      "reward": { "skill": 5, "performance": 3, "money": 200 }
+    },
+    {
+      "id": "q_pm_mentor",
+      "title": "向大鹏取经",
+      "giver": "vet",
+      "type": "side",
+      "desc": "前辈大鹏做产品好些年了，去听听他踩过的坑。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "vet", "text": "和大鹏聊聊产品这行的门道" }
+      ],
+      "reward": { "san": 8, "skill": 2 }
+    },
+    {
+      "id": "q_daily_standup",
+      "title": "站会同步",
+      "giver": "peer",
+      "type": "daily",
+      "desc": "小杜提醒你早会要同步进度，去白板前对齐一下今天的事。",
+      "trigger": { "act": 1 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "在白板前同步今日进度" }
+      ],
+      "reward": { "performance": 2, "energy": -3 }
+    },
+    {
+      "id": "q_user_interview",
+      "title": "第一次用户访谈",
+      "giver": "senior",
+      "type": "main",
+      "desc": "林姐说光看数据不够，让你亲自去做一轮用户访谈。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "打电话预约几位用户" },
+        { "id": "o2", "kind": "minigame", "target": "review", "text": "整理访谈记录找出真需求" },
+        { "id": "o3", "kind": "talk", "target": "senior", "text": "把洞察汇报给林姐" }
+      ],
+      "reward": { "skill": 6, "performance": 4, "money": 300 }
+    },
+    {
+      "id": "q_coffee_pm",
+      "title": "茶水间闲聊",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小杜说新到了一批咖啡豆，拉你去茶水间放松一下。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "vending", "text": "在售货机买杯咖啡" }
+      ],
+      "reward": { "energy": 15, "stress": -5 }
+    },
+    {
+      "id": "q_plant_pm",
+      "title": "照顾工位绿植",
+      "giver": "vet",
+      "type": "side",
+      "desc": "大鹏说你工位那盆绿萝快蔫了，顺手浇浇水吧。",
+      "trigger": { "act": 2 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "plant", "text": "给绿植浇水" }
+      ],
+      "reward": { "san": 10, "passion": 3 }
+    },
+    {
+      "id": "q_review_meeting",
+      "title": "需求评审会",
+      "giver": "senior",
+      "type": "main",
+      "desc": "林姐让你主持一场需求评审，说服开发和设计接下这个方案。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "在白板上梳理评审要点" },
+        { "id": "o2", "kind": "minigame", "target": "review", "text": "完成需求评审闯关" }
+      ],
+      "reward": { "performance": 8, "money": 500, "energy": -20, "stress": 10 }
+    },
+    {
+      "id": "q_window_pm",
+      "title": "望向窗外",
+      "giver": "peer",
+      "type": "side",
+      "desc": "评审间隙有点累，小杜叫你一起去窗边透透气。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向远处" }
+      ],
+      "reward": { "san": 12, "stress": -8 }
+    },
+    {
+      "id": "q_help_dev",
+      "title": "帮小杜理需求",
+      "giver": "peer",
+      "type": "side",
+      "desc": "小杜被一堆改动搞晕了，问你能不能帮忙排个优先级。",
+      "trigger": { "act": 3 },
+      "objectives": [
+        { "id": "o1", "kind": "talk", "target": "peer", "text": "听小杜说清楚卡点" },
+        { "id": "o2", "kind": "minigame", "target": "review", "text": "帮小杜排出需求优先级" }
+      ],
+      "reward": { "san": 6, "skill": 3, "passion": 4 }
+    },
+    {
+      "id": "q_launch_crisis",
+      "title": "上线前的至暗时刻",
+      "giver": "senior",
+      "type": "main",
+      "desc": "临上线数据对不上，林姐让你顶住压力,查清是哪个环节出了错。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "computer", "text": "在电脑前复盘数据链路" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "和林姐商量应对方案" }
+      ],
+      "reward": { "skill": 8, "stress": 15, "performance": 5 }
+    },
+    {
+      "id": "q_call_home_pm",
+      "title": "给家里打个电话",
+      "giver": "vet",
+      "type": "side",
+      "desc": "大鹏看你连轴转好久了，劝你抽空给家里打个电话。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "phone", "text": "找个安静的地方打电话" }
+      ],
+      "reward": { "san": 15, "passion": 5, "stress": -10 }
+    },
+    {
+      "id": "q_data_review",
+      "title": "复盘这一仗",
+      "giver": "senior",
+      "type": "main",
+      "desc": "上线过后，林姐让你做一份数据复盘，看看这个功能到底成不成。",
+      "trigger": { "act": 4 },
+      "objectives": [
+        { "id": "o1", "kind": "minigame", "target": "review", "text": "完成上线后数据复盘" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "把复盘结论讲给林姐" }
+      ],
+      "reward": { "skill": 6, "performance": 6, "money": 400 }
+    },
+    {
+      "id": "q_whiteboard_pm",
+      "title": "白板上的选择",
+      "giver": "senior",
+      "type": "main",
+      "desc": "林姐在白板上写下几条产品的路，让你想想自己想往哪走。",
+      "trigger": { "act": 5 },
+      "objectives": [
+        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "看看白板上的几条路" },
+        { "id": "o2", "kind": "talk", "target": "senior", "text": "和林姐谈你的决定" }
+      ],
+      "reward": { "passion": 10, "san": 10 }
+    }
+  ]
+}

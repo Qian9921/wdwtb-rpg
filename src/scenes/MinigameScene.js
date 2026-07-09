@@ -44,7 +44,8 @@ export class MinigameScene extends Phaser.Scene {
 
   init(data) {
     this.type = data?.type || 'coding';
-    this.questions = data?.questions || DEFAULT_QUESTIONS;
+    this.career = data?.career || null;     // 用于加载职业专属题库
+    this.questions = data?.questions || null; // 显式传入优先；否则按 type 异步加载
     this.onComplete = data?.onComplete || null;
     this.fromScene = data?.fromScene || 'HubScene';
     this.idx = 0;
@@ -57,6 +58,7 @@ export class MinigameScene extends Phaser.Scene {
     this._advanceHandler = null;
     this.progressText = null;
     this.timerText = null;
+    this.loadingText = null;
   }
 
   create() {
@@ -65,7 +67,39 @@ export class MinigameScene extends Phaser.Scene {
     this.cameras.main.setZoom(2);
     this.cameras.main.centerOn(480, 270);
     this._buildChrome();
-    this._showQuestion();
+
+    // 已有显式题库 → 直接出题；否则按 type 异步加载职业专属题库 JSON
+    if (this.questions && this.questions.length) {
+      this._showQuestion();
+    } else {
+      this._loadCareerQuestions();
+    }
+  }
+
+  // 按 type 加载 ./data/minigame_<type>.json（coding/review/affairs 三套）。
+  // 加载失败则降级到内置 DEFAULT_QUESTIONS，保证小游戏永远能玩。
+  _loadCareerQuestions() {
+    this.loadingText = this.add.text(480, 270, '加载题目…', {
+      fontSize: '18px', color: '#8b949e',
+    }).setOrigin(0.5);
+    const url = `./data/minigame_${this.type}.json`;
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        this.questions = (data.questions && data.questions.length) ? data.questions : DEFAULT_QUESTIONS;
+        this.title = (data._meta && data._meta.title) || null;
+        if (this.loadingText) { this.loadingText.destroy(); this.loadingText = null; }
+        this._showQuestion();
+      })
+      .catch(err => {
+        console.warn('[Minigame] 加载题库失败，降级默认题:', err.message);
+        this.questions = DEFAULT_QUESTIONS;
+        if (this.loadingText) { this.loadingText.destroy(); this.loadingText = null; }
+        this._showQuestion();
+      });
   }
 
   // ---------- 固定 UI（进度 + 计时器）----------

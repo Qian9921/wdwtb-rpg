@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
+import { makeButton } from '../systems/UI.js';
 
 // TitleScene：游戏标题页 — 游戏名 + 主题金句 + 开始。demo 与正式流程的门面。
 export class TitleScene extends Phaser.Scene {
@@ -62,29 +63,23 @@ export class TitleScene extends Phaser.Scene {
         this.scene.start('WorldScene', { career: save.career, act: save.act }));
     };
 
-    // 通用按钮工厂：复用同款外观
-    const makeBtn = (cy, label, fill, stroke, txtColor, onClick) => {
-      const b = this.add.rectangle(W / 2, cy, 240, 50, fill, 0.95)
-        .setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true });
-      this.add.text(W / 2, cy, label, {
-        fontSize: '21px', color: txtColor, fontStyle: 'bold', letterSpacing: 4,
-      }).setOrigin(0.5);
-      const hi = Phaser.Display.Color.IntegerToColor(fill).lighten(12).color;
-      b.on('pointerover', () => b.setFillStyle(hi));
-      b.on('pointerout', () => b.setFillStyle(fill));
-      b.on('pointerdown', () => { AudioSystem.uiClick(); onClick(); });
-      return b;
-    };
+    // 自适应按钮工厂：框随文字自动加大一圈，绝不挡字
+    const mkBtn = (cy, label, fill, stroke, txtColor, onClick) =>
+      makeButton(this, {
+        x: W / 2, y: cy, label, fill, stroke, color: txtColor,
+        fontSize: 30, minW: 340, padX: 44, padY: 22, letterSpacing: 6,
+        sound: () => AudioSystem.uiClick(), onClick,
+      });
 
     if (hasSave) {
       // 有档：继续（主色，醒目）在上，开始新游戏（次色）在下
-      makeBtn(H * 0.70, '继 续 游 戏', 0x2a4a3e, 0xd4a353, '#ffe08a', resume);
-      makeBtn(H * 0.82, '重 新 开 始', 0x23232f, 0x555577, '#b8b8c8', start);
+      mkBtn(H * 0.68, '继续游戏', 0x2a4a3e, 0xd4a353, '#ffe08a', resume);
+      mkBtn(H * 0.80, '重新开始', 0x23232f, 0x555577, '#b8b8c8', start);
       // Enter/Space 默认继续；无档时默认开始
       this.input.keyboard.once('keydown-ENTER', resume);
       this.input.keyboard.once('keydown-SPACE', resume);
     } else {
-      makeBtn(H * 0.74, '开 始', 0x2a4a3e, 0xd4a353, '#ffe08a', start);
+      mkBtn(H * 0.74, '开 始', 0x2a4a3e, 0xd4a353, '#ffe08a', start);
       this.input.keyboard.once('keydown-ENTER', start);
       this.input.keyboard.once('keydown-SPACE', start);
     }

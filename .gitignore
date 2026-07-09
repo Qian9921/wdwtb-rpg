@@ -12,3 +12,4 @@ art-assets/
 .env
 shot.png
 /tmp
+deploy/

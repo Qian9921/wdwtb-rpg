@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AIClient } from '../systems/AIClient.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
+import { buildTryFirstAdvice } from '../systems/CareerFit.js';
 
 // OpeningScene：开场"认识你" — 捏人 + 7 道情境测评(RIASEC+大五双通道) + AI 专属小传。
 // 测评题库来自 data/assessment.json（专业规格：霍兰德 RIASEC + 大五人格，玩家全程不见术语）。
@@ -240,24 +241,54 @@ export class OpeningScene extends Phaser.Scene {
     this._clearUI();
     this.ui = this.add.container(0, 0);
 
-    this.ui.add(this.add.rectangle(480, 270, 640, 400, 0x1e1e30).setStrokeStyle(2, 0xd4a353));
-    this.ui.add(this.add.text(480, 110, '· 初见画像 ·', { fontSize: '24px', color: '#d4a353' }).setOrigin(0.5));
-    this.ui.add(this.add.text(480, 148, `${profile.mbti} · ${profile.holland}`, {
-      fontSize: '30px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 4,
+    // 可行动推荐：先试哪两条（初衷：帮迷茫毕业生选路，不是贴标签）
+    const advice = buildTryFirstAdvice(profile, 2);
+    profile.tryFirst = advice.detail.map(d => ({
+      key: d.key, name: d.name, score: d.score, reason: d.reason,
+    }));
+    profile.tryHeadline = advice.headline;
+    try { localStorage.setItem('wdwtb_profile', JSON.stringify(profile)); } catch (e) {}
+
+    this.ui.add(this.add.rectangle(480, 270, 680, 460, 0x1e1e30).setStrokeStyle(2, 0xd4a353));
+    this.ui.add(this.add.text(480, 88, '· 初见画像 ·', { fontSize: '22px', color: '#d4a353' }).setOrigin(0.5));
+    this.ui.add(this.add.text(480, 120, `${profile.mbti} · ${profile.holland}`, {
+      fontSize: '26px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 4,
     }).setOrigin(0.5));
 
-    this.ui.add(this.add.text(480, 235, bio, {
-      fontSize: '15px', color: '#c8c8d8', wordWrap: { width: 540, useAdvancedWrap: true }, align: 'center', lineSpacing: 8,
+    this.ui.add(this.add.text(480, 175, bio, {
+      fontSize: '14px', color: '#c8c8d8', wordWrap: { width: 580, useAdvancedWrap: true }, align: 'center', lineSpacing: 6,
     }).setOrigin(0.5));
 
-    this.ui.add(this.add.text(480, 330, source === 'ai' ? '· 由腾讯混元为你撰写 ·' : '· 来自你的选择 ·', {
+    // 先试哪两条（测评柱 → 体验柱的桥）
+    this.ui.add(this.add.text(480, 248, advice.headline, {
+      fontSize: '15px', color: '#ffd24d', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    const d0 = advice.detail[0];
+    const d1 = advice.detail[1];
+    if (d0) {
+      this.ui.add(this.add.text(480, 278,
+        `① ${d0.name}（契合约 ${d0.score}）· ${d0.reason}`, {
+          fontSize: '12px', color: '#b8c0d0', wordWrap: { width: 600, useAdvancedWrap: true }, align: 'center',
+        }).setOrigin(0.5));
+    }
+    if (d1) {
+      this.ui.add(this.add.text(480, 318,
+        `② ${d1.name}（契合约 ${d1.score}）· ${d1.reason}`, {
+          fontSize: '12px', color: '#b8c0d0', wordWrap: { width: 600, useAdvancedWrap: true }, align: 'center',
+        }).setOrigin(0.5));
+    }
+    this.ui.add(this.add.text(480, 358, '推荐可改——大厅里点任意职业试用；星标=测评优先建议', {
+      fontSize: '11px', color: '#7a7a92',
+    }).setOrigin(0.5));
+
+    this.ui.add(this.add.text(480, 388, source === 'ai' ? '· 由腾讯混元为你撰写 ·' : '· 来自你的选择 ·', {
       fontSize: '11px', color: '#5a6a8a',
     }).setOrigin(0.5));
-    this.ui.add(this.add.text(480, 360, '灵感来源：霍兰德职业兴趣理论 · 大五人格模型', {
+    this.ui.add(this.add.text(480, 410, '灵感来源：霍兰德职业兴趣理论 · 大五人格模型（玩家不见术语）', {
       fontSize: '10px', color: '#4a4a5e',
     }).setOrigin(0.5));
 
-    this._button(480, 420, 260, 46, '带着这幅画像，出发 →', () => {
+    this._button(480, 448, 280, 44, '带着画像去试职业 →', () => {
       this.scene.start('HubScene');
     }, 0x2a4a3e, '16px');
   }

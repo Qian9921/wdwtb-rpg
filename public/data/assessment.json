@@ -78,5 +78,20 @@
       ]
     }
   ],
-  "careerAnchors": { "programmer": ["I","R","C"], "product": ["E","I","A"], "admin": ["C","S","E"] }
+  "careerAnchors": {
+    "programmer": ["I", "R", "C"],
+    "product": ["E", "I", "A"],
+    "admin": ["C", "S", "E"],
+    "designer": ["A", "R", "I"],
+    "operation": ["E", "A", "S"],
+    "teacher": ["S", "A", "I"],
+    "doctor": ["I", "S", "C"],
+    "civilservant": ["C", "S", "E"],
+    "sales": ["E", "S", "R"],
+    "lawyer": ["I", "C", "E"]
+  },
+  "_meta": {
+    "purpose": "情境测评承载霍兰德RIASEC+大五人格；玩家不见术语。锚点与 src/systems/CareerFit.js 对齐，服务「先试哪条职业」。"
+  }
 }
+

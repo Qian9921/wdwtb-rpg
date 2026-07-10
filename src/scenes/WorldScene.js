@@ -41,6 +41,7 @@ import {
   buildWorldSaveExtra,
   seniorMarkVisual,
 } from '../systems/StoryProgress.js';
+import { npcLineForAct } from '../systems/WorkLoopOffice.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -839,7 +840,7 @@ export class WorldScene extends Phaser.Scene {
         id: n.id, name: n.name, role: n.role, skin: n.skin,
         x: n.x, y: n.y, tint: n.tint ? parseInt(n.tint, 16) : null,
         label: `${n.name} · ${n.role}`, mark: n.mark || '💬', markColor: n.markColor || '#7ec8ff',
-        act: n.act, line: n.line,
+        act: n.act, line: n.line, linesByAct: n.linesByAct || null,
       }));
     } else {
       const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
@@ -1500,9 +1501,10 @@ export class WorldScene extends Phaser.Scene {
           const p = this.projectSystem ? Math.round(this.projectSystem.progress) : 0;
           if (canFinishLightWorkLoop(this._story, p)) {
             SceneRouter.goto(this, 'EndingScene', {
-              ending: this.career, career: this.career,
+              ending: this.career, career: this.career, subRole: this.subRole,
               stats: this.stateSystem.getAll(),
               choiceLog: this.choiceLog ? this.choiceLog.serialize() : null,
+              projectProgress: this.projectSystem ? this.projectSystem.progress : null,
             });
             return;
           }
@@ -2608,9 +2610,10 @@ export class WorldScene extends Phaser.Scene {
           // 缺省才退回 career——之前误传 career 导致结局标题显示"programmer"。
           SceneRouter.goto(self, 'EndingScene', {
             ending: (node && node.ending) || self.career,
-            career: self.career,
+            career: self.career, subRole: self.subRole,
             stats: self.stateSystem.getAll(),
             choiceLog: self.choiceLog.serialize(),
+            projectProgress: self.projectSystem ? self.projectSystem.progress : null,
           });
           break;
         default:
@@ -2716,8 +2719,9 @@ export class WorldScene extends Phaser.Scene {
     const r = enterWorkingAfterAct(this._story, this.act);
     if (r.shouldEnd) {
       SceneRouter.goto(this, 'EndingScene', {
-        ending: this.career, career: this.career,
+        ending: this.career, career: this.career, subRole: this.subRole,
         stats: this.stateSystem.getAll(), choiceLog: this.choiceLog.serialize(),
+        projectProgress: this.projectSystem ? this.projectSystem.progress : null,
       });
       return;
     }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
+import { buildTryFirstAdvice, CAREER_NAMES } from '../systems/CareerFit.js';
 
 // HubScene：职业选择大厅。玩家捏完人后选职业进入体验。
 // 职业列表暂时硬编码，以后可挪到 data/ 目录的 JSON。
@@ -98,21 +99,40 @@ export class HubScene extends Phaser.Scene {
       { key: 'lawyer',      name: '律师',       desc: '天平的两端，哪边更重',         deep: false },
     ];
 
+    // 测评推荐：从 wdwtb_profile 读兴趣坐标 → 星标先试职业（推荐可改）
+    let recKeys = new Set();
+    let recLine = '';
+    try {
+      const prof = JSON.parse(localStorage.getItem('wdwtb_profile') || 'null');
+      if (prof && (prof.riasec || prof.tryFirst)) {
+        const advice = prof.tryFirst?.length
+          ? {
+              headline: prof.tryHeadline || `建议先试「${prof.tryFirst[0]?.name}」`,
+              tryFirst: prof.tryFirst,
+            }
+          : buildTryFirstAdvice(prof, 2);
+        (advice.tryFirst || advice.detail || []).slice(0, 2).forEach((t) => recKeys.add(t.key));
+        const names = [...recKeys].map(k => CAREER_NAMES[k] || k).join('、');
+        recLine = names
+          ? `⭐ 测评建议先试：${names}（可点任意职业，推荐只是线索）`
+          : '';
+      }
+    } catch (e) { /* */ }
+
     // 标题
     const title = this.add.text(480, 62, '你想成为谁？', {
       fontSize: '34px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 4,
     }).setOrigin(0.5);
     title.setShadow(0, 2, '#d4a35366', 10, false, true);
-    this.add.text(480, 100, '选择一个职业，开始你的职场故事', {
-      fontSize: '15px', color: '#9aa0a6',
+    this.add.text(480, 100, '选一个职业，真实过几天那种生活——帮助你判断适不适合、喜不喜欢', {
+      fontSize: '13px', color: '#9aa0a6',
     }).setOrigin(0.5);
-    // 3 分钟评委路径：进办公室前先建立心智模型（找人→对接→工位→下班）
-    this.add.text(480, 122, '办公室循环：找 ❗ 导师领任务 → 对接同事 → 工位坐下开工 → 右上角下班', {
+    // 3 分钟路径 + 推荐
+    this.add.text(480, 122, '办公室：找 ❗ 导师 → 对接同事 → 工位开工 → 右上角下班 → 结局心之画像', {
       fontSize: '12px', color: '#c8b070',
     }).setOrigin(0.5);
-    // 分类小标签
-    this.add.text(480, 144, '—— 金框为深度剧情（五幕完整体验）·  其余为轻量体验 ——', {
-      fontSize: '12px', color: '#6a6a8a',
+    this.add.text(480, 142, recLine || '—— 金框为深度体验 · 其余为迷你完整 · 先试再决定 ——', {
+      fontSize: '12px', color: recLine ? '#ffd24d' : '#6a6a8a',
     }).setOrigin(0.5);
 
     // 左上角返回按钮
@@ -169,6 +189,12 @@ export class HubScene extends Phaser.Scene {
       this.add.text(cx + cardW / 2 - 7, cy - cardH / 2 + 5, tag.t, {
         fontSize: '9px', color: tag.c,
       }).setOrigin(1, 0);
+      // 测评优先建议星标（初衷：可行动线索，非强制）
+      if (recKeys.has(career.key)) {
+        this.add.text(cx - cardW / 2 + 8, cy - cardH / 2 + 5, '⭐建议', {
+          fontSize: '9px', color: '#ffd24d', fontStyle: 'bold',
+        }).setOrigin(0, 0);
+      }
 
       // 交互：hover 放大 + 点击音 + 淡出进场
       const cardParts = [interactiveRect];

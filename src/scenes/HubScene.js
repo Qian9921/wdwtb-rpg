@@ -53,7 +53,7 @@ export class HubScene extends Phaser.Scene {
       fontSize: '15px', color: '#9aa0a6',
     }).setOrigin(0.5);
     // 3 分钟评委路径：进办公室前先建立心智模型
-    this.add.text(480, 122, '办公室循环：找 ❗ 导师 → 接任务/对话 → 做日常 → 右上角下班', {
+    this.add.text(480, 122, '办公室循环：找 ❗ 导师 → 对话/接任务 → 走近 💻 电脑按 E 干活 → 下班', {
       fontSize: '12px', color: '#c8b070',
     }).setOrigin(0.5);
     // 分类小标签

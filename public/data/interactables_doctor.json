@@ -84,6 +84,22 @@
         "energy": 15,
         "stress": -3
       }
+    },
+    {
+      "id": "phone",
+      "pos": [
+        720,
+        240
+      ],
+      "icon": "📱",
+      "prompt": "给家里打个电话",
+      "action": "monologue:auto",
+      "effect": {
+        "san": 10,
+        "passion": 4,
+        "stress": -6
+      },
+      "cooldown": "daily"
     }
   ]
 }

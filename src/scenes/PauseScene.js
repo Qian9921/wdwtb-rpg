@@ -255,9 +255,21 @@ export class PauseScene extends Phaser.Scene {
     }
   }
 
-  // NPC id → 显示名（任务给取者提示用）
+  // NPC id → 显示名（任务给取者提示用；覆盖常见名册 id）
   _npcName(id) {
-    return { senior: '导师', peer: '同事', vet: '前辈' }[id] || '同事';
+    const map = {
+      senior: '导师', peer: '同事', vet: '前辈',
+      zhao: '小赵', lin: '小林', ting: '婷婷',
+      dev: '研发', data: '数据', ops: '运营',
+      teach: '教务', fin: '财务', stu: '学工',
+      pm: '产品', design: '设计',
+      parent: '家长', admin: '行政',
+      lab: '检验', pharm: '药房',
+      archive: '档案', legal: '法制',
+      sol: '售前', cs: '客成',
+      corp: '公司组', clerk: '书记员',
+    };
+    return map[id] || '同事';
   }
 
   // 回落：无任务系统时的幕次概览（保留原逻辑）

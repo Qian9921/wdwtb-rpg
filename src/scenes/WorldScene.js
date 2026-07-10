@@ -15,6 +15,7 @@ import { ChoiceLog } from '../systems/ChoiceLog.js';
 import { ThoughtSystem } from '../systems/ThoughtSystem.js';
 import { AIClient } from '../systems/AIClient.js';
 import { DaySystem } from '../systems/DaySystem.js';
+import { bottomGuideFromGoal } from '../systems/StoryProgress.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -437,10 +438,11 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.rectangle(W / 2, H / 2, 760, 420, 0x16161f, 0.98).setStrokeStyle(2, 0x3a3a5a));
     const steps = [
       { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一段关于「你想成为谁」的职场旅程。\n没有标准答案，只有你的选择。' },
-      { icon: '🚶', title: '自由探索', text: 'WASD / 方向键 移动。\n手机上用左下角的虚拟摇杆。' },
-      { icon: '💬', title: '与人互动', text: '走近头顶有 ❗/💬 的同事，按 E 交谈、接任务。\n走近 💻🪟🥤 等物件，按 E 使用。' },
-      { icon: '🧠', title: '倾听内心', text: '按 T 听见脑海里的声音——\n它们会随你的状态和选择而变。' },
-      { icon: '🌙', title: '经营你的每一天', text: '右上角「下班回家」可休息、见家人、进入下一天。\n照顾好左上角的状态条，别把自己弄丢。' },
+      { icon: '🚶', title: '自由探索', text: 'WASD / 方向键 移动 · Shift 冲刺。\n手机上用左下角的虚拟摇杆。' },
+      { icon: '💬', title: '与人互动', text: '走近头顶有 ❗/❓ 的同事，按 E 交谈、接任务、交付。\n底部黄条会提示「现在该干什么」。' },
+      { icon: '💻', title: '坐工位开工', text: '接到干活任务后，找自己的椅子：\n［ E ］坐下 → 再按 E 使用电脑/做任务。\n别坐错别人的位子。' },
+      { icon: '🧠', title: '状态与内心', text: '左上角状态条：精力/压力会变；Tab 可展开。\n按 T 倾听内心；ESC 打开任务日志。' },
+      { icon: '🌙', title: '经营你的每一天', text: '右上角「下班回家」可休息、见家人、进入下一天。\n建议先完成当前目标再下班——一天才有故事。' },
     ];
     let idx = 0;
     const iconT = this.add.text(W / 2, H / 2 - 130, '', { fontSize: '64px' }).setOrigin(0.5);
@@ -464,6 +466,7 @@ export class WorldScene extends Phaser.Scene {
       (this._hudHiddenForOnboard || []).forEach(o => o && o.setVisible(true));
       if (this.ePrompt) this.ePrompt.setVisible(false); // ePrompt 由交互逻辑控制，默认隐藏
       this.dialogueActive = false;
+      this._syncGuideText(); // 引导结束后用真实下一步覆盖静态「新人报到」
     };
     const advance = () => { idx++; if (idx >= steps.length) finish(); else render(); };
     render();
@@ -1125,6 +1128,44 @@ export class WorldScene extends Phaser.Scene {
       else if (mark === 'deliver') npc.mark.setText('❓').setColor('#7eff7e');
       else if (mark === 'progress') npc.mark.setText('…').setColor('#7ec8ff');
     }
+    this._syncGuideText();
+  }
+
+  // 底部引导条：跟剧情/任务真实下一步对齐（纯逻辑在 bottomGuideFromGoal）。
+  // 小改动：不引入 objectiveHud 架构，只在标记刷新时同步文案。
+  _syncGuideText() {
+    if (!this.guideText || this.dialogueActive) return;
+    const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    const [gName, gTitle] = gTheme.npcs.senior;
+    let goal = null;
+    if (this._story && this._story.phase === 'ready') {
+      goal = { text: `去找${gTitle}「${gName}」(剧情)` };
+    } else if (this.questSystem) {
+      const ctx = { act: this.act };
+      for (const q of this.questSystem.active()) {
+        if (this.questSystem.isReady(q.id)) {
+          goal = { text: `交付「${q.title}」` };
+          break;
+        }
+      }
+      if (!goal) {
+        for (const q of this.questSystem.available(ctx)) {
+          goal = { text: `领任务:「${q.title}」` };
+          break;
+        }
+      }
+      if (!goal && typeof this.questSystem.nextObjective === 'function') {
+        for (const q of this.questSystem.active()) {
+          const next = this.questSystem.nextObjective(q.id);
+          if (next && next.text) { goal = { text: next.text }; break; }
+        }
+      }
+    }
+    const bottom = bottomGuideFromGoal(goal, gName);
+    if (this._lastGuideLabel !== bottom) {
+      this._lastGuideLabel = bottom;
+      this.guideText.setText(bottom);
+    }
   }
 
   // ==================== 环境换景（bgChange 真生效）====================
@@ -1342,6 +1383,7 @@ export class WorldScene extends Phaser.Scene {
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
       if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
+      self._syncGuideText();
       if (self.offWorkBtn) self.offWorkBtn.setVisible(true);
       // 剧情结束回办公室：移除场景背景 + 恢复办公室色调，露出办公室地图
       if (self.sceneBackdrop) self.sceneBackdrop.show('office');
@@ -1551,8 +1593,12 @@ export class WorldScene extends Phaser.Scene {
     // 本幕家人消息 + 引导提示"去过日子"
     this._showFamilyByAct(this.act);
     const need = ACT_DAYS[this.act] || 1;
+    const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+    const [seniorName] = gTheme.npcs.senior;
     this.time.delayedCall(400, () => {
-      this._showRitual(`📅 这一阶段的故事告一段落。\n接下来的${need}天，好好经营你的职场日常——\n做做任务、和同事聊聊、累了就下班回家。\n等你过完这几天，去找老陈聊下一步。`);
+      this._showRitual(
+        `📅 报到故事告一段落。\n✅ 下一步：找${seniorName}（头顶 ❗）领任务 / 做手头的活\n→ 和同事聊聊 → 累了就右上角「下班回家」。\n（本阶段约 ${need} 天经营，攒够天数再找导师推进剧情。）`,
+      );
     });
   }
 

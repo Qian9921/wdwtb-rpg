@@ -186,7 +186,7 @@ export class OpeningScene extends Phaser.Scene {
     this.ui.add(this.add.text(480, 132, q.text, {
       fontSize: '17px', color: '#e6e6f0', wordWrap: { width: 720, useAdvancedWrap: true }, align: 'center',
     }).setOrigin(0.5));
-    this.ui.add(this.add.text(480, 165, '（没有标准答案，选最像你的）', { fontSize: '12px', color: '#5a5a6e' }).setOrigin(0.5));
+    this.ui.add(this.add.text(480, 165, '（没有标准答案 · 可随意选 · 约 1 分钟，仅影响推荐方向）', { fontSize: '12px', color: '#5a5a6e' }).setOrigin(0.5));
 
     q.options.forEach((op, i) => {
       this._button(480, 215 + i * 62, 640, 52, op.label, () => {

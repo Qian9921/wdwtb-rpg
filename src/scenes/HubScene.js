@@ -52,8 +52,12 @@ export class HubScene extends Phaser.Scene {
     this.add.text(480, 100, '选择一个职业，开始你的职场故事', {
       fontSize: '15px', color: '#9aa0a6',
     }).setOrigin(0.5);
+    // 3 分钟评委路径：进办公室前先建立心智模型
+    this.add.text(480, 122, '办公室循环：找 ❗ 导师 → 接任务/对话 → 做日常 → 右上角下班', {
+      fontSize: '12px', color: '#c8b070',
+    }).setOrigin(0.5);
     // 分类小标签
-    this.add.text(480, 138, '—— 金框为深度剧情（五幕完整体验）·  其余为轻量体验 ——', {
+    this.add.text(480, 144, '—— 金框为深度剧情（五幕完整体验）·  其余为轻量体验 ——', {
       fontSize: '12px', color: '#6a6a8a',
     }).setOrigin(0.5);
 

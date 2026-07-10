@@ -5,6 +5,7 @@ import { SceneRouter } from '../systems/SceneRouter.js';
 import { FamilyMessages } from '../systems/FamilyMessages.js';
 import { PhoneMessage } from '../systems/PhoneMessage.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { SceneBackdrop } from '../systems/SceneBackdrop.js';
 
 // HomeScene：夜晚·回家——一天的收尾。家人消息 + 自我提升选择 + 睡觉进下一天。
 // 自我提升：花精力/金钱换成长（skill/san/passion），玩家规划"下班后怎么过"。
@@ -27,12 +28,17 @@ export class HomeScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500, 0, 0, 0);
     AudioSystem.playBgm('mindscape'); // 夜晚用空灵的 BGM
 
+    // 出租屋场景画面(程序化:暖褐房间/夜窗/台灯/桌床),菜单浮在上面——"回家"有画面感
+    this.backdrop = new SceneBackdrop(this);
+    this.backdrop.show('apartment_night');
+    this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a14, 0.5).setDepth(800); // 压暗让菜单可读
+
     this.add.text(W / 2, 70, `第 ${this.day} 天 · 夜晚`, {
       fontSize: '26px', color: '#8b8ba0',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(900);
     this.add.text(W / 2, 118, '🏠 回到出租屋', {
       fontSize: '40px', color: '#dfe3ff', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(900);
 
     // 家人消息系统
     this.familyMessages = new FamilyMessages();
@@ -46,7 +52,7 @@ export class HomeScene extends Phaser.Scene {
   _showSelfImprove() {
     const { width: W } = this.scale;
     if (this.ui) this.ui.destroy(true);
-    this.ui = this.add.container(0, 0);
+    this.ui = this.add.container(0, 0).setDepth(900); // 浮在场景画面+压暗层上
 
     this.ui.add(this.add.text(W / 2, 210, '这个夜晚，你想怎么过？', {
       fontSize: '28px', color: '#e8e8f4',
@@ -117,18 +123,27 @@ export class HomeScene extends Phaser.Scene {
       const saved = SaveSystem.load() || {};
       const story = saved.story || { phase: 'ready', act: this.act, daysInAct: 0 };
       if (story.phase === 'working') story.daysInAct = (story.daysInAct || 0) + 1; // 经营期才累加
+      // 合并写：保留 project/subRole/quests（SaveSystem 合并，但 explicit extra 勿丢字段）
       SaveSystem.saveProgress({
         career: this.career, act: this.act, stats: this.stats,
-        extra: { ...(saved.quests ? { quests: saved.quests } : {}),
-          quests: saved.quests, choiceLog: saved.choiceLog, thought: saved.thought,
-          daySystem: saved.daySystem, story },
+        extra: {
+          subRole: saved.subRole,
+          quests: saved.quests,
+          choiceLog: saved.choiceLog,
+          thought: saved.thought,
+          daySystem: saved.daySystem,
+          project: saved.project,
+          story,
+        },
       });
     } catch (e) {}
     this.cameras.main.fadeOut(800, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
+      let subRole = null;
+      try { subRole = (SaveSystem.load() || {}).subRole || null; } catch (e) {}
       this.scene.start('CommuteScene', {
         career: this.career, act: this.act, day: this.day + 1,
-        stats: this.stats,
+        stats: this.stats, subRole,
       });
     });
   }

@@ -15,7 +15,23 @@ import { ChoiceLog } from '../systems/ChoiceLog.js';
 import { ThoughtSystem } from '../systems/ThoughtSystem.js';
 import { AIClient } from '../systems/AIClient.js';
 import { DaySystem } from '../systems/DaySystem.js';
-import { bottomGuideFromGoal } from '../systems/StoryProgress.js';
+import { ProjectSystem } from '../systems/ProjectSystem.js';
+import {
+  bottomGuideFromGoal,
+  isStoryPending,
+  applyProjectMilestone,
+  tryAdvanceByMilestone,
+} from '../systems/StoryProgress.js';
+import {
+  isWorkLoopCareer,
+  defaultSubRole,
+  questDataUrl,
+  npcDefsFromRoster,
+  seniorInteractAction,
+  applySeniorAccept,
+  applySeniorDeliver,
+  reportMinigameProgress,
+} from '../systems/WorkLoopOffice.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -178,6 +194,8 @@ export class WorldScene extends Phaser.Scene {
     this.career = (data && data.career) || 'programmer';
     this.deep = data ? data.deep : true;
     this.act = (data && data.act) || 1;
+    this.subRole = (data && data.subRole) || null; // 任务链方向(dev/test/…)
+    this.workLoopEnabled = isWorkLoopCareer(this.career);
     this.dialogueActive = false;
     this.activeNpc = null;
     // 多天循环：从 CommuteScene 传入的 day + stats 快照（有则用，无则从存档/默认）
@@ -190,27 +208,37 @@ export class WorldScene extends Phaser.Scene {
     this._savedChoiceLog = null;
     this._savedThought = null;
     this._savedDay = null;
+    this._savedProject = null;
     try {
       const saved = SaveSystem.load();
       // 同职业续档 → 恢复全部进度；换职业 → 清旧档、全新开始（避免串档）
-      const sameCareer = saved && saved.career === this.career;
+      const sameCareer = saved && saved.career === this.career
+        && (this.subRole == null || saved.subRole == null || saved.subRole === this.subRole);
       if (sameCareer) {
         this._savedStats = saved.stats || null;   // 不再用 act 判据（BUG-9：换幕续档不丢血）
         this._savedQuests = saved.quests || null;
         this._savedChoiceLog = saved.choiceLog || null;
         this._savedThought = saved.thought || null;
         this._savedDay = saved.daySystem || null;
+        this._savedProject = saved.project || null;
+        if (this.subRole == null && saved.subRole) this.subRole = saved.subRole;
         if (saved.story) this._story = { ...this._story, ...saved.story };
       } else if (saved) {
         SaveSystem.clear(); // 换职业：清掉上一个职业的进度
       }
     } catch (e) {}
+    if (!this.subRole) this.subRole = defaultSubRole(this.career);
     // story.act 是权威幕次
     this.act = this._story.act || this.act;
     // 进场即存档（合并写，保留未提供字段）
     SaveSystem.saveProgress({
       career: this.career, act: this.act, stats: this._savedStats,
-      extra: { quests: this._savedQuests, choiceLog: this._savedChoiceLog, thought: this._savedThought, daySystem: this._savedDay, story: this._story },
+      extra: {
+        subRole: this.subRole,
+        quests: this._savedQuests, choiceLog: this._savedChoiceLog,
+        thought: this._savedThought, daySystem: this._savedDay,
+        project: this._savedProject, story: this._story,
+      },
     });
   }
 
@@ -245,6 +273,11 @@ export class WorldScene extends Phaser.Scene {
     // ⚠️ 纹理 key 加 so_ 前缀，避免与 LimeZu 的 'adam' spritesheet 冲突。
     for (const c of ['adam', 'ash', 'lucy', 'nancy']) {
       this.load.atlas(`so_${c}`, `${SO}/character/${c}.png`, `${SO}/character/${c}.json`);
+    }
+    // workLoop 名册 + 工单（任务链 talk 目标 / 项目进度）
+    if (this.workLoopEnabled) {
+      this.load.json('roster', `./data/roster_${this.career}.json`);
+      this.load.json('work_orders', `./data/work_orders_${this.career}.json`);
     }
   }
 
@@ -292,6 +325,25 @@ export class WorldScene extends Phaser.Scene {
     // 任务系统 + 选择记忆（结局 AI 画像的数据源）
     this.questSystem = new QuestSystem(this.stateSystem);
     this.choiceLog = new ChoiceLog();
+    // 工作日循环：项目进度（交付 progressGain / e2e-taskchain）
+    if (this.workLoopEnabled) {
+      const wo = this.cache.json.get('work_orders');
+      const pool = (wo && wo.orders) || [];
+      this.projectSystem = new ProjectSystem({ pool, dailyCount: 3 });
+      if (this._savedProject) {
+        if (this._savedProject.progress != null) this.projectSystem.progress = this._savedProject.progress;
+        if (this._savedProject.performance != null) this.projectSystem.performance = this._savedProject.performance;
+      }
+      this.projectSystem.startDay();
+      // 里程碑 → pendingAct（走近导师推进下一幕）
+      this.projectSystem.on('milestone', (pct) => {
+        const r = applyProjectMilestone(this._story, pct, this.act);
+        this._story = r.story;
+        this._persistStory();
+      });
+    } else {
+      this.projectSystem = null;
+    }
     this._loadQuestData();
     // 任务完成时反馈（粒子+音效）
     this.questSystem.on('completed', (id) => {
@@ -585,32 +637,35 @@ export class WorldScene extends Phaser.Scene {
 
   // ==================== NPC ====================
   _createNpcs() {
-    // 站位用 NPC_POS（SkyOffice 地图的可行走空地）；名字/头衔/寒暄按职业主题注入。
-    const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
-    const [seniorName, seniorTitle] = theme.npcs.senior;
-    const [peerName, peerTitle] = theme.npcs.peer;
-    const [vetName, vetTitle] = theme.npcs.vet;
-    // NPC 用不同皮肤增加多样（senior 用精细 SkyOffice，其余混搭）
-    const defs = [
-      {
-        id: 'senior', name: seniorName, skin: 'so_adam',
-        x: NPC_POS.senior.x, y: NPC_POS.senior.y, facing: 'down',
-        label: `${seniorName} · ${seniorTitle}`, mark: '❗', markColor: '#ffdd33',
-        act: 1, // 走近报到 → 播第一幕
-      },
-      {
-        id: 'peer', name: peerName, skin: 'so_nancy',
-        x: NPC_POS.peer.x, y: NPC_POS.peer.y, facing: 'down',
-        label: `${peerName} · ${peerTitle}`, mark: '💬', markColor: '#7ec8ff',
-        line: theme.peerLine,
-      },
-      {
-        id: 'vet', name: vetName, skin: 'so_lucy',
-        x: NPC_POS.vet.x, y: NPC_POS.vet.y, facing: 'down',
-        label: `${vetName} · ${vetTitle}`, mark: '💬', markColor: '#7ec8ff',
-        line: theme.vetLine,
-      },
-    ];
+    // workLoop：名册具名同事(zhao/lin/ting…)；否则主题三槽 senior/peer/vet
+    const roster = this.cache.json.get('roster');
+    let defs = npcDefsFromRoster(roster, this.career);
+    if (!defs) {
+      const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
+      const [seniorName, seniorTitle] = theme.npcs.senior;
+      const [peerName, peerTitle] = theme.npcs.peer;
+      const [vetName, vetTitle] = theme.npcs.vet;
+      defs = [
+        {
+          id: 'senior', name: seniorName, skin: 'so_adam',
+          x: NPC_POS.senior.x, y: NPC_POS.senior.y, facing: 'down',
+          label: `${seniorName} · ${seniorTitle}`, mark: '❗', markColor: '#ffdd33',
+          act: 1,
+        },
+        {
+          id: 'peer', name: peerName, skin: 'so_nancy',
+          x: NPC_POS.peer.x, y: NPC_POS.peer.y, facing: 'down',
+          label: `${peerName} · ${peerTitle}`, mark: '💬', markColor: '#7ec8ff',
+          line: theme.peerLine,
+        },
+        {
+          id: 'vet', name: vetName, skin: 'so_lucy',
+          x: NPC_POS.vet.x, y: NPC_POS.vet.y, facing: 'down',
+          label: `${vetName} · ${vetTitle}`, mark: '💬', markColor: '#7ec8ff',
+          line: theme.vetLine,
+        },
+      ];
+    }
 
     // 用任意皮肤在 (x,y) 放一个静态角色（朝向 idle 帧），返回 sprite
     const placeChar = (x, y, skinKey, facing = 'down') => {
@@ -622,7 +677,9 @@ export class WorldScene extends Phaser.Scene {
 
     this.npcs = [];
     for (const d of defs) {
-      const spr = placeChar(d.x, d.y, d.skin, d.facing);
+      const skinKey = d.skin || 'so_adam';
+      const spr = placeChar(d.x, d.y, skinKey, d.facing || 'down');
+      if (d.tint) spr.setTint(d.tint);
 
       // NPC 名牌（脚下小字，1920 尺度）
       const nameTag = this.add.text(d.x, d.y + 8, d.name, {
@@ -632,15 +689,18 @@ export class WorldScene extends Phaser.Scene {
 
       // 头顶交互浮标（上下浮动）
       const markY = d.y - 78;
-      const mark = this.add.text(d.x, markY, d.mark, {
-        fontSize: '24px', color: d.markColor,
+      const mark = this.add.text(d.x, markY, d.mark || '💬', {
+        fontSize: '24px', color: d.markColor || '#7ec8ff',
       }).setOrigin(0.5, 1).setDepth(9000);
       this.tweens.add({
         targets: mark, y: markY - 6,
         duration: 620, yoyo: true, repeat: -1, ease: 'Sine.inOut',
       });
 
-      this.npcs.push({ ...d, spr, mark, nameTag });
+      this.npcs.push({
+        ...d, spr, mark, nameTag,
+        markState: d.mark || '💬',
+      });
     }
 
     // 背景群演：坐/站在开放区的路人，让办公室"有活人"（纯装饰，混搭皮肤增加多样）
@@ -777,6 +837,11 @@ export class WorldScene extends Phaser.Scene {
   // 交互物件触发：执行 def.action。冷却物件每天限一次。
   _interactObject(obj) {
     if (this.dialogueActive) return;
+    // workLoop 工位电脑：开今日工单板（也可直接上报 work 进度兜底）
+    if (obj.id === 'computer' && this.workLoopEnabled) {
+      this._openWorkBoard();
+      return;
+    }
     // 冷却检查（daily）
     if (obj.cooldown === 'daily' && this._cooldowns[obj.id]) {
       this._showThoughtBubble('（这个今天已经用过了。）', '#9a9ac0');
@@ -903,48 +968,90 @@ export class WorldScene extends Phaser.Scene {
   // 轻量职业：走近一次播完整单文件到 ending（无经营期）。
   // 深度职业：ready→播本幕剧情→working(经营期，做任务过日子)→天数攒够→播下一幕。
   _interactSenior(npc) {
-    // 导师身上有可交付任务 → 优先交付（senior 是多数任务 giver）
-    if (this.questSystem) {
-      for (const q of this.questSystem.active()) {
-        if (q.giver === 'senior' && this.questSystem.isReady(q.id)) {
-          this.questSystem.complete(q.id);
-          this._showLine(npc.name, `「${q.title}」完成！干得漂亮。`);
-          this._updateNpcMarks();
+    // 1) 交付优先
+    const action = seniorInteractAction({
+      questSystem: this.questSystem,
+      story: this._story,
+      workLoopEnabled: this.workLoopEnabled,
+      act: this.act,
+    });
+    if (action.kind === 'deliver') {
+      const r = applySeniorDeliver(this.questSystem, action);
+      if (r.ok) {
+        this._showLine(npc.name, r.line || action.line);
+        if (r.progressGain && this.projectSystem) {
+          this.projectSystem.adjustProgress(r.progressGain);
+        }
+        this._updateNpcMarks();
+      }
+      return;
+    }
+
+    // 2) ready：播本幕剧情（优先于派活）
+    if (this._story.phase === 'ready') {
+      this._story.act = this.act;
+      if (LIGHT_CAREERS.includes(this.career)) {
+        this._playStory(`./data/light_${this.career}.json`);
+      } else {
+        this._playStory(`./data/${this.career}_act${this.act}.json`);
+      }
+      return;
+    }
+
+    // 3) working：里程碑 / 天数推进（优先于派活，主线 e2e 与 career 冒烟依赖此序）
+    if (this._story.phase === 'working') {
+      if (this.workLoopEnabled) {
+        const adv = tryAdvanceByMilestone(this._story, this.act, this.career, this.deep !== false);
+        if (adv.advanced) {
+          this._story = adv.story;
+          this.act = adv.act;
+          this._persistStory();
+          this._playStory(adv.playUrl);
           return;
         }
       }
-    }
-
-    // 轻量职业：单文件一次播完
-    if (LIGHT_CAREERS.includes(this.career)) {
-      this._playStory(`./data/light_${this.career}.json`);
-      return;
-    }
-
-    // 深度职业状态机
-    if (this._story.phase === 'ready') {
-      // 播本幕剧情
-      this._story.act = this.act;
-      this._playStory(`./data/${this.career}_act${this.act}.json`);
-      return;
-    }
-    // working 经营期：检查能否推进下一幕
-    if (this._story.phase === 'working') {
       const need = ACT_DAYS[this.act] || 1;
-      if (this._story.daysInAct >= need) {
-        // 攒够天数 → 推进下一幕：act+1，回到 ready，立即播下一幕剧情
+      if ((this._story.daysInAct || 0) >= need) {
         this.act += 1;
         this._story.act = this.act;
         this._story.phase = 'ready';
         this._story.daysInAct = 0;
         this._persistStory();
-        this._playStory(`./data/${this.career}_act${this.act}.json`);
-      } else {
-        // 未到时候 → 提示还需过几天（引导玩家去做任务、下班睡觉）
-        const left = need - this._story.daysInAct;
-        this._showLine(npc.name, `这阶段的活儿还没到收尾的时候。\n再忙上${left}天吧——做做手头的任务，累了就下班回家。等你缓过来，我们再聊下一步。`);
+        this._playStory(
+          LIGHT_CAREERS.includes(this.career)
+            ? `./data/light_${this.career}.json`
+            : `./data/${this.career}_act${this.act}.json`,
+        );
+        return;
+      }
+    }
+
+    // 4) 派活 / 进行中提示
+    if (action.kind === 'accept') {
+      const r = applySeniorAccept(this.questSystem, action);
+      if (r.ok) {
+        this._showLine(npc.name, r.line);
+        this._updateNpcMarks();
       }
       return;
+    }
+    if (action.kind === 'hint') {
+      this._showLine(npc.name, action.line);
+      return;
+    }
+
+    // 5) 轻量回落
+    if (LIGHT_CAREERS.includes(this.career)) {
+      this._playStory(`./data/light_${this.career}.json`);
+      return;
+    }
+
+    // 6) 经营中未到推进条件
+    if (this._story.phase === 'working') {
+      const left = (ACT_DAYS[this.act] || 1) - (this._story.daysInAct || 0);
+      const p = this.projectSystem ? Math.round(this.projectSystem.progress) : 0;
+      const extra = this.workLoopEnabled ? `\n（项目进度 ${p}%）` : '';
+      this._showLine(npc.name, `这阶段的活儿还没到收尾的时候。\n再忙上${Math.max(0, left)}天吧——做做手头的任务，累了就下班回家。${extra}`);
     }
   }
 
@@ -1009,6 +1116,7 @@ export class WorldScene extends Phaser.Scene {
   // 框高按正文实测高度自适应（先量后定），根治多行文字溢出遮字
   _showLine(name, text) {
     this.dialogueActive = true;
+    this._lineText = { text: String(text || '') }; // e2e / 调试可读
     this.ePrompt.setVisible(false);
     if (this.guideText) this.guideText.setVisible(false);
     const { width, height } = this.scale;
@@ -1085,8 +1193,8 @@ export class WorldScene extends Phaser.Scene {
     // 从 init 缓存的存档字段恢复任务进度 + 选择记忆（跨幕累积）
     if (this._savedQuests && this.questSystem) this.questSystem.restore(this._savedQuests);
     if (this._savedChoiceLog && this.choiceLog) this.choiceLog.restore(this._savedChoiceLog);
-    // 异步加载任务定义
-    const url = `./data/quests_${this.career}.json`;
+    // workLoop → taskchain_{career}_{subRole}；否则 quests_{career}
+    const url = questDataUrl(this.career, this.subRole, this.workLoopEnabled);
     fetch(url)
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then(data => {
@@ -1109,24 +1217,47 @@ export class WorldScene extends Phaser.Scene {
       if (!npc.mark) continue;
       // 导师：剧情状态机标记（深度职业）
       if (npc.id === 'senior' && !LIGHT_CAREERS.includes(this.career)) {
-        if (this._story.phase === 'ready') {
-          npc.mark.setText('❗').setColor('#ffdd33'); // 待播本幕剧情
-        } else if (this._story.phase === 'working') {
-          const need = ACT_DAYS[this.act] || 1;
-          if (this._story.daysInAct >= need) npc.mark.setText('❗').setColor('#ffdd33'); // 可推进下一幕
-          else npc.mark.setText('💤').setColor('#8a8a9e'); // 经营中，还没到时候
-        }
-        // 导师身上有可交付任务时优先显示 ❓
+        let emoji = '💬', color = '#7ec8ff';
+        // 可交付优先 ❓
         for (const q of this.questSystem.active()) {
-          if (q.giver === 'senior' && this.questSystem.isReady(q.id)) { npc.mark.setText('❓').setColor('#7eff7e'); break; }
+          if (q.giver === 'senior' && this.questSystem.isReady(q.id)) {
+            emoji = '❓'; color = '#7eff7e'; break;
+          }
         }
+        if (emoji === '💬') {
+          if (this._story.phase === 'ready') {
+            emoji = '❗'; color = '#ffdd33';
+          } else if (this._story.phase === 'working') {
+            // workLoop：可派链任务 → ❗；否则 💤
+            const hasQuest = this.workLoopEnabled
+              && this.questSystem.available(ctx).some(q => q.giver === 'senior');
+            if (hasQuest) {
+              emoji = '❗'; color = '#ffdd33';
+            } else {
+              const need = ACT_DAYS[this.act] || 1;
+              if (this._story.daysInAct >= need) { emoji = '❗'; color = '#ffdd33'; }
+              else { emoji = '💤'; color = '#8a8a9e'; }
+            }
+          }
+        }
+        npc.mark.setText(emoji).setColor(color);
+        npc.markState = emoji;
         continue;
       }
       // 其余 NPC：按任务
       const mark = this.questSystem.npcMark(npc.id, ctx);
-      if (mark === 'available') npc.mark.setText('❗').setColor('#ffdd33');
-      else if (mark === 'deliver') npc.mark.setText('❓').setColor('#7eff7e');
-      else if (mark === 'progress') npc.mark.setText('…').setColor('#7ec8ff');
+      if (mark === 'available') {
+        npc.mark.setText('❗').setColor('#ffdd33'); npc.markState = '❗';
+      } else if (mark === 'deliver') {
+        npc.mark.setText('❓').setColor('#7eff7e'); npc.markState = '❓';
+      } else if (mark === 'progress') {
+        // 任务链「下一步 talk 目标」用 ❗（与 e2e-taskchain / peer 一致）
+        npc.mark.setText('❗').setColor('#7ec8ff'); npc.markState = '❗';
+      } else {
+        const em = npc.defaultMark || '💬';
+        npc.mark.setText(em).setColor(npc.defaultMarkColor || '#7ec8ff');
+        npc.markState = em;
+      }
     }
     this._syncGuideText();
   }
@@ -1256,6 +1387,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // 下班回家：转场到 HomeScene，带当前状态快照 + 天数
+  // e2e-fullloop 别名
+  _doGoHome() { return this._goHome(); }
+
   _goHome() {
     if (this.dialogueActive || this._goingHome) return;
     this._goingHome = true;
@@ -1263,15 +1397,17 @@ export class WorldScene extends Phaser.Scene {
     SaveSystem.saveProgress({
       career: this.career, act: this.act, stats: this.stateSystem.getAll(),
       extra: {
+        subRole: this.subRole,
         quests: this.questSystem.serialize(),
         choiceLog: this.choiceLog.serialize(),
         thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
         daySystem: this.daySystem.serialize(),
+        project: this.projectSystem ? this.projectSystem.serialize() : null,
         story: this._story,
       },
     });
     SceneRouter.goto(this, 'HomeScene', {
-      career: this.career, act: this.act,
+      career: this.career, act: this.act, subRole: this.subRole,
       day: this.daySystem.day, stats: this.stateSystem.getAll(),
     });
   }
@@ -1424,7 +1560,8 @@ export class WorldScene extends Phaser.Scene {
             if (ok === total) { self.stateSystem.change('skill', 5); self.stateSystem.change('passion', 4); }
             else if (ok > 0) { self.stateSystem.change('skill', 3); self.stateSystem.change('energy', -3); }
             else { self.stateSystem.change('stress', 3); self.stateSystem.change('skill', 1); }
-            self.questSystem.progress('minigame', mgType); // 上报任务进度
+            // workLoop 任务链 o2 target='work'；同时推 mgType + interact computer
+            reportMinigameProgress(self.questSystem, mgType);
             self._updateNpcMarks();
             self.scene.stop(gameScene);
             self.scene.resume();
@@ -1599,6 +1736,115 @@ export class WorldScene extends Phaser.Scene {
       this._showRitual(
         `📅 报到故事告一段落。\n✅ 下一步：找${seniorName}（头顶 ❗）领任务 / 做手头的活\n→ 和同事聊聊 → 累了就右上角「下班回家」。\n（本阶段约 ${need} 天经营，攒够天数再找导师推进剧情。）`,
       );
+    });
+  }
+
+  // ---------- workLoop 工单板（e2e-taskchain / 工位电脑）----------
+  _openWorkBoard() {
+    if (this._workBoardUI) { this._closeWorkBoard(this._workBoardUI); }
+    const { width: W, height: H } = this.scale;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10050);
+    this._workBoardUI = c;
+    this.dialogueActive = true;
+    c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x08080f, 0.72).setInteractive()
+      .on('pointerdown', () => this._closeWorkBoard(c)));
+    const pw = 720, ph = 420;
+    c.add(this.add.rectangle(W / 2, H / 2, pw, ph, 0x16161f, 0.98).setStrokeStyle(2, 0x4a6a52));
+    c.add(this.add.text(W / 2, H / 2 - ph / 2 + 28, '📋 今日任务清单', {
+      fontSize: '28px', color: '#ffd24d', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    // 主线链标题
+    let y = H / 2 - ph / 2 + 70;
+    const chainQ = this.questSystem
+      ? (this.questSystem.active().find(q => q.giver === 'senior')
+        || this.questSystem.available({ act: this.act }).find(q => q.giver === 'senior'))
+      : null;
+    if (chainQ) {
+      c.add(this.add.text(W / 2, y, `⛓ 主线 · ${chainQ.title}`, {
+        fontSize: '20px', color: '#e8e8f4',
+      }).setOrigin(0.5));
+      y += 36;
+    }
+    const prog = this.projectSystem ? Math.round(this.projectSystem.progress) : 0;
+    c.add(this.add.text(W / 2, y, `项目 ${prog}%`, {
+      fontSize: '18px', color: '#5fbf7f',
+    }).setOrigin(0.5));
+    y += 40;
+    const orders = this.projectSystem ? this.projectSystem.getOrders() : [];
+    if (orders.length === 0) {
+      c.add(this.add.text(W / 2, y, '（今日工单空 — 点开工直接练手）', {
+        fontSize: '16px', color: '#8a8a9e',
+      }).setOrigin(0.5));
+    } else {
+      orders.forEach((o, i) => {
+        const label = o.done ? `✓ ${o.title}` : `▸ ${o.title}`;
+        const t = this.add.text(W / 2, y + i * 36, label, {
+          fontSize: '18px', color: o.done ? '#6a8a6a' : '#dfe3ff',
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        if (!o.done) {
+          t.on('pointerdown', () => {
+            this._closeWorkBoard(c);
+            this._doSimpleWork(o);
+          });
+        }
+        c.add(t);
+      });
+    }
+    // 一键开工（无工单时也能推进 work 目标）
+    const go = this.add.text(W / 2, H / 2 + ph / 2 - 48, '［ 开工 / 做小游戏 ］', {
+      fontSize: '20px', color: '#ffe08a', backgroundColor: '#2a4a3e', padding: { x: 16, y: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    go.on('pointerdown', () => {
+      this._closeWorkBoard(c);
+      this._doSimpleWork(orders.find(o => !o.done) || null);
+    });
+    c.add(go);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+  }
+
+  _closeWorkBoard(c) {
+    if (c && c.destroy) c.destroy(true);
+    if (this._workBoardUI === c) this._workBoardUI = null;
+    this.dialogueActive = false;
+    this._syncGuideText();
+  }
+
+  // 工位小游戏 + 上报 minigame work（任务链 o2）
+  _doSimpleWork(order) {
+    this._launchCoding((result) => {
+      const quality = (result && result.ratio != null)
+        ? result.ratio
+        : ((result?.correct || 0) / (result?.total || 1));
+      if (order && this.projectSystem) {
+        this.projectSystem.completeOrder(order.id, quality);
+      }
+      reportMinigameProgress(this.questSystem, 'coding');
+      this._updateNpcMarks();
+      Juice.celebrate(this, this.player.x, this.player.y - 30, 0x5fbf7f);
+    });
+  }
+
+  /**
+   * 启动 coding 小游戏（Debug 找茬）。供 e2e-taskchain 与工单板调用。
+   * @param {function} onComplete
+   * @param {string} [difficulty]
+   */
+  _launchCoding(onComplete, difficulty = 'normal') {
+    const self = this;
+    const flavor = this.subRole === 'test' ? 'test' : 'dev';
+    self.scene.pause();
+    self.scene.launch('DebugGameScene', {
+      act: self.act,
+      fromScene: null,
+      flavor,
+      difficulty,
+      career: self.career,
+      subRole: self.subRole,
+      onComplete: (result) => {
+        try { if (typeof onComplete === 'function') onComplete(result || {}); } catch (e) { /* */ }
+        self.scene.stop('DebugGameScene');
+        self.scene.resume();
+      },
     });
   }
 

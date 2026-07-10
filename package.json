@@ -11,7 +11,7 @@
     "test:unit": "node scripts/run-tests.mjs",
     "validate": "node scripts/validate-content.mjs",
     "validate:story": "node scripts/validate-story.mjs public/data/programmer_act1.json public/data/programmer_act2.json public/data/programmer_act3.json public/data/programmer_act4.json public/data/programmer_act5.json public/data/product_act1.json public/data/product_act2.json public/data/product_act3.json public/data/product_act4.json public/data/product_act5.json public/data/admin_act1.json public/data/admin_act2.json public/data/admin_act3.json public/data/admin_act4.json public/data/admin_act5.json",
-    "test:e2e": "node scripts/e2e-mainline.cjs",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "test:all": "node scripts/run-tests.mjs && E2E_SUITE=all node scripts/run-e2e.mjs",
     "test:e2e:main": "E2E_SUITE=main node scripts/run-e2e.mjs",
     "test:e2e:careers": "E2E_SUITE=careers node scripts/run-e2e.mjs",

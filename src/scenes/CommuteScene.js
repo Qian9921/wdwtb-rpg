@@ -14,6 +14,14 @@ export class CommuteScene extends Phaser.Scene {
     this.act = data?.act || 1;
     this.day = data?.day || 1;
     this.stats = data?.stats || null; // 上一场景传来的状态快照
+    this.subRole = data?.subRole || null;
+    // 续档兜底
+    if (!this.subRole) {
+      try {
+        const s = JSON.parse(localStorage.getItem('wdwtb_save') || 'null');
+        if (s && s.subRole) this.subRole = s.subRole;
+      } catch (e) { /* */ }
+    }
   }
 
   create() {
@@ -108,7 +116,7 @@ export class CommuteScene extends Phaser.Scene {
     this._going = true;
     SceneRouter.goto(this, 'WorldScene', {
       career: this.career, act: this.act, day: this.day,
-      stats: this.stats, phase: 'work',
+      stats: this.stats, phase: 'work', subRole: this.subRole,
     });
   }
 }

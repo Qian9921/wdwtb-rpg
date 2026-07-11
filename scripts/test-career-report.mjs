@@ -40,6 +40,7 @@ const archive = mergeRun(emptyArchive(), { career: 'programmer', subRole: 'dev',
   ok('3条探索方向', r.directions.length === 3, JSON.stringify(r.directions.map(d => d.name)));
   ok('方向含相邻角色', r.directions.some(d => d.type === 'adjacent'));
   ok('方向含横向未试职业', r.directions.some(d => d.type === 'career'));
+  ok('方向不含当前职业(程序员)', r.directions.every(d => d.name !== '程序员'), JSON.stringify(r.directions.map(d => d.name)));
   ok('每个方向有"去做三件事"', r.directions.every(d => Array.isArray(d.doThree) && d.doThree.length >= 1));
   ok('含置信度', r.confidence && (r.confidence.level === 'clear' || r.confidence.level === 'exploring'));
   ok('含契合分', typeof r.fitScore === 'number');

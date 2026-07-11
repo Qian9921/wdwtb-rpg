@@ -10,6 +10,9 @@ import {
   LAST_REPORT_KEY,
   REPORT_HISTORY_KEY,
 } from '../systems/CareerFit.js';
+import { buildCareerReport } from '../systems/CareerReport.js';
+import { ExplorationArchive } from '../systems/ExplorationArchive.js';
+import { AXIS_META } from '../systems/PersonalityAxes.js';
 
 // EndingScene：结局"心之画像"报告 — 测评×体验闭环，AI 据本局数据生成，模板兜底。
 const DEFAULT_PORTRAIT = {
@@ -59,6 +62,35 @@ export class EndingScene extends Phaser.Scene {
       history: this.reportHistory,
       relationSummary: this.relationSummary,
     });
+
+    // ===== 职业人格报告（行为化测评）=====
+    // 胜任力：优先用本局 WorkValues 向量；无则由状态粗略折算(占位,后续P6接线真实值)
+    const values = data?.values || this._competenciesFromStats(this.stats);
+    // 跨职业档案（localStorage）——本局结果稍后写回,支撑横向推荐
+    this._archive = ExplorationArchive.load();
+    this.report = buildCareerReport({
+      career: this.career,
+      subRole: this.subRole,
+      ending: this.ending,
+      stats: this.stats,
+      choiceLog: this.choiceLog,
+      archive: this._archive,
+      values,
+      profile: this.profile,
+    });
+    this._view = 'portrait'; // 'portrait' 心之画像 | 'report' 职业人格报告
+  }
+
+  // 无 WorkValues 时的占位折算（P6 接线后由真实累积替代）
+  _competenciesFromStats(s) {
+    const n = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+    return {
+      pro: n(s.skill, 10),
+      comm: Math.round((n(s.san, 60) + n(s.passion, 60)) / 2),
+      resil: Math.max(0, 100 - n(s.stress, 20)),
+      exec: n(s.performance, 50),
+      empco: n(s.san, 60),
+    };
   }
 
   create() {
@@ -68,14 +100,38 @@ export class EndingScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#15151f');
     this.cameras.main.fadeIn(600, 0, 0, 0); // 从黑淡入（与 WorldScene 转场淡出衔接）
     this.uiContainer = null;
+    // 本局结果写回跨职业档案（支撑报告的横向推荐与仪表盘)
+    this._persistArchive();
 
     if (this.portrait) {
+      this._portrait = this.portrait;
       this._persistReport(this.portrait);
       this._render(this.portrait);
     } else {
       this._renderLoading();
       this._generateWithAI();
     }
+  }
+
+  // 把本局结果并入跨职业档案（人格轴累加、职业/子职业/契合度记录）
+  _persistArchive() {
+    try {
+      const raw = {};
+      const entries = Array.isArray(this.choiceLog) ? this.choiceLog : (this.choiceLog?.entries || []);
+      for (const e of entries) {
+        if (!e || !e.axes) continue;
+        for (const [k, v] of Object.entries(e.axes)) { const n = Number(v); if (Number.isFinite(n)) raw[k] = (raw[k] || 0) + n; }
+      }
+      const arch = new ExplorationArchive();
+      arch.mergeRun({
+        career: this.career,
+        subRole: this.subRole,
+        ending: this.ending,
+        axisTotals: raw,
+        fitScore: this.report ? this.report.fitScore : null,
+        riasec: this.profile ? this.profile.riasec : null,
+      });
+    } catch (e) { /* 档案写入失败不挡报告 */ }
   }
 
   // ===== AI 生成中占位 =====
@@ -174,7 +230,8 @@ export class EndingScene extends Phaser.Scene {
     const addGroup = () => { const g = []; revealGroups.push(g); return g; };
 
     // 所有文本用 origin(x, 0) 顶对齐，y 就是顶部，height 可直接累加（安全前进）
-    let y = cardY + 28;
+    let y = cardY + 20;
+    y = this._addTabs(ui, width, y, 'portrait');
     const g0 = addGroup();
     const title = this.add.text(width / 2, y, '你的心之画像', {
       fontSize: '28px', color: '#d4a353', fontStyle: 'bold',
@@ -366,5 +423,190 @@ export class EndingScene extends Phaser.Scene {
     btn.on('pointerdown', cb);
     parent.add(btn); parent.add(txt);
     return { bg: btn, txt };
+  }
+
+  // ===== 顶部双页签：心之画像 / 职业人格报告 =====
+  _addTabs(ui, width, y, active) {
+    const tabs = [
+      { key: 'portrait', label: '心之画像' },
+      { key: 'report', label: '职业人格报告' },
+    ];
+    const tw = 180, gap = 12, totalW = tabs.length * tw + (tabs.length - 1) * gap;
+    let tx = width / 2 - totalW / 2;
+    for (const t of tabs) {
+      const on = t.key === active;
+      const bg = this.add.rectangle(tx + tw / 2, y + 16, tw, 34, on ? 0x3a3a5a : 0x20202f)
+        .setStrokeStyle(2, on ? 0xd4a353 : 0x3a3a50).setInteractive({ useHandCursor: true });
+      const lbl = this.add.text(tx + tw / 2, y + 16, t.label, {
+        fontSize: '15px', color: on ? '#ffe08a' : '#8b8ba0', fontStyle: on ? 'bold' : 'normal',
+      }).setOrigin(0.5);
+      if (!on) bg.on('pointerdown', () => this._switchView(t.key));
+      ui.add(bg); ui.add(lbl);
+      tx += tw + gap;
+    }
+    return y + 44;
+  }
+
+  _switchView(v) {
+    if (this._view === v) return;
+    this._view = v;
+    if (v === 'report') this._renderReport();
+    else this._render(this._portrait || DEFAULT_PORTRAIT);
+  }
+
+  // ===== 职业人格报告视图（雷达 + 4轴 + 胜任力 + 证据强项 + 3方向 + 置信度）=====
+  _renderReport() {
+    const { width, height } = this.scale;
+    if (this.uiContainer) this.uiContainer.destroy(true);
+    const ui = this.add.container(0, 0);
+    this.uiContainer = ui;
+    const r = this.report;
+    const cardW = 900, cardX = (width - cardW) / 2, cardY = 24;
+    const innerL = cardX + 30, innerW = cardW - 60;
+
+    let y = cardY + 20;
+    y = this._addTabs(ui, width, y, 'report');
+
+    const title = this.add.text(width / 2, y, '职业人格报告', { fontSize: '26px', color: '#d4a353', fontStyle: 'bold' }).setOrigin(0.5, 0);
+    ui.add(title); y += title.height + 6;
+    const head = this.add.text(width / 2, y, r.headline, { fontSize: '15px', color: '#c8b070' }).setOrigin(0.5, 0);
+    ui.add(head); y += head.height + 4;
+    const code = this.add.text(width / 2, y, `霍兰德码 ${r.code}（${r.codeName}）· 置信度：${r.confidence.level === 'clear' ? '画像鲜明' : '仍在探索'}`, {
+      fontSize: '12px', color: '#8b8ba0',
+    }).setOrigin(0.5, 0);
+    ui.add(code); y += code.height + 6;
+    const disc = this.add.text(width / 2, y, '这是职业探索指引，不是命运判决——所有结论都来自你这一路的真实选择。', {
+      fontSize: '11px', color: '#6a6a82', wordWrap: { width: innerW, useAdvancedWrap: true }, align: 'center',
+    }).setOrigin(0.5, 0);
+    ui.add(disc); y += disc.height + 10;
+    y = this._divider(ui, width / 2, y, cardW - 120);
+
+    // 两栏：左=RIASEC雷达；右=4人格轴条
+    const colTop = y + 8;
+    const radarCx = cardX + 180, radarCy = colTop + 96, radarR = 82;
+    this._drawRadar(ui, radarCx, radarCy, radarR, r.radar);
+    ui.add(this.add.text(radarCx, colTop + 196, '兴趣雷达 · RIASEC', { fontSize: '11px', color: '#8b8ba0' }).setOrigin(0.5, 0));
+
+    // 右栏：4人格轴（双极条）
+    const axX = cardX + 380, axW = cardW - 380 - 40;
+    let ay = colTop + 6;
+    ui.add(this.add.text(axX, ay, '职业人格轴', { fontSize: '13px', color: '#d4a353', fontStyle: 'bold' })); ay += 22;
+    for (const k of ['collab', 'plan', 'empathy', 'risk']) {
+      ay = this._axisBar(ui, axX, ay, axW, k, r.axes[k]);
+    }
+    y = Math.max(colTop + 210, ay + 6);
+    y = this._divider(ui, width / 2, y, cardW - 120);
+
+    // 胜任力条
+    ui.add(this.add.text(innerL, y, '职场胜任力', { fontSize: '13px', color: '#d4a353', fontStyle: 'bold' })); y += 22;
+    const cw = (innerW - 24) / 5;
+    r.competencies.forEach((c, i) => {
+      const cx = innerL + i * (cw + 6);
+      ui.add(this.add.text(cx, y, `${c.name} ${c.value}`, { fontSize: '10px', color: '#8b8ba0' }));
+      ui.add(this.add.rectangle(cx + cw / 2, y + 18, cw, 6, 0x2a2a3e).setOrigin(0.5));
+      ui.add(this.add.rectangle(cx, y + 18, Math.min(cw, c.value / 100 * cw), 6, 0x4ec9b0).setOrigin(0, 0.5));
+    });
+    y += 40;
+    y = this._divider(ui, width / 2, y, cardW - 120);
+
+    // 强项（带证据）
+    if (r.strengths.length) {
+      ui.add(this.add.text(innerL, y, '🟢 你的强项（来自行为）', { fontSize: '13px', color: '#6aaa6a', fontStyle: 'bold' })); y += 20;
+      for (const s of r.strengths) {
+        const t = this.add.text(innerL, y, `· ${s.text}\n  ${s.evidence}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 3 });
+        ui.add(t); y += t.height + 8;
+      }
+    }
+    // 盲点
+    if (r.blindspots.length) {
+      ui.add(this.add.text(innerL, y, '🟠 值得留意', { fontSize: '13px', color: '#e0a060', fontStyle: 'bold' })); y += 20;
+      for (const b of r.blindspots) {
+        const t = this.add.text(innerL, y, `· ${b.text}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 3 });
+        ui.add(t); y += t.height + 6;
+      }
+    }
+    y = this._divider(ui, width / 2, y, cardW - 120);
+
+    // 3 条探索方向
+    ui.add(this.add.text(innerL, y, '🧭 接下来,可以去探索这三个方向', { fontSize: '13px', color: '#7b9cd6', fontStyle: 'bold' })); y += 22;
+    r.directions.forEach((d, i) => {
+      const doLine = (d.doThree && d.doThree.length) ? `　去做：${d.doThree[0]}` : '';
+      const skillLine = d.skill ? `　补：${d.skill}` : '';
+      const t = this.add.text(innerL, y, `${i + 1}. ${d.name}\n   ${d.why}${skillLine}${doLine}`, {
+        fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 3,
+      });
+      ui.add(t); y += t.height + 8;
+    });
+
+    // 按钮
+    const btnY = y + 24;
+    this._button(ui, width / 2 - 220, btnY, 190, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
+    this._button(ui, width / 2, btnY, 190, 36, '保存报告 📷', 0x3a3a2a, () => this._sharePortrait());
+    this._button(ui, width / 2 + 220, btnY, 190, 36, '返回标题', 0x33283a, () => this.scene.start('TitleScene'));
+
+    // 卡片底板（自适应高度 + 垂直居中，防溢出）
+    const contentBottom = btnY + 40;
+    const cardH = contentBottom - cardY + 20;
+    const board = this.add.rectangle(width / 2, cardY + cardH / 2, cardW, cardH, 0x1e1e30);
+    const goldLine = this.add.rectangle(width / 2, cardY, cardW, 3, 0xd4a353).setOrigin(0.5, 0);
+    ui.add(board); ui.add(goldLine);
+    ui.sendToBack(goldLine); ui.sendToBack(board);
+    ui.y = Math.max(-cardY + 4, (height - cardH - cardY * 2) / 2);
+  }
+
+  // RIASEC 六边形雷达（graphics 绘制）
+  _drawRadar(ui, cx, cy, r, data) {
+    const KEYS = ['R', 'I', 'A', 'S', 'E', 'C'];
+    const NAMES = { R: '实干', I: '研究', A: '艺术', S: '社交', E: '进取', C: '常规' };
+    const g = this.add.graphics();
+    // 背景网格（3圈）
+    for (let ring = 1; ring <= 3; ring++) {
+      const rr = r * ring / 3;
+      g.lineStyle(1, 0x33334a, 0.8);
+      g.beginPath();
+      KEYS.forEach((k, i) => {
+        const a = -Math.PI / 2 + i * Math.PI / 3;
+        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+        if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+      });
+      g.closePath(); g.strokePath();
+    }
+    // 轴线
+    KEYS.forEach((k, i) => {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      g.lineStyle(1, 0x33334a, 0.6);
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); g.strokePath();
+    });
+    // 数据多边形
+    g.fillStyle(0xd4a353, 0.28); g.lineStyle(2, 0xf0c060, 1);
+    g.beginPath();
+    KEYS.forEach((k, i) => {
+      const v = Math.max(0, Math.min(100, Number(data[k]) || 0)) / 100;
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const px = cx + Math.cos(a) * r * v, py = cy + Math.sin(a) * r * v;
+      if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    });
+    g.closePath(); g.fillPath(); g.strokePath();
+    ui.add(g);
+    // 角标
+    KEYS.forEach((k, i) => {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const lx = cx + Math.cos(a) * (r + 14), ly = cy + Math.sin(a) * (r + 14);
+      ui.add(this.add.text(lx, ly, NAMES[k], { fontSize: '10px', color: '#9aa0c0' }).setOrigin(0.5));
+    });
+  }
+
+  // 双极人格轴条（负极左 / 正极右，中点0）
+  _axisBar(ui, x, y, w, key, value) {
+    const meta = AXIS_META[key];
+    const v = Math.max(-100, Math.min(100, Number(value) || 0));
+    ui.add(this.add.text(x, y, meta.neg, { fontSize: '11px', color: '#8b8ba0' }).setOrigin(0, 0.5).setY(y + 8));
+    ui.add(this.add.text(x + w, y, meta.pos, { fontSize: '11px', color: '#8b8ba0' }).setOrigin(1, 0.5).setY(y + 8));
+    const trackX = x + 44, trackW = w - 88, midX = trackX + trackW / 2;
+    ui.add(this.add.rectangle(midX, y + 8, trackW, 5, 0x2a2a3e).setOrigin(0.5));
+    ui.add(this.add.rectangle(midX, y + 8, 2, 11, 0x55556e).setOrigin(0.5));
+    const dot = midX + (v / 100) * (trackW / 2);
+    ui.add(this.add.circle(dot, y + 8, 6, 0xf0c060));
+    return y + 26;
   }
 }

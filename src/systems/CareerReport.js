@@ -173,13 +173,12 @@ function buildDirections({ career, subRole, archive }) {
     out.push({ type: 'adjacent', name: r.name, why: `你在「${career === 'programmer' && subRole === 'test' ? '守护质量' : '把东西做出来'}」上的倾向，天然衔接这个方向。`, skill: r.skill, doThree: r.do });
     if (out.length >= 2) break;
   }
-  // 横向（未试职业）：用档案推荐补到 3 条
-  if (archive) {
-    const rec = recommendDirections(archive, { topN: 3 });
-    for (const n of rec.next) {
-      if (out.length >= 3) break;
-      out.push({ type: 'career', name: n.name, why: n.why, skill: null, doThree: [n.tryHint] });
-    }
+  // 横向（未试职业）：用档案推荐补到 3 条（排除当前正在体验的职业）
+  const rec = recommendDirections(archive || {}, { topN: 4 });
+  for (const n of rec.next) {
+    if (out.length >= 3) break;
+    if (n.key === career) continue; // 不把当前职业当"下一步探索方向"
+    out.push({ type: 'career', name: n.name, why: n.why, skill: null, doThree: [n.tryHint] });
   }
   return out.slice(0, 3);
 }

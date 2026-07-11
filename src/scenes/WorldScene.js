@@ -21,6 +21,7 @@ import { ProjectSystem } from '../systems/ProjectSystem.js';
 import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcons.js';
 import { Pathfinder } from '../systems/Pathfinder.js';
 import { makeCuteChoice } from '../systems/UI.js';
+import { normalizeAxes } from '../systems/PersonalityAxes.js';
 import {
   ACT_DAYS as SP_ACT_DAYS,
   LIGHT_CAREERS as SP_LIGHT_CAREERS,
@@ -403,6 +404,11 @@ export class WorldScene extends Phaser.Scene {
     // 任务系统 + 选择记忆（结局 AI 画像的数据源）
     this.questSystem = new QuestSystem(this.stateSystem);
     this.choiceLog = new ChoiceLog();
+    // 对话引擎条件上下文：子职业分支 + 行为化人格轴门控（axes 由 choiceLog 实时聚合归一）
+    this.dialogueEngine.setContext({
+      subRole: this.subRole,
+      getAxes: () => normalizeAxes(this.choiceLog.axisTotals()),
+    });
     // E5 关系网：好感/记忆（与存档同步）
     this.relations = new RelationshipSystem();
     if (this._savedRelations) this.relations.restore(this._savedRelations);
@@ -3244,6 +3250,7 @@ export class WorldScene extends Phaser.Scene {
           act, nodeId,
           choiceLabel: choice.label,
           tag: choice.tag || null, // 剧情数据可给 choice 加 tag 标注行为类型
+          axes: choice.axes || null, // 人格轴增量：行为化职业人格测绘
         });
       }
       // 关键抉择即时演出：让"选择有重量"——按 tag/effects 给屏幕反馈

@@ -43,6 +43,31 @@ console.log('\n=== ChoiceLog 单元测试 ===\n');
   ok('无 tag 不进 tagCounts', Object.keys(cl.tagCounts()).length === 1);
 }
 
+// axes 聚合（人格轴累计）
+{
+  const cl = new ChoiceLog();
+  cl.record({ tag: 'solo', axes: { collab: -2 } });
+  cl.record({ axes: { collab: -2, plan: 1 } });
+  cl.record({ axes: { risk: 3 } });
+  cl.record({ choiceLabel: '无轴' }); // 无 axes
+  const totals = cl.axisTotals();
+  ok('axisTotals 聚合 collab=-4', totals.collab === -4, JSON.stringify(totals));
+  ok('axisTotals 聚合 plan=1', totals.plan === 1);
+  ok('axisTotals 聚合 risk=3', totals.risk === 3);
+  ok('无 axes 不影响聚合', Object.keys(totals).length === 3);
+  ok('axes 存进 entry', cl.entries[0].axes.collab === -2);
+  ok('无 axes 记录 axes=null', cl.entries[3].axes === null);
+}
+
+// axes serialize/restore 往返
+{
+  const cl = new ChoiceLog();
+  cl.record({ axes: { collab: -2 }, tag: 't' });
+  const cl2 = new ChoiceLog();
+  cl2.restore(cl.serialize());
+  ok('restore 后 axisTotals 一致', cl2.axisTotals().collab === -2);
+}
+
 // recent / byAct
 {
   const cl = new ChoiceLog();

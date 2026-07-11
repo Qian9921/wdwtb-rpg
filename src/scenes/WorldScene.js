@@ -606,33 +606,43 @@ export class WorldScene extends Phaser.Scene {
     this._hudHiddenForOnboard.forEach(o => o && o.setVisible(false));
 
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(11000);
-    const mask = this.add.rectangle(W / 2, H / 2, W, H, 0x08080f, 0.94).setInteractive(); // 近乎不透，盖住一切
+    const mask = this.add.rectangle(W / 2, H / 2, W, H, 0x08080f, 0.95).setInteractive(); // 近乎不透，盖住一切
     c.add(mask);
-    // 内容卡片（给文字一个容器，清晰不糊）
-    c.add(this.add.rectangle(W / 2, H / 2, 760, 420, 0x16161f, 0.98).setStrokeStyle(2, 0x3a3a5a));
-    // 4 步：评委 3 分钟路径（找人→工位→下班），可点跳过
+    // 可爱圆角内容卡（更大,容纳更详细的引导）
+    const PW = 860, PH = 520;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1a1a2a, 0.99); panel.fillRoundedRect(W / 2 - PW / 2, H / 2 - PH / 2, PW, PH, 26);
+    panel.fillStyle(0xffffff, 0.05); panel.fillRoundedRect(W / 2 - PW / 2 + 6, H / 2 - PH / 2 + 6, PW - 12, PH * 0.34, 22);
+    panel.lineStyle(3, 0xd4a353, 1); panel.strokeRoundedRect(W / 2 - PW / 2, H / 2 - PH / 2, PW, PH, 26);
+    c.add(panel);
+    c.add(this.add.text(W / 2, H / 2 - PH / 2 + 30, '新手引导', { fontSize: '18px', color: '#c8b070' }).setOrigin(0.5));
+    // 6 步：把核心循环讲细致、易懂
     const steps = [
-      { icon: '🎮', title: '欢迎来到你的第一天', text: '试一种职业生活——没有标准答案。\nWASD 移动 · E 交互 · ESC 任务日志。' },
-      { icon: '💬', title: '找 ❗ 领任务', text: '走近头顶 ❗/❓ 的导师或同事，按 E。\n左上「▸ 下一步」+ 金色箭头会指路。' },
-      { icon: '💻', title: '自己的椅子开工', text: '接到干活后：找自己的椅子［E］坐下办公\n→ 再 E「开始工作」做工单/小游戏（别坐别人位）。' },
-      { icon: '🌙', title: '下班与对照', text: '右上角「下班回家」进下一天。\n左下 📱 可给家人打电话。试完可换职业对照喜不喜欢。' },
+      { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一次「职业试穿」——你会真实过几天程序员的班，看看适不适合、喜不喜欢。\n移动 WASD　·　交互 E　·　冲刺 Shift　·　菜单 ESC' },
+      { icon: '🧭', title: '第一步：找导师报到', text: '头顶有 ❗ 的是你的导师「老陈」。走近他、按 E，他会给你派第一份活。\n左上角「▸ 下一步」和地上的金色箭头随时指路，不会迷路。' },
+      { icon: '🤝', title: '第二步：找同事对接', text: '接到任务后，常要先找具名同事（头顶 💬）对接需求——走近按 E 聊两句。\n对接完，任务会提示你回工位干活。' },
+      { icon: '💻', title: '第三步：回工位开工', text: '走到你自己的工位椅子，按 E 坐下 → 再按 E「开始工作」。\n会进入真实的写代码 / 代码评审 / 测试小游戏，做得越好，项目进度涨得越快。' },
+      { icon: '📊', title: '第四步：看状态、推进项目', text: '按 Tab 展开状态面板，每项都有说明（健康/精力/压力/热情…）。\n右上角是项目进度——推到 25 / 50 / 75 / 100% 会解锁新的剧情章节。' },
+      { icon: '🌙', title: '第五步：下班，探索自己', text: '右上「🏠 下班回家」进下一天；左下「📱 手机」联系家人、「🌌 心象世界」调整心态。\n通关会生成一份【职业人格报告】，指引你的方向。试完这条线，还可以换个职业对照。' },
     ];
     let idx = 0;
-    const iconT = this.add.text(W / 2, H / 2 - 130, '', { fontSize: '64px' }).setOrigin(0.5);
-    const titleT = this.add.text(W / 2, H / 2 - 46, '', { fontSize: '32px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
-    const bodyT = this.add.text(W / 2, H / 2 + 28, '', { fontSize: '22px', color: '#e8e8f4', align: 'center', lineSpacing: 12, wordWrap: { width: 640 } }).setOrigin(0.5);
-    const dotsT = this.add.text(W / 2, H / 2 + 120, '', { fontSize: '16px', color: '#5a5a7a' }).setOrigin(0.5);
-    const hintT = this.add.text(W / 2, H / 2 + 160, '点击继续 →', { fontSize: '18px', color: '#8b8ba0' }).setOrigin(0.5);
-    const skipT = this.add.text(W / 2 + 300, H / 2 - 175, '跳过', {
+    const iconT = this.add.text(W / 2, H / 2 - 150, '', { fontSize: '60px' }).setOrigin(0.5);
+    const titleT = this.add.text(W / 2, H / 2 - 74, '', { fontSize: '30px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
+    const bodyT = this.add.text(W / 2, H / 2 + 12, '', { fontSize: '21px', color: '#e8e8f4', align: 'center', lineSpacing: 12, wordWrap: { width: 740, useAdvancedWrap: true } }).setOrigin(0.5);
+    const dotsT = this.add.text(W / 2, H / 2 + PH / 2 - 84, '', { fontSize: '18px', color: '#5a5a7a' }).setOrigin(0.5);
+    const hintT = this.add.text(W / 2, H / 2 + PH / 2 - 48, '', { fontSize: '19px', color: '#ffe08a' }).setOrigin(0.5);
+    const backT = this.add.text(W / 2 - PW / 2 + 40, H / 2 + PH / 2 - 48, '', { fontSize: '17px', color: '#8a8a9e' }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    const skipT = this.add.text(W / 2 + PW / 2 - 40, H / 2 - PH / 2 + 30, '跳过 ✕', {
       fontSize: '16px', color: '#8a8a9e',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    c.add([iconT, titleT, bodyT, dotsT, hintT, skipT]);
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    c.add([iconT, titleT, bodyT, dotsT, hintT, backT, skipT]);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
     const render = () => {
       const s = steps[idx];
       iconT.setText(s.icon); titleT.setText(s.title); bodyT.setText(s.text);
       dotsT.setText(steps.map((_, i) => i === idx ? '●' : '○').join(' '));
-      hintT.setText(idx < steps.length - 1 ? '点击继续 →' : '开始 ✓');
+      hintT.setText(idx < steps.length - 1 ? '点击任意处继续 →' : '开始体验 ✓');
+      backT.setText(idx > 0 ? '← 上一步' : '');
       Juice.pop(this, iconT, 1);
     };
     const finish = () => {
@@ -652,6 +662,9 @@ export class WorldScene extends Phaser.Scene {
       skipT.on('pointerover', () => skipT.setColor('#ffd24d'));
       skipT.on('pointerout', () => skipT.setColor('#8a8a9e'));
       skipT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); finish(); });
+      backT.on('pointerover', () => backT.setColor('#ffd24d'));
+      backT.on('pointerout', () => backT.setColor('#8a8a9e'));
+      backT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); if (idx > 0) { idx--; render(); } });
     });
   }
 

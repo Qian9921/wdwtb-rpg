@@ -2,243 +2,92 @@
   "career": "programmer",
   "careerName": "程序员",
   "act": 2,
-  "actName": "上手",
+  "actName": "上手：你怎么和世界协作",
   "start": "a2_start",
-  "_meta": "短版第二幕(12节点)·项目25%里程碑触发：上线高光+需求变更第一课+第一笔工资+主力线抉择。完整版在 programmer_act2.full.json。",
+  "_meta": "第二章·上手。第一个真需求(dev=接口/test=用例)→协作还是单干→需求变更初体验→第一份工资。探针:独立↔协作、规划↔随性。",
   "nodes": {
     "a2_start": {
       "speaker": "",
-      "bg": "street_morning",
-      "effects": {
-        "skill": 2
-      },
-      "text": "入职几周,身体先于脑子记住了流程:六点四十起,半空的地铁,楼下那杯半价咖啡。\n再抬头看那栋玻璃大厦,没再晃眼。它还那么高,只是现在你知道,自己那张桌子就在十九层,窗台上有盆绿的。",
-      "choices": [
-        {
-          "label": "(刷卡进门)",
-          "next": "a2_launch"
-        }
-      ],
-      "note": "开幕:从仰望到身体记住流程。"
-    },
-    "a2_launch": {
-      "speaker": "",
+      "text": "上手第几天你已经数不清了。今早你交的那个小功能上线了——后台显示,有 130 个真实用户用过它。\n130 个陌生人,因为你写的几行东西,生活里多了一点点方便。窗台上的绿萝,冒了片新叶。",
       "bg": "office_day",
-      "effects": {
-        "passion": 5,
-        "performance": 3
-      },
-      "text": "你前阵子做的功能,随版本上线了。老陈把你叫过去,指着监控大盘:「看见没?」\n屏幕上数字慢慢往上跳:127,128,130……「一百三十个人用了你写的东西。他们不认识你,但你的代码替他们省了事。」\n「Hello, World」是我对世界说的第一句话;这一次,是世界第一次因为我,动了一下。",
-      "choices": [
-        {
-          "label": "(看着那个跳动的数字,久久没动)",
-          "next": "a2_plant"
-        }
-      ],
-      "note": "★上线高光=passion源头。"
+      "effects": { "passion": 4, "san": 2 },
+      "choices": [{ "label": "(有点想笑)", "next": "a2_task" }],
+      "note": "小成就:世界第一次因为我动了一下。"
     },
-    "a2_plant": {
+    "a2_task": {
       "speaker": "",
-      "bg": "office_day",
-      "action": "plant_tree",
-      "effects": {
-        "san": 2
-      },
-      "text": "回到工位,那盆绿植不知何时抽出两片新叶。你顺手浇了点水。",
-      "choices": [
-        {
-          "label": "(给它浇点水,直起身)",
-          "next": "a2_setback"
-        }
-      ],
-      "note": "★仪式·绿植回收(成长期):抽新叶。"
-    },
-    "a2_setback": {
-      "speaker": "",
+      "text": "老陈把一张需求卡拍在你桌上:「真正的活儿。别怕,不会一次做好——这行没人一次做好。」",
       "bg": "office_day",
       "effects": {},
-      "text": "屁股没坐热,群里「叮」——运营Kelly直接@你。\n【Kelly】筛选好用!但老板想再加个「按消费金额」筛,最好今天出。哦对,「活跃度」定义也要改,你那版逻辑…可能得动一动。\n刚才做成事的暖意,唰地凉了半截。那套逻辑,是你熬夜写、老陈一行行审过的。现在,一句话,要「动一动」。",
       "choices": [
-        {
-          "label": "「行,我马上改!」二话不说接下,加班也要当天出",
-          "next": "a2_setback_accept",
-          "effects": {
-            "performance": 4,
-            "passion": -2,
-            "health": -3,
-            "stress": 3
-          },
-          "tag": "overwork"
-        },
-        {
-          "label": "先说清代价:改了要重测,今天出不完,提议排优先级",
-          "next": "a2_setback_pushback",
-          "effects": {
-            "san": 3,
-            "skill": 2,
-            "performance": -1
-          },
-          "tag": "steady"
-        },
-        {
-          "label": "去找老陈,问这种半路改需求该怎么接",
-          "next": "a2_setback_chen",
-          "effects": {
-            "skill": 3,
-            "san": 2
-          },
-          "tag": "steady"
-        }
+        { "label": "(翻开·开发的活)", "next": "a2_task_dev", "condition": { "subRole": "dev" } },
+        { "label": "(翻开·测试的活)", "next": "a2_task_test", "condition": { "subRole": "test" } }
       ],
-      "note": "★需求朝令夕改第一课,三向分歧。"
+      "note": "★子职业分叉:第一个真需求。"
     },
-    "a2_setback_accept": {
+    "a2_task_dev": {
       "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "「行,我马上改!」几乎是条件反射——「不行」俩字你说不出口,怕一拒绝,好印象就没了。\n于是把逻辑推翻重写,刚上线三天的东西,自己拆自己的。\n做成一件事的高兴,原来这么容易就被下一件冲没。",
-      "choices": [
-        {
-          "label": "(埋头返工)",
-          "next": "a2_payday"
-        }
-      ],
-      "note": "讨好线:蜜月裂缝。"
+      "text": "「做个登录接口。」老陈说,「需求别猜,去找产品小林对齐——猜需求是这行最大的坑。」\n你盯着空白的编辑器,光标一闪一闪。从零造一个东西的感觉,既兴奋又发怵。",
+      "bg": "office_day",
+      "effects": { "passion": 2 },
+      "choices": [{ "label": "(先想清楚,再动手)", "next": "a2_collab" }]
     },
-    "a2_setback_pushback": {
+    "a2_task_test": {
       "speaker": "",
+      "text": "「登录接口开发在做,你来兜住质量。」老陈说,「先想清楚它会怎么坏:空手机号、错验证码、过期、连点两次……」\n你盯着需求文档,开始在脑子里给它「找茬」。守住别人看不见的漏洞,是你的战场。",
+      "bg": "office_day",
+      "effects": { "san": 2 },
+      "choices": [{ "label": "(先把边界列全)", "next": "a2_collab" }]
+    },
+    "a2_collab": {
+      "speaker": "",
+      "text": "做着做着,你卡住了:有个细节,文档里没写清。\n是自己闷头猜一个,还是起身去问?",
       "bg": "office_day",
       "effects": {},
-      "text": "你把「行马上改」删了,重新组织:「加『消费金额』没问题。但『活跃度』口径一改要重写重测,今天赶不完——要不先出前者,后者排明天?」\n发出去,手心有汗。她回:「OK,按你说的。」\n原来说清代价、给个方案,比硬着头皮全接下更让人放心。",
       "choices": [
-        {
-          "label": "(按自己排的节奏开工)",
-          "next": "a2_payday"
-        }
+        { "label": "自己先啃,啃不动再说", "next": "a2_pace", "effects": { "skill": 2 }, "tag": "solo", "axes": { "collab": -2 } },
+        { "label": "起身去找对接人对齐", "next": "a2_pace", "effects": { "san": 2 }, "tag": "align", "axes": { "collab": 2 } }
       ],
-      "note": "务实线:第一次跟需求方协调。"
+      "note": "探针:独立↔协作。"
     },
-    "a2_setback_chen": {
+    "a2_pace": {
       "speaker": "",
+      "text": "时间过半,活儿还没成型。你意识到自己得选个节奏——",
       "bg": "office_day",
       "effects": {},
-      "text": "你把消息转给老陈。他哼一声:「欢迎入行。需求是会变的,而且一定变。写的时候就把『它会变』考虑进去,别把代码写得像水泥,一改就得砸墙。」\n他声音低下来,像句题外话:「……代码你能设计得能扛变化。可有些东西扛不住,比如人。以后你慢慢会懂。」",
       "choices": [
-        {
-          "label": "(记下「别写死」,也记下那句题外话)",
-          "next": "a2_payday"
-        }
+        { "label": "停下来,先把方案列清楚", "next": "a2_reqchange", "effects": { "skill": 2 }, "tag": "steady", "axes": { "plan": 2 } },
+        { "label": "先跑起来,能动了再优化", "next": "a2_reqchange", "effects": { "performance": 2 }, "tag": "ship_fast", "axes": { "plan": -2 } }
       ],
-      "note": "老陈技术观+「人扛不住」伏笔(act3回收)。"
+      "note": "探针:规划↔随性。"
     },
-    "a2_payday": {
+    "a2_reqchange": {
       "speaker": "",
+      "text": "屁股还没坐热,群里「叮」——运营 Kelly 直接 @你:「这个地方能不能今天就改一下?老板要看。」\n你手上的活儿还没完。这是你第一次撞上「需求变更」。",
+      "bg": "office_day",
+      "effects": { "stress": 3 },
+      "choices": [
+        { "label": "「行,我马上改!」先扛下来", "next": "a2_pay", "effects": { "performance": 4, "health": -3, "passion": -1 }, "tag": "please", "axes": { "empathy": 2, "risk": 1 } },
+        { "label": "先说清代价,再谈优先级", "next": "a2_pay", "effects": { "san": 3, "skill": 2 }, "tag": "boundary", "axes": { "empathy": -1, "plan": 2 } },
+        { "label": "去问老陈该怎么接", "next": "a2_pay", "effects": { "skill": 3, "san": 2 }, "tag": "ask_mentor", "axes": { "collab": 2 } }
+      ],
+      "note": "★需求变更初体验:讨好/边界/借力,三种应对各推不同轴。"
+    },
+    "a2_pay": {
+      "speaker": "",
+      "text": "月底,工资到账。数字不大,但这是你人生第一笔「靠自己写东西挣的钱」。\n你给爸妈转了个小红包,备注:第一个月。",
       "bg": "office_evening",
-      "effects": {
-        "money": 300,
-        "san": 3
-      },
-      "text": "月底,银行短信到了。第一笔工资——用一个月的劳动换来的、写着「工资」两个字的钱。\n你算了一下:交完房租、水电、通勤和吃饭,剩下的数字不算多,也不算少。\n一个月的兵荒马乱,换来这个数。这笔账,你觉得值吗?这种「用时间换钱」的感觉,你喜欢吗?",
-      "choices": [
-        {
-          "label": "(收起手机,记下这个数)",
-          "next": "a2_final_choice"
-        }
-      ],
-      "note": "★第一笔工资=劳动定价的现实感受。"
+      "effects": { "money": 300, "passion": 3, "san": 2 },
+      "choices": [{ "label": "(把红包发出去)", "next": "a2_end" }]
     },
-    "a2_final_choice": {
+    "a2_end": {
       "speaker": "",
-      "bg": "office_evening",
-      "effects": {},
-      "text": "周五下班前,老陈把新项目文档推给你:「下月起接个大项目,核心链路重构。我在挑人。」\n「你上手快,想把你放主力线上——但那条线最累,加班是常态。也可以去边缘模块,轻松,但出彩机会少。」\n他把选择交给你:「不勉强。你自己想清楚——你来这行,图的是什么。」",
-      "choices": [
-        {
-          "label": "「把我放主力线上吧。我想拼一把,趁年轻。」",
-          "next": "a2_end_ambitious",
-          "effects": {
-            "performance": 5,
-            "skill": 4,
-            "passion": 3,
-            "health": -3,
-            "stress": 4
-          },
-          "tag": "overwork"
-        },
-        {
-          "label": "「我想上主力线,但我会盯着自己的节奏,不硬熬。」",
-          "next": "a2_end_balance",
-          "effects": {
-            "skill": 3,
-            "passion": 3,
-            "san": 2,
-            "performance": 1
-          },
-          "tag": "keep_faith"
-        },
-        {
-          "label": "「我选边缘模块。想先站稳,也想有点自己的生活。」",
-          "next": "a2_end_boundary",
-          "effects": {
-            "health": 3,
-            "san": 4,
-            "passion": 1,
-            "performance": -3
-          },
-          "tag": "self_care"
-        }
-      ],
-      "note": "★幕末抉择:选不选走向996。"
-    },
-    "a2_end_ambitious": {
-      "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "老陈盯你两秒,眼神复杂——像在你身上看见很久以前的谁。「行。」他把你写进主力名单。\n「年轻时拼一把,没错,当年我也这样。」他顿了很久:「就是……别拼到有一天,忘了自己当初为什么要拼。」",
-      "choices": [
-        {
-          "label": "(带着热血和一丝说不清的沉,走向电梯)",
-          "next": "a2_ending"
-        }
-      ],
-      "note": "激进线:老陈镜像自白。"
-    },
-    "a2_end_balance": {
-      "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "老陈「唔」一声,有点意外又有点满意:「上主力,还想守节奏。贪心——不过是好的那种贪心。」\n「真到deadline压头上,所有人都熬,就你准点走,那份压力不比加班小。你扛得住那个『格格不入』吗?」\n他没要你答:「让日子替你回答。」",
-      "choices": [
-        {
-          "label": "(带着一份清醒的期待,走向电梯)",
-          "next": "a2_ending"
-        }
-      ],
-      "note": "稳健线:预告守节奏的真实难度。"
-    },
-    "a2_end_boundary": {
-      "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "话说完你就后悔是不是显得没上进心。可老陈没劝也没失望,只认真看你一会,点头:「知道自己要什么。……难得。」\n「五年后,身体是你自己的,后悔也是你自己的。」\n你忽然想起周哥那句「命是自己的」,竟和这句重合。踏实,却也有一点连自己都没察觉的怅惘。",
-      "choices": [
-        {
-          "label": "(带着踏实和一丝怅惘,走向电梯)",
-          "next": "a2_ending"
-        }
-      ],
-      "note": "边界线:两种过来人的智慧重合。"
-    },
-    "a2_ending": {
-      "speaker": "",
+      "text": "下班路上,你回想这几周:上手没那么难,难的是和「人」打交道——变来变去的需求、对不齐的期待、说不说得出口的「不」。\n老陈说,这才刚开始。前面还有更硬的仗。",
       "bg": "office_night",
       "action": "next_act",
-      "effects": {
-        "passion": 2
-      },
-      "text": "第二幕 · 上手,到这里。\n你尝到造物的甜——一百三十个陌生人用上了你的代码;也尝到返工的累——熬夜写的逻辑,被一句话推翻。\n这份工作的两面,你都摸到了一点。哪一面对你更重?\n蜜月还在,裂缝已初现。大项目,正在前面等着。",
+      "effects": { "san": 2 },
       "choices": [],
-      "note": "★幕末next_act,合并原reflect+inner+to_act3。"
+      "note": "★章末 next_act。"
     }
   }
 }

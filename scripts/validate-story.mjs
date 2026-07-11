@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 
 const VALID_ACTIONS = new Set(['plant_tree','write_letter','enter_mindscape','next_act','ending',
   'minigame:coding','minigame:review','minigame:affairs']);
+const VALID_AXES = new Set(['collab','plan','empathy','risk']);
 
 let totalFail = 0;
 for (const file of process.argv.slice(2)) {
@@ -32,6 +33,19 @@ for (const file of process.argv.slice(2)) {
     for (const c of choices) {
       if (!c.next) { errs.push(`节点 ${id} 的选项「${c.label}」缺 next`); continue; }
       if (!ids.has(c.next)) { errs.push(`节点 ${id} → '${c.next}' 目标不存在`); continue; }
+      // axes 键合法性（人格轴增量）
+      if (c.axes) {
+        for (const [ak, av] of Object.entries(c.axes)) {
+          if (!VALID_AXES.has(ak)) errs.push(`节点 ${id} 选项 axes 未知轴 '${ak}'`);
+          else if (!Number.isFinite(Number(av))) errs.push(`节点 ${id} 选项 axes.${ak} 非数值`);
+        }
+      }
+      // condition.subRole / condition.axis 合法性
+      if (c.condition && c.condition.axis) {
+        for (const ak of Object.keys(c.condition.axis)) {
+          if (!VALID_AXES.has(ak)) errs.push(`节点 ${id} 选项 condition.axis 未知轴 '${ak}'`);
+        }
+      }
       if (!reachable.has(c.next)) { reachable.add(c.next); queue.push(c.next); }
     }
   }

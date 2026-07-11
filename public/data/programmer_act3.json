@@ -2,176 +2,75 @@
   "career": "programmer",
   "careerName": "程序员",
   "act": 3,
-  "actName": "996",
+  "actName": "边界：你靠什么做决定",
   "start": "a3_start",
-  "_meta": "短版第三幕(9节点)·项目50%里程碑触发：消耗期。身体报警+老陈镜像自剖+绿植蔫了+封闭冲刺抉择。完整版在 programmer_act3.full.json。",
+  "_meta": "第三章·边界。需求膨胀/加塞/甩锅(dev=接不接不合理加塞 / test=严重bug上面想放过你卡不卡)+报喜不报忧加重。探针:理性↔共情、讨好↔原则。",
   "nodes": {
     "a3_start": {
       "speaker": "",
-      "bg": "street_morning",
-      "effects": {
-        "stress": 3,
-        "energy": -3
-      },
-      "text": "项目越推越紧,一个多月了。\n六点四十的闹钟,你五点多就醒——不是等它响,是根本没睡沉。\n楼还是那栋楼,晨光照旧晃眼,你却很久没抬头看过它了——低着头,快走,和第一天你偷偷羡慕过的那些人,一模一样。",
-      "choices": [
-        {
-          "label": "(随着人流往里走)",
-          "next": "a3_body_alarm"
-        }
-      ],
-      "note": "消耗期开幕:没睡沉+不再抬头。"
-    },
-    "a3_body_alarm": {
-      "speaker": "",
+      "text": "项目进了深水区。需求像滚雪球,越滚越大;排期越压越紧。\n你开始明白老陈那句「更硬的仗」——技术不是最难的,难的是,总有人想让你「通融一下」。",
       "bg": "office_day",
-      "effects": {
-        "health": -3
-      },
-      "text": "起身倒水,眼前忽然一黑,得扶着桌子才站稳。脖子从后颈僵到肩胛,眼睛干得像撒了沙。\n你搜了下「颈椎 手指发麻」,弹出一堆吓人的词条,又赶紧划掉。二十几岁,不至于,坐太久了歇歇就好。\n可你心里清楚,身体在跟你提意见了,只是你一直假装没听见。",
-      "choices": [
-        {
-          "label": "(揉揉脖子,去茶水间倒杯热水)",
-          "next": "a3_chen_pantry"
-        }
-      ],
-      "note": "★身体报警,act4晕倒伏笔。",
-      "fx": "heartbeat"
+      "effects": { "stress": 3 },
+      "choices": [{ "label": "(继续往下)", "next": "a3_dilemma" }]
     },
-    "a3_chen_pantry": {
+    "a3_dilemma": {
       "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "茶水间里,老陈也在。灯光惨白,照着他发白的格子衫、有点驼的背。\n沉默了会儿,他忽然很轻地开口:「我像你这么大时,也这么熬。熬着熬着,就成现在这样了。」\n他顿了顿:「这行的节奏就是这样,家里的事常常顾不上。你自己掂量。」说完,把水一口喝干,回了工位。",
-      "choices": [
-        {
-          "label": "(端着热水,站在原地出了会儿神)",
-          "next": "a3_mirror_inner"
-        }
-      ],
-      "note": "★镜像核心:老陈自剖健康/家庭代价。"
-    },
-    "a3_mirror_inner": {
-      "speaker": "",
-      "bg": "office_night",
-      "effects": {
-        "san": -2
-      },
-      "text": "入职第一天,你看着他的背影想过:是什么把那个曾经也为「Hello, World」激动的人,变成了现在这样?\n现在你好像知道答案了。不是某一件大事,是一个又一个凌晨一点,一句又一句「就调一下」——温水,不是一下子烫的,是一度一度加上来的。\n而你,已经在这锅水里了。",
-      "choices": [
-        {
-          "label": "(回工位)",
-          "next": "a3_plant"
-        }
-      ],
-      "note": "★镜像内心独白:温水答案。"
-    },
-    "a3_plant": {
-      "speaker": "",
+      "text": "这天,一个让你为难的请求摆到面前。",
       "bg": "office_day",
-      "action": "plant_tree",
-      "effects": {
-        "san": -2
-      },
-      "text": "工位上那盆绿植蔫了,土裂着细缝。你想不起来上次浇水是什么时候——这一个多月,你连它都顾不上了。",
-      "choices": [
-        {
-          "label": "(接了半杯水,慢慢浇下去)",
-          "next": "a3_final_choice"
-        }
-      ],
-      "note": "★仪式·绿植回收(消耗期):蔫黄。"
-    },
-    "a3_final_choice": {
-      "speaker": "",
-      "bg": "office_night",
       "effects": {},
-      "text": "临下班,老陈把你叫过去,他眼底一片青:「下季度冲大版本,全组封闭冲刺,周末搭进去,绩效跟这一仗直接挂钩。」\n「进核心冲刺组吗?进去是拼命,但年底调薪大概率有你。不进就做外围,轻松,但这种时候没冲在前面,以后不好说。」\n他声音低下来:「我不劝你。就是……看着你这两个月的样子,我有点不忍心问。」",
       "choices": [
-        {
-          "label": "「我进。都熬到这份上了,绩效我要定了。」",
-          "next": "a3_end_hard",
-          "effects": {
-            "performance": 6,
-            "skill": 3,
-            "health": -6,
-            "stress": 5,
-            "passion": -3
-          },
-          "tag": "overwork"
-        },
-        {
-          "label": "「我进,但该睡的觉我得睡。」",
-          "next": "a3_end_mid",
-          "effects": {
-            "performance": 3,
-            "skill": 2,
-            "health": -3,
-            "stress": 2
-          },
-          "tag": "overwork"
-        },
-        {
-          "label": "「我想去外围。我怕再熬下去,会把自己熬没了。」",
-          "next": "a3_end_boundary",
-          "effects": {
-            "health": 3,
-            "san": 3,
-            "passion": 2,
-            "performance": -4
-          },
-          "tag": "self_care"
-        }
+        { "label": "(是一个临时加塞的需求)", "next": "a3_dev", "condition": { "subRole": "dev" } },
+        { "label": "(是一个想被放过的 bug)", "next": "a3_test", "condition": { "subRole": "test" } }
       ],
-      "note": "★幕末抉择:进不进封闭冲刺。"
+      "note": "★子职业分叉:边界两难。"
     },
-    "a3_end_hard": {
+    "a3_dev": {
       "speaker": "",
-      "bg": "office_night",
+      "text": "Kelly 又来了:「就加一个小功能,今晚上线前塞进去呗?就一点点。」\n你看得出来,这个「一点点」会牵动一大片代码,而且没经过评审。塞进去,今晚你别想走;拒绝,你得当着一群人的面说「不」。",
+      "bg": "office_996",
+      "effects": { "stress": 4 },
+      "choices": [
+        { "label": "算了,加班塞进去,别得罪人", "next": "a3_report", "effects": { "performance": 3, "health": -4, "passion": -2 }, "tag": "please", "axes": { "empathy": 2, "risk": 2 } },
+        { "label": "顶住,说清风险,这个不能硬塞", "next": "a3_report", "effects": { "san": 3, "skill": 2, "stress": 2 }, "tag": "principle", "axes": { "empathy": -2, "plan": 2 } }
+      ]
+    },
+    "a3_test": {
+      "speaker": "",
+      "text": "你测出一个不算致命、但确实会偶发的 bug。开发和 Kelly 都劝你:「这个先放过吧,概率很低,下个版本再修,不然赶不上发布。」\n放过,皆大欢喜;卡住,你就是那个「挡了所有人路」的人。",
+      "bg": "office_996",
+      "effects": { "stress": 4 },
+      "choices": [
+        { "label": "放过吧,别当那个扫兴的人", "next": "a3_report", "effects": { "performance": 2, "san": -3, "passion": -2 }, "tag": "please", "axes": { "empathy": 2, "risk": 2 } },
+        { "label": "卡住,记录在案,守住质量线", "next": "a3_report", "effects": { "san": 3, "skill": 2, "stress": 2 }, "tag": "principle", "axes": { "empathy": -2, "plan": 2 } }
+      ]
+    },
+    "a3_report": {
+      "speaker": "",
+      "text": "晚上十点,妈妈的短信:「最近忙不忙?别太累了。」\n你看着屏幕上还没写完的代码,和身上说不出的乏。手指悬在键盘上。",
+      "bg": "office_996",
       "effects": {},
-      "text": "「我进。」你几乎没犹豫。\n老陈盯着你很久,那眼神里欣赏很少,担忧很多。「进来了就是自己人。我盯着你,别真把自己搭进去。」\n你对封存的自己说:再撑一撑,就这一仗。\n可你也清楚,「就这一仗」这句话,你已经说过太多次了。",
       "choices": [
-        {
-          "label": "(带着满身疲惫和不肯认输的倔,走向电梯)",
-          "next": "a3_ending"
-        }
+        { "label": "「不忙,挺好的。」报喜不报忧", "next": "a3_pantry", "effects": { "san": -2 }, "tag": "report_good_news", "axes": { "empathy": 2 } },
+        { "label": "「有点累,但能扛。」说句实话", "next": "a3_pantry", "effects": { "san": 3 }, "tag": "honest", "axes": { "empathy": -1 } }
       ],
-      "note": "硬扛线。"
+      "note": "★报喜不报忧加重。"
     },
-    "a3_end_mid": {
+    "a3_pantry": {
       "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "「我进,但我得睡够。身体是自己的,垮了给谁卖命都没用。」\n老陈看了你一眼,像赞许,又像不太信:「话对。就是真到deadline压顶、全组都熬的时候,你那个『得睡够』守不守得住,难说。说和做,是两码事。」\n走出办公室,你在心里记了一条:这次冲刺,盯住自己的睡眠时间——它是最诚实的数据。",
-      "choices": [
-        {
-          "label": "(带着一份没底的清醒,走向电梯)",
-          "next": "a3_ending"
-        }
-      ],
-      "note": "稳健线。"
+      "text": "你去茶水间接水。老陈也在,就着那只枸杞杯泡水。\n他没抬头,忽然说:「我像你这么大的时候,也这么熬过。后来才慢慢懂——把边界守住,不是不合群,是你还想在这行走得远一点。」\n他顿了顿:「今天的选择,系统都替你记着呢。别骗自己就行。」",
+      "bg": "pantry",
+      "effects": { "san": 3, "passion": 2 },
+      "choices": [{ "label": "(点点头)", "next": "a3_end" }],
+      "note": "★老陈镜像戏:枸杞杯回收+点题「边界」。"
     },
-    "a3_end_boundary": {
+    "a3_end": {
       "speaker": "",
-      "bg": "office_night",
-      "effects": {},
-      "text": "「陈哥,我想去外围。」话出口你心跳得厉害,像做错了事。\n你等着他失望。可老陈沉默几秒,轻轻点头:「知道喊停,不容易。比硬撑难多了。」临了他像自言自语:「我要是十年前,也有你这份清醒就好了。」\n走出办公室,你第一次觉得:选一个适合自己的节奏,也是一种职业能力。",
-      "choices": [
-        {
-          "label": "(带着退一步的踏实,走向电梯)",
-          "next": "a3_ending"
-        }
-      ],
-      "note": "边界线:老陈悔意最重一笔。"
-    },
-    "a3_ending": {
-      "speaker": "",
+      "text": "回到工位,窗外城市的灯还亮着。你第一次认真想:我到底是个会「通融」的人,还是个会「守线」的人?\n这个问题没有标准答案。但你隐约觉得,它比任何一道技术题,都更能定义你是谁。",
       "bg": "office_night",
       "action": "next_act",
-      "effects": {},
-      "text": "第三幕 · 996,到这里。\n消耗,是这一幕的底色。眼前发黑、手指发麻、五点醒——身体的信号一条条发出来,你一条条按掉。\n老陈那句「熬着熬着就成现在这样」还在耳边。这种节奏,你是被它点燃,还是被它消耗?\n温水已经很烫了。而那个你一直不敢想的「撑不住」,快要来了。",
+      "effects": { "san": 2 },
       "choices": [],
-      "note": "★幕末next_act。"
+      "note": "★章末 next_act。"
     }
   }
 }

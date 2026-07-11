@@ -29,17 +29,39 @@ const CAREER_NAMES = {
 export class TitleScene extends Phaser.Scene {
   constructor() { super('TitleScene'); }
 
+  // 明亮晨光天际线——毕业生看到的是希望与前路光明，不是黑夜。
   _drawSkyline(W, H) {
     const sky = this.add.graphics().setDepth(-10);
-    sky.fillGradientStyle(0x141026, 0x1a1430, 0x6e3550, 0xb0603e, 1);
+    // 天空：清新晨蓝 → 暖金 → 桃粉地平线（日出渐变，明亮温暖）
+    sky.fillGradientStyle(0x4a8ec4, 0x7ab8d8, 0xffd89a, 0xffb070, 1);
     sky.fillRect(0, 0, W, H);
-    sky.fillStyle(0xffb673, 0.10); sky.fillRect(0, H * 0.60, W, H * 0.16);
-    this.add.circle(W * 0.80, H * 0.19, 72, 0xf6e8c8, 0.10).setDepth(-9);
-    this.add.circle(W * 0.80, H * 0.19, 44, 0xf6e8c8, 0.92).setDepth(-9);
+    // 地平线暖光带
+    sky.fillStyle(0xffe0a8, 0.20); sky.fillRect(0, H * 0.55, W, H * 0.12);
+
+    // 朝阳（发光球——多层 ADD 混合，像真正的日出光芒）
+    const sunX = W * 0.5, sunY = H * 0.28;
+    for (let i = 6; i >= 1; i--) {
+      this.add.circle(sunX, sunY, 30 + i * 28, 0xfff0c0, 0.06)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(-9);
+    }
+    this.add.circle(sunX, sunY, 36, 0xfff8e0, 0.95).setDepth(-9);
+    // 朝阳光芒线（放射状）
+    const rays = this.add.graphics().setDepth(-9);
+    for (let a = 0; a < 12; a++) {
+      const ang = (a / 12) * Math.PI * 2;
+      const len = 120 + (a % 3) * 40;
+      rays.lineStyle(3, 0xfff0c0, 0.12);
+      rays.beginPath();
+      rays.moveTo(sunX + Math.cos(ang) * 42, sunY + Math.sin(ang) * 42);
+      rays.lineTo(sunX + Math.cos(ang) * (42 + len), sunY + Math.sin(ang) * (42 + len));
+      rays.strokePath();
+    }
+
+    // 楼群剪影：中等亮度蓝灰（不是死黑），窗格暖光闪烁
     const layers = [
-      { base: H * 0.70, col: 0x241d3a, wmin: 70, wmax: 150, hmin: 60, hmax: 150, lit: 0.22, tint: 0xffd27a, depth: -8 },
-      { base: H * 0.77, col: 0x191430, wmin: 60, wmax: 130, hmin: 120, hmax: 260, lit: 0.48, tint: 0xffcf7a, depth: -6 },
-      { base: H * 0.85, col: 0x100c1e, wmin: 84, wmax: 176, hmin: 170, hmax: 360, lit: 0.72, tint: 0xffe08a, depth: -4 },
+      { base: H * 0.68, col: 0x6080a0, wmin: 70, wmax: 150, hmin: 60, hmax: 140, lit: 0.3, tint: 0xfff0b0, depth: -8 },
+      { base: H * 0.75, col: 0x506e90, wmin: 60, wmax: 130, hmin: 110, hmax: 240, lit: 0.45, tint: 0xffe89a, depth: -6 },
+      { base: H * 0.84, col: 0x405e80, wmin: 84, wmax: 176, hmin: 160, hmax: 340, lit: 0.6, tint: 0xffd870, depth: -4 },
     ];
     for (const L of layers) {
       let x = -40;
@@ -54,7 +76,7 @@ export class TitleScene extends Phaser.Scene {
               const a = Phaser.Math.FloatBetween(0.5, 0.95);
               const win = this.add.rectangle(wx, wy, 7, 9, L.tint, a).setOrigin(0, 0).setDepth(L.depth + 0.5);
               if (Math.random() < 0.16) this.tweens.add({
-                targets: win, alpha: 0.12, duration: Phaser.Math.Between(1600, 3600),
+                targets: win, alpha: 0.3, duration: Phaser.Math.Between(1600, 3600),
                 yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 3000),
               });
             }
@@ -63,11 +85,14 @@ export class TitleScene extends Phaser.Scene {
         x += bw + Phaser.Math.Between(4, 16);
       }
     }
+    // 前景地面（暖色街道）
+    this.add.rectangle(0, H * 0.84, W, H * 0.16, 0x6a7a8e).setOrigin(0, 0).setDepth(-3);
+    this.add.rectangle(0, H * 0.84, W, 4, 0x8a9aae).setOrigin(0, 0).setDepth(-3);
   }
 
   create() {
     const { width: W, height: H } = this.scale;
-    this.cameras.main.fadeIn(700, 10, 8, 20);
+    this.cameras.main.fadeIn(700, 100, 140, 180); // 淡入用晨光色（亮）
     AudioSystem.playBgm('title');
     SaveSystem._migrateLegacy();
     this._drawSkyline(W, H);
@@ -75,25 +100,25 @@ export class TitleScene extends Phaser.Scene {
     for (let i = 0; i < 16; i++) {
       const c = this.add.circle(
         Phaser.Math.Between(0, W), Phaser.Math.Between(0, H),
-        Phaser.Math.Between(2, 5), 0xf5c86b, Phaser.Math.FloatBetween(0.06, 0.18)
+        Phaser.Math.Between(2, 5), 0xfff0b0, Phaser.Math.FloatBetween(0.1, 0.25)
       ).setDepth(-2);
       this.tweens.add({ targets: c, y: c.y - Phaser.Math.Between(30, 80), alpha: 0,
         duration: Phaser.Math.Between(3000, 6000), repeat: -1, delay: Phaser.Math.Between(0, 3000) });
     }
-    this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a16, 0.30).setDepth(-1);
+    this.add.rectangle(W / 2, H / 2, W, H, 0xfff0d0, 0.06).setDepth(-1);
 
     this.add.text(W / 2, H * 0.22, '腾讯云黑客松 · 由 WorkBuddy × 混元 hy3 打造', {
-      fontSize: '24px', color: '#8a8aa0', letterSpacing: 3,
+      fontSize: '22px', color: '#3a6a9a', letterSpacing: 3,
     }).setOrigin(0.5);
 
     const title = this.add.text(W / 2, H * 0.36, '你 想 成 为 谁', {
-      fontSize: '84px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 10,
+      fontSize: '84px', color: '#fff8e8', fontStyle: 'bold', letterSpacing: 10,
     }).setOrigin(0.5);
-    title.setShadow(0, 4, '#d4a35388', 16, false, true);
+    title.setShadow(0, 4, '#e8a050aa', 20, false, true);
     this.tweens.add({ targets: title, scale: 1.02, duration: 2400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     this.add.text(W / 2, H * 0.49, '「 你不是要成为一个正确的人，\n而是要认出那个本来的你。 」', {
-      fontSize: '26px', color: '#c8b88a', align: 'center', lineSpacing: 12,
+      fontSize: '24px', color: '#5a7a9a', align: 'center', lineSpacing: 10,
       wordWrap: { width: W - 200, useAdvancedWrap: true },
     }).setOrigin(0.5);
 
@@ -101,11 +126,11 @@ export class TitleScene extends Phaser.Scene {
     const latest = SaveSystem.latestSlot();
     const hasSave = latest !== null;
     const btns = [];
-    if (hasSave) btns.push({ label: '▶  继续游戏', fill: 0x2a4a3e, stroke: 0xd4a353, color: '#ffe08a', action: 'resume' });
-    btns.push({ label: '📂  读取存档', fill: 0x23232f, stroke: 0x555577, color: '#b8b8c8', action: 'load' });
-    btns.push({ label: '✨  重新开始', fill: 0x23232f, stroke: 0x555577, color: '#b8b8c8', action: 'newgame' });
-    btns.push({ label: '⚙️  设置', fill: 0x23232f, stroke: 0x555577, color: '#b8b8c8', action: 'settings' });
-    btns.push({ label: '🎬  制作组', fill: 0x23232f, stroke: 0x555577, color: '#b8b8c8', action: 'credits' });
+    if (hasSave) btns.push({ label: '继续游戏', fill: 0x2e6e4e, stroke: 0x7ee89a, color: '#e0ffe8', action: 'resume', icon: '>' });
+    btns.push({ label: '读取存档', fill: 0x2a4a7a, stroke: 0x7ac0f0, color: '#e0e8ff', action: 'load', icon: '=' });
+    btns.push({ label: '重新开始', fill: 0x4a3a7a, stroke: 0xa890e8, color: '#e8e0ff', action: 'newgame', icon: '+' });
+    btns.push({ label: '设置', fill: 0x5a5a2a, stroke: 0xe8d870, color: '#fff8d8', action: 'settings', icon: '*' });
+    btns.push({ label: '制作组', fill: 0x5a2a4a, stroke: 0xe890b0, color: '#ffe0ec', action: 'credits', icon: '~' });
 
     const btnSpacing = 56;
     const startY = H * 0.60;
@@ -114,7 +139,7 @@ export class TitleScene extends Phaser.Scene {
       const cy = startY + i * btnSpacing;
       const btn = makeButton(this, {
         x: W / 2, y: cy, label: b.label, fill: b.fill, stroke: b.stroke, color: b.color,
-        fontSize: 26, minW: 300, padX: 40, padY: 16, letterSpacing: 4,
+        fontSize: 26, minW: 320, padX: 44, padY: 16, letterSpacing: 4,
         sound: () => AudioSystem.uiClick(), onClick: () => this._handleAction(b.action),
       });
       this._menuButtons.push(btn);
@@ -143,14 +168,14 @@ export class TitleScene extends Phaser.Scene {
 
     const fsBtn = this.add.text(W - 20, 18, '⛶ 全屏', { fontSize: '20px', color: '#8a8a9e' })
       .setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    fsBtn.on('pointerover', () => fsBtn.setColor('#e6e6e6'));
-    fsBtn.on('pointerout', () => fsBtn.setColor('#8a8a9e'));
+    fsBtn.on('pointerover', () => fsBtn.setColor('#1a4a7a'));
+    fsBtn.on('pointerout', () => fsBtn.setColor('#4a6a8a'));
     fsBtn.on('pointerdown', () => {
       if (this.scale.isFullscreen) this.scale.stopFullscreen(); else this.scale.startFullscreen();
     });
 
     this.add.text(W - 12, H - 8, 'Built with WorkBuddy · Art: LimeZu · Kenney · AI: 腾讯混元 hy3', {
-      fontSize: '16px', color: '#5a5a6e',
+      fontSize: '14px', color: '#4a6a8a',
     }).setOrigin(1, 1);
   }
 
@@ -159,8 +184,8 @@ export class TitleScene extends Phaser.Scene {
     this._menuButtons.forEach((b, i) => {
       const rect = b.rect;
       if (!rect) return;
-      if (i === this._selectedBtn) { rect.setStrokeStyle(3, 0xf0d68a, 1); rect.setFillStyle(0x2a3a4a); }
-      else { rect.setStrokeStyle(2, 0x555577, 0.8); }
+      if (i === this._selectedBtn) { rect.setStrokeStyle(4, 0xfff0a0, 1); rect.setFillStyle(0x3a5a8a); }
+      else { rect.setStrokeStyle(2, 0x8aaadd, 0.5); }
     });
   }
   _navButton(dir) {

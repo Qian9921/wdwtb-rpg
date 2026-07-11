@@ -288,6 +288,7 @@ export function buildWorldSaveExtra({
   segment = null,
   project = null,
   story = null,
+  relations = null,
 } = {}) {
   return {
     subRole,
@@ -298,6 +299,7 @@ export function buildWorldSaveExtra({
     segment,
     project,
     story,
+    relations,
   };
 }
 

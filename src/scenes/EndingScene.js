@@ -38,6 +38,7 @@ export class EndingScene extends Phaser.Scene {
     };
     this.choiceLog = data?.choiceLog || null; // 玩家选择日志(若主线记录了)
     this.projectProgress = data?.projectProgress != null ? data.projectProgress : null;
+    this.relationSummary = data?.relationSummary || null; // E5 关系网摘要
     this.portrait = data?.portrait || null;
     let profile = null;
     try { profile = JSON.parse(localStorage.getItem('wdwtb_profile') || 'null'); } catch (e) {}
@@ -55,6 +56,7 @@ export class EndingScene extends Phaser.Scene {
       profile: this.profile,
       projectProgress: this.projectProgress,
       history: this.reportHistory,
+      relationSummary: this.relationSummary,
     });
   }
 

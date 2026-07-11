@@ -43,6 +43,13 @@ import {
 } from '../systems/StoryProgress.js';
 import { npcLineForAct, pickOfficeEvent } from '../systems/WorkLoopOffice.js';
 import { resolveInteractGoalPos } from '../systems/CareerFit.js';
+import {
+  RelationshipSystem,
+  pickRelationAwareLine,
+  applyNpcChat,
+  eventMeetsRelations,
+  summarizeRelations,
+} from '../systems/RelationshipSystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -249,6 +256,7 @@ export class WorldScene extends Phaser.Scene {
     this._savedDay = null;
     this._savedSegment = null;
     this._savedProject = null;
+    this._savedRelations = null;
     try {
       const saved = SaveSystem.load();
       // 同职业+同细分才续档；换职业或换方向 → 清旧档、全新开始（避免串档）。
@@ -263,6 +271,7 @@ export class WorldScene extends Phaser.Scene {
         this._savedDay = saved.daySystem || null;
         this._savedSegment = Number.isInteger(saved.segment) ? saved.segment : null;
         this._savedProject = saved.project || null;
+        this._savedRelations = saved.relations || null;
         if (this.subRole == null && saved.subRole) this.subRole = saved.subRole; // 续档恢复方向
         if (saved.story) this._story = mergeStoryState(saved.story);
       } else if (saved) {
@@ -274,7 +283,11 @@ export class WorldScene extends Phaser.Scene {
     // 进场即存档（合并写，保留未提供字段）
     SaveSystem.saveProgress({
       career: this.career, act: this.act, stats: this._savedStats,
-      extra: { subRole: this.subRole, quests: this._savedQuests, choiceLog: this._savedChoiceLog, thought: this._savedThought, daySystem: this._savedDay, segment: this._savedSegment, project: this._savedProject, story: this._story },
+      extra: {
+        subRole: this.subRole, quests: this._savedQuests, choiceLog: this._savedChoiceLog,
+        thought: this._savedThought, daySystem: this._savedDay, segment: this._savedSegment,
+        project: this._savedProject, story: this._story, relations: this._savedRelations,
+      },
     });
   }
 
@@ -383,6 +396,9 @@ export class WorldScene extends Phaser.Scene {
     // 任务系统 + 选择记忆（结局 AI 画像的数据源）
     this.questSystem = new QuestSystem(this.stateSystem);
     this.choiceLog = new ChoiceLog();
+    // E5 关系网：好感/记忆（与存档同步）
+    this.relations = new RelationshipSystem();
+    if (this._savedRelations) this.relations.restore(this._savedRelations);
     this._loadQuestData();
     // 任务完成时反馈（粒子+音效）+ 自动保存（任务链的每一环都是存档点）
     this.questSystem.on('completed', (id) => {
@@ -851,6 +867,7 @@ export class WorldScene extends Phaser.Scene {
         x: n.x, y: n.y, tint: n.tint ? parseInt(n.tint, 16) : null,
         label: `${n.name} · ${n.role}`, mark: n.mark || '💬', markColor: n.markColor || '#7ec8ff',
         act: n.act, line: n.line, linesByAct: n.linesByAct || null,
+        linesByAffinity: n.linesByAffinity || null,
       }));
     } else {
       const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
@@ -1440,15 +1457,63 @@ export class WorldScene extends Phaser.Scene {
       this.questSystem.progress('talk', npc.id);
       this._updateNpcMarks();
       if (questLine) {
+        // 任务对接也涨好感（E5）
+        this._noteNpcChat(npc, { questTalk: true });
         this._showLine(npc.name, questLine);
         return;
       }
     }
 
-    // 其余 NPC → 寒暄。台词随剧情幕变化(linesByAct)——同事的状态跟着故事一起走。
+    // 其余 NPC → 寒暄。台词随幕 + 好感分档（linesByAffinity / linesByAct）。
     // 有选择历史时，NPC 可能说一句"记得你做过什么"的个性化台词（AI 生成）。
-    const line = npcLineForAct(npc, this.act);
+    this._noteNpcChat(npc, { questTalk: false });
+    const aff = this.relations ? this.relations.getAffinity(npc.id) : 50;
+    const line = pickRelationAwareLine({
+      npc, act: this.act, affinity: aff, rng: () => Phaser.Math.RND.frac(),
+    }) || npcLineForAct(npc, this.act);
     if (line) this._showNpcLineWithMemory(npc, line);
+  }
+
+  /**
+   * 结算一次 NPC 聊天：好感 + 记忆；跨 warm 档时轻浮动字。
+   * @param {{ id: string, name?: string }} npc
+   * @param {{ questTalk?: boolean }} [opts]
+   */
+  _noteNpcChat(npc, opts = {}) {
+    if (!this.relations || !npc?.id) return;
+    const before = this.relations.getAffinity(npc.id);
+    const r = applyNpcChat(this.relations, npc.id, opts);
+    // 首次聊天或刚跨进 warm：轻手感，让关系可感知
+    if (r.firstTalk || (before < 65 && r.affinity >= 65)) {
+      const label = r.firstTalk
+        ? `与${npc.name || '同事'}相识`
+        : `与${npc.name || '同事'}更熟了`;
+      Juice.floatText(
+        this,
+        this.player?.x || 400,
+        (this.player?.y || 300) - 90,
+        label,
+        '#7ec8ff',
+      );
+    }
+  }
+
+  /** 进结局场景的公共载荷（含关系摘要，供报告柱） */
+  _endingPayload(ending) {
+    const names = {};
+    for (const n of (this.npcs || [])) {
+      if (n?.id) names[n.id] = n.name || n.id;
+    }
+    const relSum = summarizeRelations(this.relations, names);
+    return {
+      ending: ending || this.career,
+      career: this.career,
+      subRole: this.subRole,
+      stats: this.stateSystem.getAll(),
+      choiceLog: this.choiceLog ? this.choiceLog.serialize() : null,
+      projectProgress: this.projectSystem ? this.projectSystem.progress : null,
+      relationSummary: relSum.text || null,
+    };
   }
 
   // ==================== 导师剧情状态机（连贯性核心）====================
@@ -1519,12 +1584,7 @@ export class WorldScene extends Phaser.Scene {
         if (this._story.phase === 'working') {
           const p = this.projectSystem ? Math.round(this.projectSystem.progress) : 0;
           if (canFinishLightWorkLoop(this._story, p)) {
-            SceneRouter.goto(this, 'EndingScene', {
-              ending: 'light', career: this.career, subRole: this.subRole,
-              stats: this.stateSystem.getAll(),
-              choiceLog: this.choiceLog ? this.choiceLog.serialize() : null,
-              projectProgress: this.projectSystem ? this.projectSystem.progress : null,
-            });
+            SceneRouter.goto(this, 'EndingScene', this._endingPayload('light'));
             return;
           }
           this._showLine(npc.name, `稿还在推进中——现在项目 ${p}%。\n把任务链和今日工单往前推，推满 100% 再来找我收尾。`);
@@ -1629,6 +1689,7 @@ export class WorldScene extends Phaser.Scene {
         segment: this.timeSystem ? this.timeSystem.index : null,
         project: this.projectSystem ? this.projectSystem.serialize() : null,
         story: this._story,
+        relations: this.relations ? this.relations.serialize() : null,
       },
     });
   }
@@ -2259,9 +2320,12 @@ export class WorldScene extends Phaser.Scene {
     if (this.dialogueActive || this._workBoardUI || this._eventUI || this._sitting) return;
     if (!this._officeEvents || !this._officeEvents.length) return;
     if (Phaser.Math.RND.frac() > 0.55) return;
-    // 幕次门槛 + 去重：纯逻辑 pickOfficeEvent（可单测）
+    // 幕次门槛 + 关系门槛 + 去重：纯逻辑 pickOfficeEvent（可单测）
+    const pool = (this._officeEvents || []).filter(
+      (e) => eventMeetsRelations(e, this.relations),
+    );
     const r = pickOfficeEvent(
-      this._officeEvents,
+      pool,
       this._eventSeen,
       this.act,
       () => Phaser.Math.RND.frac(),
@@ -2428,6 +2492,7 @@ export class WorldScene extends Phaser.Scene {
         segment: 0, // 下班回家=一天结束，明天从早晨（早会）重新开始
         project: this.projectSystem ? this.projectSystem.serialize() : null,
         story: this._story,
+        relations: this.relations ? this.relations.serialize() : null,
       },
     });
     SceneRouter.goto(this, 'HomeScene', {
@@ -2654,13 +2719,8 @@ export class WorldScene extends Phaser.Scene {
           // 转场淡出（替代硬切），让结局有仪式感。
           // ending 取剧情节点的 ending 字段(backbone/quit/health/switch/light 五结局)，
           // 缺省才退回 career——之前误传 career 导致结局标题显示"programmer"。
-          SceneRouter.goto(self, 'EndingScene', {
-            ending: (node && node.ending) || self.career,
-            career: self.career, subRole: self.subRole,
-            stats: self.stateSystem.getAll(),
-            choiceLog: self.choiceLog.serialize(),
-            projectProgress: self.projectSystem ? self.projectSystem.progress : null,
-          });
+          SceneRouter.goto(self, 'EndingScene',
+            self._endingPayload((node && node.ending) || self.career));
           break;
         default:
           console.log('[WorldScene] unhandled action:', action);
@@ -2764,11 +2824,7 @@ export class WorldScene extends Phaser.Scene {
     this.dialogueActive = false;
     const r = enterWorkingAfterAct(this._story, this.act);
     if (r.shouldEnd) {
-      SceneRouter.goto(this, 'EndingScene', {
-        ending: this.career, career: this.career, subRole: this.subRole,
-        stats: this.stateSystem.getAll(), choiceLog: this.choiceLog.serialize(),
-        projectProgress: this.projectSystem ? this.projectSystem.progress : null,
-      });
+      SceneRouter.goto(this, 'EndingScene', this._endingPayload(this.career));
       return;
     }
     // 进入本幕经营期

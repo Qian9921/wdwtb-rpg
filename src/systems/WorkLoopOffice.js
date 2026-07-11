@@ -49,6 +49,8 @@ export function npcDefsFromRoster(roster, career) {
     act: n.act,
     line: n.line,
     linesByAct: n.linesByAct || null,
+    // E5：按好感分档的寒暄池（cold/neutral/warm，可 string[] 或按幕）
+    linesByAffinity: n.linesByAffinity || null,
     defaultMark: n.mark || '💬',
     defaultMarkColor: n.markColor || '#7ec8ff',
   }));

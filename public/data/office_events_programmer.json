@@ -463,6 +463,94 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_zhou_coffee",
+      "icon": "☕",
+      "title": "周哥请喝咖啡",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "周哥把一杯美式搁在你桌上：「最近看你还行。下去走走？」\n（只有你和他聊得够多，他才会主动找你。）",
+      "choices": [
+        {
+          "label": "跟他下去，听他讲当年",
+          "result": "天台风挺大。他说了两件你没在文档里见过的坑。回来后，你做事更稳了。",
+          "effects": {
+            "skill": 4,
+            "san": 3,
+            "energy": -2
+          }
+        },
+        {
+          "label": "婉拒：手头这单还差一口气",
+          "result": "他点点头：「行，别把自己熬成我这样。」杯子留给你。",
+          "effects": {
+            "performance": 2,
+            "passion": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_jiang_lunch",
+      "icon": "🍜",
+      "title": "江野约猪脚饭",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "江野探头：「哥，中午猪脚饭？我请——当感谢你上次帮我对接口。」\n（你们聊过天之后，他才会把你当自己人约。）",
+      "choices": [
+        {
+          "label": "去，顺便吐槽需求",
+          "result": "猪脚饭很香。吐槽很爽。下午回工位，压力莫名轻了一点。",
+          "effects": {
+            "san": 4,
+            "stress": -3,
+            "energy": 2
+          }
+        },
+        {
+          "label": "改日：今天要赶评审",
+          "result": "「行行行，那我给你带一份！」二十分钟后桌上多了一份。人情还在。",
+          "effects": {
+            "san": 2,
+            "performance": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_silent_desk",
+      "icon": "🧊",
+      "title": "隔壁工位很安静",
+      "maxAct": 2,
+      "text": "你还没怎么跟同期说过话。中午整层楼热热闹闹，你工位旁边空着一份外卖单。",
+      "choices": [
+        {
+          "label": "起身去找江野搭一句",
+          "result": "有点尴尬，但开了头。关系这东西，得有人先迈半步。",
+          "effects": {
+            "san": 2,
+            "stress": -1
+          }
+        },
+        {
+          "label": "戴上耳机，继续写",
+          "result": "代码往前推了。人与人的距离，也往外推了一点。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

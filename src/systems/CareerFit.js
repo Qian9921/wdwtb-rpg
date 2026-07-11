@@ -249,6 +249,7 @@ export function buildEndingReportContext({
   profile = null,
   projectProgress = null,
   history = null,
+  relationSummary = null,
 } = {}) {
   const careerName = CAREER_NAMES[career] || career;
   const body = bodySignalsFromStats(stats);
@@ -257,6 +258,9 @@ export function buildEndingReportContext({
   const anchor = CAREER_ANCHORS[career];
   const tryAdvice = profile ? buildTryFirstAdvice(profile, 3) : null;
   const contrast = buildCareerContrast({ currentCareer: career, history: history || [] });
+  const relText = typeof relationSummary === 'string'
+    ? relationSummary
+    : (relationSummary?.text || '');
 
   const lines = [
     `本局职业：${careerName}${subRole ? `（方向 ${subRole}）` : ''}`,
@@ -265,6 +269,7 @@ export function buildEndingReportContext({
     projectProgress != null ? `项目/主线进度约 ${Math.round(projectProgress)}%` : null,
     `身体与心情信号：${body.signals.join('；')}`,
     choices.text ? `选择轨迹：${choices.text}` : '选择轨迹：记录较少，多依据状态推断',
+    relText ? relText : null,
     tryAdvice
       ? `若还迷茫，开局模型还曾建议对比：${tryAdvice.tryFirst.map((t) => t.name).join('、')}`
       : null,
@@ -280,6 +285,7 @@ export function buildEndingReportContext({
     body,
     choices,
     contrast,
+    relationSummary: relText || null,
     promptBlock: lines.join('\n'),
     summaryLine: `${careerName}线 · 契合${fit != null ? fit : '—'} · ${body.signals[0]}`,
   };

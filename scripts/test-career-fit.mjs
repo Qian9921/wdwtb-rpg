@@ -148,5 +148,12 @@ const ctxHist = buildEndingReportContext({
 ok('reportCtx 含 contrast', ctxHist.contrast && ctxHist.contrast.others.includes('销售'));
 ok('promptBlock 含多职业对照', ctxHist.promptBlock.includes('多职业对照') || ctxHist.promptBlock.includes('销售'));
 
+const ctxRel = buildEndingReportContext({
+  career: 'programmer',
+  stats: { stress: 40, health: 70, passion: 55, energy: 50 },
+  relationSummary: '办公室关系：江野（更熟·80）',
+});
+ok('report 吃关系摘要', ctxRel.promptBlock.includes('江野') && ctxRel.relationSummary.includes('江野'));
+
 console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -256,6 +256,10 @@ export class WorldScene extends Phaser.Scene {
     this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
+    // B1 修复：对话/菜单被玩家按键(E/SPACE/ESC)关闭那一刻，同一帧 update() 里的
+    // JustDown(eKey)/JustDown(escKey) 仍可能读到 true（Phaser 键盘事件先于 update 触发），
+    // 导致"刚关闭又立刻重新触发"。此时间戳标记"本帧刚关闭，抑制窗口内不触发新交互"。
+    this._suppressInteractUntil = 0;
     this._activeSlot = (data && (data.slot || data.newGameSlot)) || 1;
     // 多天循环：从 CommuteScene 传入的 day + stats 快照（有则用，无则从存档/默认）
     this._incomingDay = (data && data.day) || null;
@@ -367,6 +371,16 @@ export class WorldScene extends Phaser.Scene {
     // 状态恢复优先级：通勤场景传入的快照 > 存档 > 默认（保证跨场景数值连续）
     if (this._incomingStats) this.stateSystem.restore(this._incomingStats);
     else if (this._savedStats) this.stateSystem.restore(this._savedStats);
+    // B3 修复：真实的精力门槛用 stateSystem.get('energy')（energyGate，见 ItemSystem.js），
+    // 不是下面的 daySystem.energyBudget（那套已是死代码，没有任何门槛逻辑读它）。
+    // _incomingStats 只在"睡觉→通勤→上班"这条日循环链路上被传入（HomeScene._sleep() →
+    // CommuteScene._goWork() → 这里）；HomeScene 夜晚"早点睡"最多恢复 energy+15，
+    // 连续多天工作会让开局 energy 越攒越低，直到跌破 15 把主任务小游戏按钮锁死。
+    // 这里在"新的一天开工"时把 energy 回满，符合"睡一觉满血"的玩家直觉。
+    // 防作弊边界：同一天内续档/浏览器刷新走的是 TitleScene._doResume/_showLoadPanel
+    // → buildWorldResumeData()（Resume.js）——该函数不带 stats 字段，所以刷新只会
+    // 命中上面的 _savedStats 分支，不会经过这里，不能靠刷新"骗"出满血。
+    if (this._incomingStats) this.stateSystem.set('energy', 100);
     // 多天循环系统（day 从通勤场景传入或存档恢复）
     this.daySystem = new DaySystem();
     if (this._savedDay) this.daySystem.restore(this._savedDay);
@@ -1126,6 +1140,15 @@ export class WorldScene extends Phaser.Scene {
         this._syncBody(w); // 走动的同事挡块跟着脚下走(也挡玩家)
         // 走动时名牌跟随
         if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
+        // B2 修复：头顶交互浮标(❗/💬 等)跟随走动同步——此前只同步了 nameTag/_mood，
+        // 漏了 mark，导致核心 NPC 走开后浮标留在空椅子上，玩家追着❗扑空。
+        // mark 有一个上下 yoyo 的 tween(创建时 targets: mark, y: markY-6)，但 Phaser
+        // 的 UPDATE 事件（驱动 TweenManager）先于 scene.update()（这里）触发——见
+        // Scenes.Systems#step: PRE_UPDATE → UPDATE(tween) → sceneUpdate。
+        // 所以本帧渲染前，我们的 setPosition 总是在 tween 计算之后执行、最终生效，
+        // 不会产生"每帧被拉回"的抖动；代价是走动期间 tween 的上下飘动视觉被覆盖，
+        // 浮标变成静止跟随（回到座位后 tween 重新接管，恢复飘动）——可接受的取舍。
+        if (w.mark) w.mark.setPosition(w.spr.x, w.spr.y - 78);
       }
       // 出行结束回到工位 → 挡块归位到座位 + 泡泡换回普通状态
       if (w._wasBusy && !busy) {
@@ -1133,6 +1156,8 @@ export class WorldScene extends Phaser.Scene {
         this._setMood(w); this._positionMood(w);
         // 名牌归位
         if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
+        // 浮标归位：回工位后 x/y 复位到座位正上方,交还给 tween 继续飘动
+        if (w.mark) w.mark.setPosition(w.spr.x, w.spr.y - 78);
       }
       w._wasBusy = busy;
     }
@@ -1236,7 +1261,14 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // ESC 唤起暂停菜单（对话进行中不触发，交给对话自己的 ESC）
-    if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.escKey)) {
+    // B1 修复：抑制窗口内跳过——防止"按 ESC 关对话"的同一帧，这里的 JustDown(escKey)
+    // 又读到 true，把暂停菜单也顺带弹出来（对话关闭键被"复用"成了菜单唤起键）。
+    // 注意：JustDown() 每帧都要调用来消费 _justDown 内部标记——如果抑制期内整句跳过不调用，
+    // 标记会一直挂着，抑制窗口一过反而"延迟触发"同一次按键，只是把 bug 推后而非修好。
+    // 所以调用 JustDown() 照常执行（消费标记），只是不在抑制期内对结果采取行动。
+    const interactSuppressed = this._suppressInteractUntil && this.time.now < this._suppressInteractUntil;
+    const escJustDown = Phaser.Input.Keyboard.JustDown(this.escKey);
+    if (!this.dialogueActive && !interactSuppressed && escJustDown) {
       this.scene.pause();
       this.scene.launch('PauseScene', this._pausePayload());
       return;
@@ -1417,7 +1449,13 @@ export class WorldScene extends Phaser.Scene {
       else label = `［ E ］${nearest.prompt}`;
       this.ePrompt.setText(label).setVisible(true);
       if (this.touchControls) this.touchControls.setInteractVisible(true);
-      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      // B1 修复：只抑制"触发"，不抑制"显示提示"——ePrompt 正常显示，只是本帧
+      // 刚关闭对话/菜单的抑制窗口内，JustDown(eKey) 不会重新分派交互。
+      // JustDown() 必须照常调用以消费 _justDown 标记（见上面 ESC 分支同款注释），
+      // 否则抑制期内积压的按键会在窗口结束后延迟触发。
+      const eSuppressed = this._suppressInteractUntil && this.time.now < this._suppressInteractUntil;
+      const eJustDown = Phaser.Input.Keyboard.JustDown(this.eKey);
+      if (!eSuppressed && eJustDown) {
         if (nearestType === 'npc') this._interact(nearest);
         else if (nearestType === 'worker') this._interactWorker(nearest);
         else if (nearestType === 'chair') this._sitOnChair(nearest);
@@ -1691,6 +1729,9 @@ export class WorldScene extends Phaser.Scene {
       c.destroy(true);
       if (!keepFrozen) {
         this.dialogueActive = false;
+        // B1 修复：closeMenu(false) 可能由玩家按 ESC 触发（见下面 onEsc）——
+        // 同一帧 update() 的 JustDown(escKey) 仍可能读到 true，顺带弹出暂停菜单。
+        this._suppressInteractUntil = this.time.now + 250;
         if (this.guideText) this.guideText.setVisible(true);
       }
     };
@@ -2183,6 +2224,11 @@ export class WorldScene extends Phaser.Scene {
       kb.off('keydown-ESC', close);
       c.destroy(true);
       this.dialogueActive = false;
+      // B1 修复：E/SPACE/ESC 关闭本气泡的这一帧，update() 里的 JustDown(eKey)/
+      // JustDown(escKey) 仍可能读到 true（键盘 down 事件先于 scene.update 触发），
+      // 导致"刚关闭又对同一 NPC/同一帧重新触发交互"或"顺带弹出暂停菜单"。
+      // 250ms 抑制窗口只盖住这次关闭附近的几帧，玩家松手再按完全不受影响。
+      this._suppressInteractUntil = this.time.now + 250;
       this._lineActive = false;
       this._lineBodyText = null;
       if (this.guideText) this.guideText.setVisible(true);
@@ -3344,6 +3390,10 @@ export class WorldScene extends Phaser.Scene {
 
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
+      // B1 修复：剧情对话可能由玩家按 ESC 触发退出（DialogueEngine._forceExit →
+      // _endDialogue → 这里）。同一帧 WorldScene.update() 的 JustDown(escKey) 仍可能
+      // 读到 true，把 ESC 又当成"唤起暂停菜单"的按键，对话一退出就顺带弹出暂停菜单。
+      self._suppressInteractUntil = self.time.now + 250;
       if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
       if (self.offWorkBtn) self.offWorkBtn.setVisible(true);
       // 剧情结束回办公室：移除场景背景 + 恢复办公室色调，露出办公室地图
@@ -3550,6 +3600,10 @@ export class WorldScene extends Phaser.Scene {
       kb.off('keydown-ESC', close);
       kb.off('keydown-SPACE', close);
       overlay.destroy(true);
+      // B1 修复（同源问题，非仅限对话）：_showRitual 不一定伴随 dialogueActive=true
+      // （如 water_plant 浇水仪式），ESC 直接绑在 kb 上关闭本弹窗；同一帧 update() 的
+      // JustDown(escKey) 仍可能读到 true，紧接着弹出暂停菜单。补设抑制窗口堵住这个口子。
+      this._suppressInteractUntil = this.time.now + 250;
     };
     this.time.delayedCall(100, () => {
       mask.on('pointerdown', close);

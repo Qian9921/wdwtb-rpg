@@ -63,20 +63,24 @@ export class PauseScene extends Phaser.Scene {
   }
 
   _menuButton(y, label, cb, w = 340, color = 0x2a2a44) {
-    // 先量文字再定框：宽取 max(给定宽, 文字宽+边距)，高随文字，绝不挡字
-    const txt = this.add.text(this.W / 2, y, label, { fontSize: '20px', color: '#e8e8f4' }).setOrigin(0.5);
+    // 可爱圆角按钮：先量文字再定框（绝不挡字），圆角+金边+hover 弹性
+    const txt = this.add.text(this.W / 2, y, label, { fontSize: '20px', color: '#eef1ff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2);
     const bw = Math.max(w, Math.ceil(txt.width) + 56);
     const bh = Math.ceil(txt.height) + 24;
-    const btn = this.add.rectangle(this.W / 2, y, bw, bh, color, 0.96)
-      .setStrokeStyle(2, 0x5a5a8a).setInteractive({ useHandCursor: true });
-    txt.setDepth(btn.depth + 1);
-    btn.on('pointerover', () => btn.setFillStyle(0x3a3a5e));
-    btn.on('pointerout', () => btn.setFillStyle(color));
-    btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
-    // 框要在文字下方：先加框再加文字
-    this.panel.add(btn); this.panel.add(txt);
-    btn.label = txt; // 供调用方动态改文字（如辅助模式开关）
-    return btn;
+    const r = Math.min(16, bh / 2);
+    const g = this.add.graphics();
+    const draw = (hover) => {
+      g.clear();
+      g.fillStyle(hover ? 0x3a3a5e : color, 0.97); g.fillRoundedRect(this.W / 2 - bw / 2, y - bh / 2, bw, bh, r);
+      g.lineStyle(2, 0xd4a353, hover ? 1 : 0.6); g.strokeRoundedRect(this.W / 2 - bw / 2, y - bh / 2, bw, bh, r);
+    };
+    draw(false);
+    const zone = this.add.zone(this.W / 2, y, bw, bh).setInteractive({ useHandCursor: true });
+    zone.on('pointerover', () => { draw(true); this.tweens.add({ targets: txt, scale: 1.04, duration: 100, ease: 'Back.out' }); });
+    zone.on('pointerout', () => { draw(false); this.tweens.add({ targets: txt, scale: 1, duration: 100 }); });
+    zone.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
+    this.panel.add(g); this.panel.add(txt); this.panel.add(zone);
+    return { label: txt, g, zone };
   }
 
   _backButton() {
@@ -91,6 +95,13 @@ export class PauseScene extends Phaser.Scene {
   // ===== 主菜单 =====
   _showMain() {
     this._clear();
+    // 可爱圆角卡（衬在菜单后，包住标题+7个按钮，绝不出框）
+    const cardW = 500, cardH = 470, cx = this.W / 2, cy = 355;
+    const card = this.add.graphics();
+    card.fillStyle(0x1a1a2c, 0.98); card.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 26);
+    card.fillStyle(0xffffff, 0.04); card.fillRoundedRect(cx - cardW / 2 + 6, cy - cardH / 2 + 6, cardW - 12, cardH * 0.24, 22);
+    card.lineStyle(3, 0xd4a353, 1); card.strokeRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 26);
+    this.panel.add(card);
     this._title('暂 停', 130);
     const cn = CAREER_NAMES[this.career] || this.career;
     this.panel.add(this.add.text(this.W / 2, 172, `${cn} · 第${this.act}幕 ${ACT_NAMES[this.act] || ''}`, {

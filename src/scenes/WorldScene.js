@@ -512,10 +512,11 @@ export class WorldScene extends Phaser.Scene {
       fontSize: '14px', fill: '#7a7a8a',
     }).setOrigin(1, 1).setScrollFactor(0).setDepth(9999));
 
-    // 常驻任务目标 HUD（左上·状态条下方）：始终显示"现在该干什么"
+    // 常驻任务目标 HUD（左上·状态条下方）：双行显示任务标题+步骤
     this.objectiveHud = trackUI(this.add.text(24, 96, '', {
-      fontSize: '17px', fill: '#ffe08a', backgroundColor: '#141422dd',
+      fontSize: '16px', fill: '#ffe08a', backgroundColor: '#141422dd',
       padding: { x: 12, y: 7 }, wordWrap: { width: 430 },
+      lineSpacing: 4, stroke: '#0a0a14', strokeThickness: 2,
     }).setOrigin(0, 0).setScrollFactor(0).setDepth(9998).setVisible(false));
     // 目标方向箭头（世界层·跟随玩家,指向当前目标）——离目标远时才显示
     this._goalArrow = this.add.image(0, 0, ICON_KEYS.arrow)
@@ -1493,6 +1494,40 @@ export class WorldScene extends Phaser.Scene {
     return summarizeRelations(this.relations, this._npcNameMap()).text || null;
   }
 
+  /** 接取任务后的持久提示卡片（停留 4 秒）——让玩家明确"我刚接了什么任务" */
+  _showQuestAcceptedCard(questId, fallbackTitle) {
+    if (this._questCard) { try { this._questCard.destroy(); } catch (e) {} }
+    const q = this.questSystem?.defs?.[questId];
+    if (!q) return;
+    const { width: W } = this.scale;
+    const next = this.questSystem.nextObjective(questId);
+    const npcName = (id) => (this.npcs || []).find(n => n.id === id)?.name || id;
+    let stepHint = '';
+    if (next) {
+      if (next.kind === 'talk') stepHint = `👉 下一步：去找${npcName(next.target)}（走过去按 E）`;
+      else if (next.kind === 'minigame') stepHint = '👉 下一步：回自己工位坐下 → 开始工作';
+      else stepHint = `👉 下一步：${next.text}`;
+    }
+    const c = this.add.container(W / 2, 180).setScrollFactor(0).setDepth(12001).setAlpha(0);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    c.add(this.add.rectangle(W / 2, 0, 520, 120, 0x141422, 0.96).setStrokeStyle(2, 0xffd24d, 0.7).setOrigin(0.5));
+    c.add(this.add.text(W / 2, -36, '📋 新任务接取', { fontSize: '16px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, -8, q.title || fallbackTitle || '新任务', { fontSize: '22px', color: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0.5));
+    if (q.desc) c.add(this.add.text(W / 2, 18, q.desc, { fontSize: '14px', color: '#9a9ab0', wordWrap: { width: 460, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
+    if (stepHint) c.add(this.add.text(W / 2, 40, stepHint, { fontSize: '15px', color: '#7eff9a', stroke: '#0a0a14', strokeThickness: 2 }).setOrigin(0.5));
+    this._questCard = c;
+    this.tweens.add({
+      targets: c, alpha: 1, duration: 300,
+      onComplete: () => {
+        this.time.delayedCall(4000, () => {
+          if (!this._questCard || this._questCard !== c) return;
+          this.tweens.add({ targets: c, alpha: 0, y: 160, duration: 400,
+            onComplete: () => { try { c.destroy(); } catch (e) {} if (this._questCard === c) this._questCard = null; } });
+        });
+      },
+    });
+  }
+
   /** 进 PauseScene 的公共载荷 */
   _pausePayload(extra = {}) {
     return {
@@ -1562,10 +1597,11 @@ export class WorldScene extends Phaser.Scene {
         const applied = applySeniorAction(this.questSystem, action);
         if (applied.ok) {
           Juice.pop(this, npc.spr || this.player, 1.08);
-          Juice.floatText(this, this.player.x, this.player.y - 64, '📋 新任务', '#ffd24d');
           AudioSystem.uiClick?.();
           this._showLine(npc.name, applied.line || action.acceptLine);
           this._updateNpcMarks();
+          // 持久"新任务接取"卡片：停 4 秒，让玩家明确知道接了什么
+          this._showQuestAcceptedCard(action.questId || applied.questId, action.title || applied.line);
           return;
         }
       }
@@ -1886,18 +1922,26 @@ export class WorldScene extends Phaser.Scene {
   // guideText 与 objectiveHud 共用 _currentGoal，避免静态「新人报到」与真实下一步打架。
   _updateObjectiveHud() {
     const goal = this._currentGoal();
-    // HUD 文本
-    const label = goal ? `▸ ${goal.text}` : '';
+    // HUD 文本：双行——任务标题 + 当前步骤（比旧的裸 step 更有上下文）
+    const hud = chainHudStep(this.questSystem, this.act);
+    let label;
+    if (hud.title) {
+      label = `⛓ ${hud.title}\n${hud.step}`;
+    } else if (goal) {
+      label = `${goal.text}`;
+    } else {
+      label = '';
+    }
     if (this._lastGoalLabel !== label) {
       this._lastGoalLabel = label;
       if (this.objectiveHud) {
         this.objectiveHud.setText(label).setVisible(!!label && !this.dialogueActive);
       }
-      // 底部引导条：与 objective 同源（bottomGuideFromGoal），避免静态「新人报到」打架
+      // 底部引导条：与 objective 同源
       if (this.guideText && !this.dialogueActive) {
         const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
         const [gName] = gTheme.npcs.senior;
-        const bottom = bottomGuideFromGoal(goal, gName);
+        const bottom = goal ? `📋 ${goal.text}` : `▸ 找头顶 ❗ 的人，或按 ESC 打开任务日志（导师：${gName}）`;
         if (this._lastGuideLabel !== bottom) {
           this._lastGuideLabel = bottom;
           this.guideText.setText(bottom);
@@ -2193,32 +2237,67 @@ export class WorldScene extends Phaser.Scene {
     const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
       .setScrollFactor(0).setInteractive();
     c.add(mask);
-    const pw = 760, ph = 560, px = width / 2, py = height / 2;
+    const pw = 760, ph = 620, px = width / 2, py = height / 2;
     c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.98).setStrokeStyle(2, 0xd4a353));
-    c.add(this.add.text(px, py - ph / 2 + 30, '📋 今日任务清单', { fontSize: '28px', fill: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5));
-    c.add(this.add.text(px, py - ph / 2 + 64, '主线任务链 + 今日工单 —— 干完活,项目才往前走', { fontSize: '15px', fill: '#9aa0b0' }).setOrigin(0.5));
-
-    // ── 主线任务链条(当前环 + 下一步)。做任何一件工单都算"回工位干活"。
-    const my = py - ph / 2 + 104;
-    const hud = chainHudStep(this.questSystem, this.act);
-    c.add(this.add.rectangle(px, my, pw - 80, 56, 0x1e2a3e, 0.96).setStrokeStyle(2, 0x4a7ab5));
-    if (hud.title) {
-      c.add(this.add.text(px - pw / 2 + 60, my - 12, `⛓ 主线 · ${hud.title}`, { fontSize: '17px', fill: '#8fc3ff', fontStyle: 'bold' }).setOrigin(0, 0.5));
-      c.add(this.add.text(px - pw / 2 + 60, my + 13, hud.step, { fontSize: '13px', fill: '#c8d8ec' }).setOrigin(0, 0.5));
-    } else {
-      c.add(this.add.text(px - pw / 2 + 60, my, hud.step, { fontSize: '15px', fill: '#8fc3ff' }).setOrigin(0, 0.5));
-    }
+    c.add(this.add.text(px, py - ph / 2 + 30, '💻 我的工作台', { fontSize: '28px', fill: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5));
     const pj = Math.round(this.projectSystem.progress);
-    c.add(this.add.text(px + pw / 2 - 56, my, `项目 ${pj}%`, { fontSize: '15px', fill: '#f0c060' }).setOrigin(1, 0.5));
+
+    // ════════ 主区域：当前任务链（大、醒目、唯一"我的任务"）════════
+    const hud = chainHudStep(this.questSystem, this.act);
+    const quest = hud.quest;
+    const mainY = py - ph / 2 + 92;
+    c.add(this.add.text(px - pw / 2 + 48, mainY - 8, '⛓ 当前任务', { fontSize: '14px', fill: '#8fc3ff', fontStyle: 'bold' }).setOrigin(0, 0.5));
+    // 主任务卡
+    c.add(this.add.rectangle(px, mainY + 42, pw - 80, 90, 0x1e2a3e, 0.98).setStrokeStyle(3, 0x4a7ab5));
+    if (hud.title) {
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 20, hud.title, { fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 52, hud.step, { fontSize: '16px', fill: '#ffd24d' }).setOrigin(0, 0.5));
+    } else {
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 42, hud.step, { fontSize: '16px', fill: '#8fc3ff' }).setOrigin(0, 0.5));
+    }
+    c.add(this.add.text(px + pw / 2 - 56, mainY + 42, `项目 ${pj}%`, { fontSize: '16px', fill: '#f0c060', fontStyle: 'bold' }).setOrigin(1, 0.5));
+
+    // 当前步骤的行动指引（大字、明确）
+    const activeQuest = this.questSystem.active().find(q => q.giver === 'senior');
+    const nextObj = activeQuest ? this.questSystem.nextObjective(activeQuest.id) : null;
+    const npcName = (id) => (this.npcs || []).find(n => n.id === id)?.name || id;
+    let actionHint = '';
+    let canWork = false;
+    if (nextObj) {
+      if (nextObj.kind === 'talk') {
+        actionHint = `👉 先去找 ${npcName(nextObj.target)} 对接（离开工位，走过去按 E）`;
+      } else if (nextObj.kind === 'minigame') {
+        actionHint = '👉 对接完成！现在开工——从下方"额外工单"选一个开工';
+        canWork = true;
+      }
+    } else if (activeQuest && this.questSystem.isReady(activeQuest.id)) {
+      actionHint = `✅ 任务完成！去找导师 ${npcName('senior')} 交付（头顶 ❓）`;
+    } else if (!activeQuest && hud.title === null) {
+      actionHint = '👉 去找导师领下一个任务（头顶 ❗）';
+    }
+    if (actionHint) {
+      c.add(this.add.text(px, mainY + 112, actionHint, {
+        fontSize: '17px', fill: canWork ? '#7eff9a' : '#ffe08a', stroke: '#0a0a14', strokeThickness: 2,
+        wordWrap: { width: pw - 120, useAdvancedWrap: true }, align: 'center',
+      }).setOrigin(0.5));
+    }
+
+    // ════════ 次要区域：额外工单（降级、明确标注"额外"）════════
+    const secY = py - ph / 2 + 250;
+    c.add(this.add.text(px - pw / 2 + 48, secY, '📋 今日额外工单（推进项目进度）', { fontSize: '14px', fill: '#6a6a7e' }).setOrigin(0, 0.5));
+    if (!canWork && nextObj && nextObj.kind === 'talk') {
+      c.add(this.add.text(px, secY + 24, '（完成对接后解锁）', { fontSize: '13px', fill: '#4a4a5e' }).setOrigin(0.5));
+    }
 
     const orders = this.projectSystem.getOrders();
     const DIFF = { easy: { t: '简单', c: '#6fcf7f' }, mid: { t: '中等', c: '#f0c060' }, hard: { t: '困难', c: '#e8735a' } };
     orders.forEach((o, i) => {
-      const oy = py - 92 + i * 96;
+      const oy = secY + 54 + i * 70;
       const done = o.done;
-      const card = this.add.rectangle(px, oy, pw - 80, 82, done ? 0x18261a : 0x232338, 0.96)
-        .setStrokeStyle(2, done ? 0x3a5a3a : 0x4a4a6a);
-      if (!done) {
+      const disabled = !canWork && !done;
+      const card = this.add.rectangle(px, oy, pw - 80, 60, done ? 0x182618 : (disabled ? 0x1a1a24 : 0x232338), 0.96)
+        .setStrokeStyle(2, done ? 0x3a5a3a : (disabled ? 0x2a2a34 : 0x4a4a6a));
+      if (!done && !disabled) {
         card.setInteractive({ useHandCursor: true })
           .on('pointerover', () => card.setFillStyle(0x33334e))
           .on('pointerout', () => card.setFillStyle(0x232338))
@@ -2226,14 +2305,14 @@ export class WorldScene extends Phaser.Scene {
       }
       c.add(card);
       const d = DIFF[o.difficulty] || DIFF.mid;
-      c.add(this.add.text(px - pw / 2 + 60, oy - 16, `${done ? '✅ ' : ''}${o.title}`, {
-        fontSize: '20px', fill: done ? '#7a9a7a' : '#ffffff', fontStyle: 'bold',
+      c.add(this.add.text(px - pw / 2 + 60, oy - 10, `${done ? '✅ ' : ''}${o.title}`, {
+        fontSize: '17px', fill: done ? '#7a9a7a' : (disabled ? '#5a5a6a' : '#ffffff'), fontStyle: 'bold',
       }).setOrigin(0, 0.5));
-      c.add(this.add.text(px - pw / 2 + 60, oy + 16, `难度 ${d.t} · 预计 ${o.est}h · 推进 +${o.progress}% · 绩效 +${o.performance}`, {
-        fontSize: '13px', fill: '#9aa0b0',
+      c.add(this.add.text(px - pw / 2 + 60, oy + 14, `${d.t} · +${o.progress}% · 绩效+${o.performance}`, {
+        fontSize: '12px', fill: '#6a6a7e',
       }).setOrigin(0, 0.5));
-      c.add(this.add.text(px + pw / 2 - 56, oy, done ? '已完成' : '▶ 开工', {
-        fontSize: '18px', fill: done ? '#6a8a6a' : d.c, fontStyle: 'bold',
+      c.add(this.add.text(px + pw / 2 - 56, oy, done ? '已完成' : (disabled ? '🔒' : '▶ 开工'), {
+        fontSize: '16px', fill: done ? '#6a8a6a' : (disabled ? '#4a4a5e' : d.c), fontStyle: 'bold',
       }).setOrigin(1, 0.5));
     });
 
@@ -2670,7 +2749,7 @@ export class WorldScene extends Phaser.Scene {
             if (self.offWorkBtn) self.offWorkBtn.setVisible(true);
             if (self.sceneBackdrop) self.sceneBackdrop.show('office');
             self.time.delayedCall(300, () => {
-              self._showRitual('📅 开场故事告一段落。\n✅ 下一步：找导师（头顶 ❗）领任务链\n→ 对接 → 工位开工 → 项目推到 100% 再找导师收尾。');
+              self._showRitual('📅 开场故事结束。\n\n下一步：找导师（头顶 ❗）领任务\n→ 对接同事 → 工位开工 → 项目推到 100% 再找导师收尾。');
             });
             break;
           }
@@ -2793,13 +2872,11 @@ export class WorldScene extends Phaser.Scene {
     this._showFamilyByAct(this.act);
     const need = ACT_DAYS[this.act] || 1;
     const seniorName = (this.npcs || []).find(n => n.id === 'senior')?.name || '导师';
-    this.time.delayedCall(400, () => {
-      // workLoop：下一步是领链任务；非 workLoop：攒天再推进
-      const body = this.workLoopEnabled
-        ? `📅 报到故事告一段落。\n✅ 下一步：再找${seniorName}（头顶 ❗）领第一环任务\n→ 对接同事 → 自己的工位「坐下→开始工作」→ 右上角下班。`
-        : `📅 这一阶段的故事告一段落。\n接下来的${need}天，好好经营你的职场日常——\n做做任务、和同事聊聊、累了就下班回家。\n等你过完这几天，去找${seniorName}聊下一步。`;
-      this._showRitual(body);
-    });
+    // workLoop：下一步是领链任务——直接弹仪式（不等 400ms），文字更明确
+    const body = this.workLoopEnabled
+      ? `📅 开场故事结束。\n\n${seniorName}有事找你——\n再走近他（头顶有 ❗），按 E 对话，\n他会给你第一个工作任务。\n\n之后：找同事对接 → 回工位开工 → 右上角下班。`
+      : `📅 这一阶段的故事告一段落。\n接下来的${need}天，好好经营你的职场日常——\n做做任务、和同事聊聊、累了就下班回家。\n等你过完这几天，去找${seniorName}聊下一步。`;
+    this._showRitual(body);
   }
 
 }

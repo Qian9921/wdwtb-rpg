@@ -69,8 +69,8 @@ const puppeteer=require('puppeteer'); const sleep=ms=>new Promise(r=>setTimeout(
     const texts=[]; w._workBoardUI.iterate(o=>{if(o.text)texts.push(o.text);});
     w._closeWorkBoard(w._workBoardUI);
     return texts.join('|');});
-  t('工单板=今日任务清单', r5.includes('今日任务清单'));
-  t('工单板显示主线·登录接口', r5.includes('主线') && r5.includes('登录接口'));
+  t('工单板=我的工作台', r5.includes('我的工作台'));
+  t('工单板显示当前任务+登录接口', r5.includes('当前任务') && r5.includes('登录接口'));
   t('工单板显示项目%', /项目 \d+%/.test(r5));
 
   // 8. test 链 + 小游戏皮肤

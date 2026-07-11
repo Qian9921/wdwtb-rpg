@@ -6,6 +6,9 @@ import {
   formatTriedCareersLine,
   REPORT_HISTORY_KEY,
 } from '../systems/CareerFit.js';
+import { ExplorationArchive, recommendDirections, completion } from '../systems/ExplorationArchive.js';
+import { normalizeAxes, AXIS_META, AXIS_KEYS } from '../systems/PersonalityAxes.js';
+import { INSIGHT_TOTAL } from '../systems/InsightCodex.js';
 
 // HubScene：职业选择大厅。玩家捏完人后选职业进入体验。
 // 职业列表暂时硬编码，以后可挪到 data/ 目录的 JSON。
@@ -164,6 +167,14 @@ export class HubScene extends Phaser.Scene {
     back.on('pointerout', () => back.setColor('#9aa0a6'));
     back.on('pointerdown', () => this.scene.start('OpeningScene'));
 
+    // 右上角「探索档案」——跨职业自我发现的可视化入口（引导方向的落点）
+    const dashBtn = this.add.rectangle(880, 22, 150, 30, 0x23233a, 0.96)
+      .setStrokeStyle(2, 0x7b9cd6).setInteractive({ useHandCursor: true });
+    const dashTxt = this.add.text(880, 22, '📊 探索档案', { fontSize: '14px', color: '#bcd0f0' }).setOrigin(0.5);
+    dashBtn.on('pointerover', () => dashBtn.setFillStyle(0x33334e));
+    dashBtn.on('pointerout', () => dashBtn.setFillStyle(0x23233a));
+    dashBtn.on('pointerdown', () => { AudioSystem.uiClick(); this._showArchivePanel(); });
+
     // 网格参数：5 列 × 2 行
     const cols = 5;
     const cardW = 160, cardH = 92;
@@ -275,6 +286,67 @@ export class HubScene extends Phaser.Scene {
 
     const close = this.add.text(748, 148, '✕', { fontSize: '20px', color: '#8a8a9e' })
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(53);
+    close.on('pointerover', () => close.setColor('#ff9a9a'));
+    close.on('pointerdown', () => { els.push(close); els.forEach(e => e.destroy()); });
+    els.push(close);
+  }
+
+  // 探索档案面板：跨职业自我发现的仪表盘——人格轴 + 已试职业 + 推荐方向 + 完成度。
+  // 让"引导方向"这个主旨,在选职业前就被玩家看见。
+  _showArchivePanel() {
+    const arch = ExplorationArchive.load();
+    const axes = normalizeAxes(arch.axisTotals || {});
+    const rec = recommendDirections(arch, { topN: 3 });
+    const comp = completion(arch);
+    const tried = Object.keys(arch.careers || {});
+
+    const els = [];
+    const D = 60;
+    els.push(this.add.rectangle(480, 270, 960, 540, 0x0a0a16, 0.86).setInteractive().setDepth(D));
+    els.push(this.add.rectangle(480, 270, 640, 400, 0x161628).setStrokeStyle(2, 0x7b9cd6).setDepth(D + 1));
+    els.push(this.add.text(480, 96, '📊 我的职业探索档案', { fontSize: '22px', color: '#bcd0f0', fontStyle: 'bold' }).setOrigin(0.5).setDepth(D + 2));
+    els.push(this.add.text(480, 120, '你的选择跨职业沉淀下来的样子——方向,从对照里长出来。', { fontSize: '11px', color: '#8a90a6' }).setOrigin(0.5).setDepth(D + 2));
+
+    // 左栏：职业人格轴（4条双极迷你条）
+    const lx = 210;
+    els.push(this.add.text(lx, 150, '职业人格轴', { fontSize: '14px', color: '#d4a353', fontStyle: 'bold' }).setOrigin(0, 0).setDepth(D + 2));
+    let ay = 178;
+    for (const k of AXIS_KEYS) {
+      const meta = AXIS_META[k];
+      const v = Math.max(-100, Math.min(100, axes[k] || 0));
+      els.push(this.add.text(lx, ay, meta.neg, { fontSize: '10px', color: '#8a8a9e' }).setOrigin(0, 0.5).setDepth(D + 2));
+      els.push(this.add.text(lx + 180, ay, meta.pos, { fontSize: '10px', color: '#8a8a9e' }).setOrigin(1, 0.5).setDepth(D + 2));
+      const tx = lx + 34, tw = 112, mid = tx + tw / 2;
+      els.push(this.add.rectangle(mid, ay, tw, 4, 0x2a2a3e).setOrigin(0.5).setDepth(D + 2));
+      els.push(this.add.rectangle(mid, ay, 2, 9, 0x55556e).setOrigin(0.5).setDepth(D + 2));
+      els.push(this.add.circle(mid + (v / 100) * (tw / 2), ay, 5, 0xf0c060).setDepth(D + 3));
+      ay += 26;
+    }
+    // 完成度
+    els.push(this.add.text(lx, ay + 6, `探索完成度：职业 ${comp.careers.tried}/${comp.careers.total} · 感悟 ${comp.thoughts}/${INSIGHT_TOTAL}`, {
+      fontSize: '11px', color: '#9ab4dc',
+    }).setOrigin(0, 0).setDepth(D + 2));
+
+    // 右栏：已试职业 + 推荐方向
+    const rx = 470;
+    els.push(this.add.text(rx, 150, '已体验', { fontSize: '14px', color: '#d4a353', fontStyle: 'bold' }).setOrigin(0, 0).setDepth(D + 2));
+    const triedNames = tried.length ? tried.map(k => CAREER_NAMES[k] || k).join('、') : '还没有——选一个职业开始吧';
+    els.push(this.add.text(rx, 174, triedNames, { fontSize: '12px', color: '#c8c8d8', wordWrap: { width: 250 }, lineSpacing: 3 }).setOrigin(0, 0).setDepth(D + 2));
+
+    els.push(this.add.text(rx, 224, '🧭 建议下一步探索', { fontSize: '14px', color: '#7b9cd6', fontStyle: 'bold' }).setOrigin(0, 0).setDepth(D + 2));
+    let ry = 250;
+    (rec.next || []).forEach((n, i) => {
+      els.push(this.add.text(rx, ry, `${i + 1}. ${n.name}`, { fontSize: '13px', color: '#e6e6e6', fontStyle: 'bold' }).setOrigin(0, 0).setDepth(D + 2));
+      els.push(this.add.text(rx, ry + 17, n.why, { fontSize: '11px', color: '#a0a0b8', wordWrap: { width: 250 }, lineSpacing: 2 }).setOrigin(0, 0).setDepth(D + 2));
+      const t = this.add.text(rx, ry + 17, n.why, { fontSize: '11px', wordWrap: { width: 250 }, lineSpacing: 2 }).setVisible(false);
+      ry += 20 + t.height + 8; t.destroy();
+    });
+    if (rec.deepen) {
+      els.push(this.add.text(rx, ry + 2, `或：回「${rec.deepen.careerName}」试试没走过的方向`, { fontSize: '11px', color: '#c8b070', wordWrap: { width: 250 } }).setOrigin(0, 0).setDepth(D + 2));
+    }
+
+    const close = this.add.text(788, 84, '✕', { fontSize: '20px', color: '#8a8a9e' })
+      .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(D + 3);
     close.on('pointerover', () => close.setColor('#ff9a9a'));
     close.on('pointerdown', () => { els.push(close); els.forEach(e => e.destroy()); });
     els.push(close);

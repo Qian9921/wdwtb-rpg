@@ -29,26 +29,22 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
   });
   ok('剧情状态机初始 ready', story.phase === 'ready', JSON.stringify(story));
 
-  // 2. 修复 senior 短路：走近 senior 不再无条件播剧情，任务系统可达
-  //    验证：非 senior NPC 的任务可接可完成（之前 interact 目标永远完不成）
+  // 2. 任务链设计:接链任务后 talk 目标可完成(senior 不再短路任务系统)
   errors.length = 0;
   const questFlow = await p.evaluate(async () => {
     const ws = window.__game.scene.getScene('WorldScene');
     await new Promise(r => setTimeout(r, 400));
     const qs = ws.questSystem;
-    // 找一个 giver 不是 senior、含 interact 目标的任务
-    const q = Object.values(qs.defs).find(x => x.giver !== 'senior' && (x.objectives||[]).some(o => o.kind === 'interact'));
-    if (!q) return { error: 'no interact quest' };
+    const q = Object.values(qs.defs).find(x => (x.objectives||[]).some(o => o.kind === 'talk'));
+    if (!q) return { error: 'no talk quest' };
     qs.accept(q.id);
-    // 找该任务的 interact 目标，模拟交互物件完成
-    const io = q.objectives.find(o => o.kind === 'interact');
+    const io = q.objectives.find(o => o.kind === 'talk');
     const before = qs.accepted[q.id].objectives[io.id];
-    // 直接调 progress('interact', target) —— 这是修复点
-    qs.progress('interact', io.target);
+    qs.progress('talk', io.target);
     const after = qs.accepted[q.id].objectives[io.id];
     return { questId: q.id, target: io.target, before, after };
   });
-  ok('interact 类任务目标可完成（修复progress从未调用）', questFlow.after === true && questFlow.before === false, JSON.stringify(questFlow));
+  ok('任务链 talk 目标可完成', questFlow.after === true && questFlow.before === false, JSON.stringify(questFlow));
 
   // 3. 交互物件真的上报 interact 进度 + 消耗精力
   errors.length = 0;
@@ -87,27 +83,24 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
   ok('经营期天数从0开始', nextAct.daysInAct === 0);
   await p.evaluate(() => { const ws = window.__game.scene.getScene('WorldScene'); const c = ws.children.list.find(o=>o.depth===10001); if(c)c.destroy(true); });
 
-  // 5. 天数攒够才能推进下一幕（走近 senior 经营期检查）
+  // 5. 程序员=里程碑推进:pendingAct 未设不推进;设了 pendingAct 走近 senior 推进
   errors.length = 0;
   const advance = await p.evaluate(async () => {
     const ws = window.__game.scene.getScene('WorldScene');
-    ws._story = { phase: 'working', act: 1, daysInAct: 0 };
+    ws._story = { phase: 'working', act: 1, daysInAct: 0, pendingAct: null };
     ws.act = 1;
     const senior = ws.npcs.find(n => n.id === 'senior');
-    // 天数不够 → 不推进（提示还需过几天）
     ws._interactSenior(senior);
     await new Promise(r => setTimeout(r, 200));
-    const notYet = ws._story.act; // 还是 1
-    // 关掉提示框
+    const notYet = ws._story.act || ws.act;
     ws.dialogueActive = false;
-    // 天数攒够 → 推进
-    ws._story.daysInAct = 1; // ACT_DAYS[1]=1
+    ws._story.pendingAct = 2; // 项目跨过25%里程碑
     ws._interactSenior(senior);
     await new Promise(r => setTimeout(r, 600));
     return { notYetAct: notYet, advancedAct: ws.act, advancedPhase: ws._story.phase };
   });
-  ok('经营期天数不够→不推进（还是act1）', advance.notYetAct === 1);
-  ok('天数攒够→推进到act2', advance.advancedAct === 2, JSON.stringify(advance));
+  ok('里程碑未到→不推进（还是act1）', advance.notYetAct === 1);
+  ok('里程碑到→推进到act2', advance.advancedAct === 2, JSON.stringify(advance));
 
   // 6. choice tag 采集：剧情选项带 tag，choiceLog 能聚合
   errors.length = 0;
@@ -130,12 +123,12 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
   });
   ok('剧情数据 a5 结局分叉已打 tag', dataTag.crossroadsTags.length >= 5, JSON.stringify(dataTag.crossroadsTags));
 
-  // 8. phone 交互物件存在（修复任务 target 对齐）
-  const phone = await p.evaluate(async () => {
-    const d = await (await fetch('./data/interactables_programmer.json')).json();
-    return { hasPhone: d.interactables.some(i => i.id === 'phone') };
+  // 8. 手机现为 HUD 常驻按钮(_phoneBtn),不再是地面物件
+  const phone = await p.evaluate(() => {
+    const ws = window.__game.scene.getScene('WorldScene');
+    return { hasPhoneBtn: !!ws._phoneBtn && ws._phoneBtn.visible !== false };
   });
-  ok('补了 phone 交互物件（对齐任务 target）', phone.hasPhone);
+  ok('手机 HUD 按钮存在(取代地面物件)', phone.hasPhoneBtn);
 
   await b.close();
   console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);

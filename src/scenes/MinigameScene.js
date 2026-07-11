@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { pickMinigameQuestions } from '../systems/MinigameFlavor.js';
 import { Juice } from '../systems/JuiceKit.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 
@@ -91,7 +92,7 @@ export class MinigameScene extends Phaser.Scene {
         return res.json();
       })
       .then(data => {
-        this.questions = (data.questions && data.questions.length) ? data.questions : DEFAULT_QUESTIONS;
+        this.questions = pickMinigameQuestions(data, this.career, this.type) || DEFAULT_QUESTIONS;
         this.title = (data._meta && data._meta.title) || null;
         if (this.loadingText) { this.loadingText.destroy(); this.loadingText = null; }
         this._showQuestion();

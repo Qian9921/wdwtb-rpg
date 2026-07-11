@@ -2,29 +2,75 @@ import Phaser from 'phaser';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { makeButton } from '../systems/UI.js';
+import { buildWorldResumeData } from '../systems/Resume.js';
 
 // TitleScene：游戏标题页 — 游戏名 + 主题金句 + 开始。demo 与正式流程的门面。
 export class TitleScene extends Phaser.Scene {
   constructor() { super('TitleScene'); }
 
+  // 像素城市黄昏天际线（呼应开篇"仰望玻璃大厦"）。全用负深度,保证在标题文字之下。
+  _drawSkyline(W, H) {
+    const sky = this.add.graphics().setDepth(-10);
+    sky.fillGradientStyle(0x141026, 0x1a1430, 0x6e3550, 0xb0603e, 1); // 夜空→黄昏暖色
+    sky.fillRect(0, 0, W, H);
+    sky.fillStyle(0xffb673, 0.10); sky.fillRect(0, H * 0.60, W, H * 0.16); // 地平线暖光带
+    // 月亮 + 光晕
+    this.add.circle(W * 0.80, H * 0.19, 72, 0xf6e8c8, 0.10).setDepth(-9);
+    this.add.circle(W * 0.80, H * 0.19, 44, 0xf6e8c8, 0.92).setDepth(-9);
+
+    // 三层楼群：后→前，越前越高越亮
+    const layers = [
+      { base: H * 0.70, col: 0x241d3a, wmin: 70, wmax: 150, hmin: 60,  hmax: 150, lit: 0.22, tint: 0xffd27a, depth: -8 },
+      { base: H * 0.77, col: 0x191430, wmin: 60, wmax: 130, hmin: 120, hmax: 260, lit: 0.48, tint: 0xffcf7a, depth: -6 },
+      { base: H * 0.85, col: 0x100c1e, wmin: 84, wmax: 176, hmin: 170, hmax: 360, lit: 0.72, tint: 0xffe08a, depth: -4 },
+    ];
+    for (const L of layers) {
+      let x = -40;
+      while (x < W + 40) {
+        const bw = Phaser.Math.Between(L.wmin, L.wmax);
+        const bh = Phaser.Math.Between(L.hmin, L.hmax);
+        const by = L.base - bh;
+        this.add.rectangle(x, by, bw, H - by + 40, L.col).setOrigin(0, 0).setDepth(L.depth);
+        // 亮窗网格
+        for (let wy = by + 16; wy < L.base - 10; wy += 20) {
+          for (let wx = x + 12; wx < x + bw - 12; wx += 16) {
+            if (Math.random() < L.lit) {
+              const a = Phaser.Math.FloatBetween(0.5, 0.95);
+              const win = this.add.rectangle(wx, wy, 7, 9, L.tint, a).setOrigin(0, 0).setDepth(L.depth + 0.5);
+              if (Math.random() < 0.16) this.tweens.add({
+                targets: win, alpha: 0.12, duration: Phaser.Math.Between(1600, 3600),
+                yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 3000),
+              });
+            }
+          }
+        }
+        x += bw + Phaser.Math.Between(4, 16);
+      }
+    }
+  }
+
   create() {
     const { width: W, height: H } = this.scale;
-    this.cameras.main.setBackgroundColor('#15151f');
     this.cameras.main.fadeIn(700, 10, 8, 20);
     AudioSystem.playBgm('title'); // 音频未解锁时挂起，首次点击后自动开播
 
-    // 背景氛围:漂浮的光点(呼应心象世界)
-    for (let i = 0; i < 14; i++) {
+    // 封面：像素城市黄昏天际线（呼应开篇"仰望玻璃大厦"）——渐变夜空 + 楼群剪影 + 亮窗闪烁
+    this._drawSkyline(W, H);
+
+    // 前景氛围:漂浮的暖光点
+    for (let i = 0; i < 16; i++) {
       const c = this.add.circle(
         Phaser.Math.Between(0, W), Phaser.Math.Between(0, H),
         Phaser.Math.Between(2, 5), 0xf5c86b, Phaser.Math.FloatBetween(0.06, 0.18)
-      );
+      ).setDepth(-2);
       this.tweens.add({
         targets: c, y: c.y - Phaser.Math.Between(30, 80),
         alpha: 0, duration: Phaser.Math.Between(3000, 6000),
         repeat: -1, delay: Phaser.Math.Between(0, 3000),
       });
     }
+    // 文字压一层柔和暗罩,保证标题清晰（在天际线之上、文字之下）
+    this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a16, 0.30).setDepth(-1);
 
     // 顶部小字（1920 尺度：字号加大防缩放模糊）
     this.add.text(W / 2, H * 0.24, '腾讯云黑客松 · 职场疗愈叙事 RPG', {
@@ -54,13 +100,14 @@ export class TitleScene extends Phaser.Scene {
       this.cameras.main.fadeOut(500, 10, 8, 20);
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('OpeningScene'));
     };
-    // 继续游戏（读档回到当前职业与幕次）
+    // 继续游戏：career + act + subRole + deep 全量带回（修续档丢任务链方向）
     const resume = () => {
       const save = SaveSystem.load();
-      if (!save) { start(); return; }
+      const data = buildWorldResumeData(save);
+      if (!data) { start(); return; }
       this.cameras.main.fadeOut(500, 10, 8, 20);
       this.cameras.main.once('camerafadeoutcomplete', () =>
-        this.scene.start('WorldScene', { career: save.career, act: save.act }));
+        this.scene.start('WorldScene', data));
     };
 
     // 自适应按钮工厂：框随文字自动加大一圈，绝不挡字

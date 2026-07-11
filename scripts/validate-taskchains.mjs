@@ -31,6 +31,21 @@ for (const f of files.filter(f => /^roster_[a-z]+\.json$/.test(f))) {
     const d = JSON.parse(readFileSync(join(dataDir, f), 'utf8'));
     rosters[career] = new Set((d.npcs || []).map(n => n.id));
     ok(`${f} npcs 非空且含 senior`, rosters[career].size > 0 && rosters[career].has('senior'));
+    // linesByAct：非导师 NPC 应有随幕台词；结构必须是 {数字幕: 非空字符串数组}
+    for (const n of (d.npcs || [])) {
+      if (n.id === 'senior') continue; // 导师走剧情/派活，不需要寒暄池
+      ok(`${f} ${n.id} 有 linesByAct 随幕台词`, !!n.linesByAct, '缺 linesByAct');
+      if (!n.linesByAct) continue;
+      let structOk = true, hasAct1 = false;
+      for (const [k, v] of Object.entries(n.linesByAct)) {
+        const kn = Number(k);
+        if (!Number.isInteger(kn) || kn < 1 || kn > 5) structOk = false;
+        if (kn === 1) hasAct1 = true;
+        if (!Array.isArray(v) || v.length === 0 || v.some(s => typeof s !== 'string' || !s.trim())) structOk = false;
+      }
+      ok(`${f} ${n.id} linesByAct 结构合法(幕1-5,池非空)`, structOk);
+      ok(`${f} ${n.id} 覆盖第1幕(开局不哑)`, hasAct1 || !!n.line, '无幕1台词也无兜底 line');
+    }
   } catch (e) {
     ok(`${f} JSON 可解析`, false, e.message);
   }
@@ -104,6 +119,37 @@ for (const f of chains) {
   ok(`[${tag}] requires 无环(拓扑可排序)`, seen === quests.length);
   ok(`[${tag}] 首环无前置(可开局)`, quests.some(q => !(q.requires || []).length));
   ok(`[${tag}] progressGain 合计=100`, gainSum === 100, `实际=${gainSum}`);
+}
+
+// ---- 办公室随机事件：结构 + 幕次门槛 + effects 键合法 ----
+const VALID_STATS = new Set(['health', 'energy', 'san', 'stress', 'skill', 'performance', 'money', 'passion']);
+for (const f of files.filter(f => /^office_events_[a-z]+\.json$/.test(f))) {
+  let d;
+  try { d = JSON.parse(readFileSync(join(dataDir, f), 'utf8')); }
+  catch (e) { ok(`${f} JSON 可解析`, false, e.message); continue; }
+  const evts = d.events || [];
+  ok(`${f} 事件≥10条(重复感门槛)`, evts.length >= 10, `实际=${evts.length}`);
+  const ids = new Set();
+  for (const e of evts) {
+    const et = `${f} ${e.id}`;
+    ok(`${et} id 唯一`, e.id && !ids.has(e.id));
+    ids.add(e.id);
+    ok(`${et} 有 title/text`, !!e.title && !!e.text);
+    ok(`${et} 2-3 个选项`, Array.isArray(e.choices) && e.choices.length >= 2 && e.choices.length <= 3);
+    if (e.minAct != null) ok(`${et} minAct 1-5`, e.minAct >= 1 && e.minAct <= 5);
+    if (e.maxAct != null) ok(`${et} maxAct 1-5`, e.maxAct >= 1 && e.maxAct <= 5);
+    for (const c of (e.choices || [])) {
+      ok(`${et} 选项有 label/result`, !!c.label && !!c.result);
+      for (const k of Object.keys(c.effects || {})) {
+        ok(`${et} effects 键合法(${k})`, VALID_STATS.has(k));
+      }
+    }
+  }
+  // act1-5 每幕都至少有 3 个可触发事件(不空窗)
+  for (let act = 1; act <= 5; act++) {
+    const n = evts.filter(e => (e.minAct == null || act >= e.minAct) && (e.maxAct == null || act <= e.maxAct)).length;
+    ok(`${f} 第${act}幕可触发事件≥3`, n >= 3, `实际=${n}`);
+  }
 }
 
 // ---- HubScene SUBROLES ↔ taskchain 文件 双向对齐 ----

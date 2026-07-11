@@ -10,6 +10,7 @@ import { PauseScene } from './scenes/PauseScene.js';
 import { HomeScene } from './scenes/HomeScene.js';
 import { CommuteScene } from './scenes/CommuteScene.js';
 import { DebugGameScene } from './scenes/DebugGameScene.js';
+import { SequenceGameScene } from './scenes/SequenceGameScene.js';
 
 // Phaser 游戏配置：引擎参数写一次共用。
 // 剧情与职业内容不在此处，统一从 data/ 目录的 JSON 读取。
@@ -45,5 +46,6 @@ export const config = {
     HomeScene,
     CommuteScene,
     DebugGameScene,
+    SequenceGameScene,
   ],
 };

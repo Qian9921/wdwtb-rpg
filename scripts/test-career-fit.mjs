@@ -4,7 +4,7 @@ import {
   scoreCareer, rankCareers, buildTryFirstAdvice,
   bodySignalsFromStats, summarizeChoices, buildEndingReportContext,
   buildReportHistoryEntry, mergeReportHistory,
-  formatTriedCareersLine, resolveInteractGoalPos,
+  formatTriedCareersLine, resolveInteractGoalPos, buildPauseInsight,
 } from '../src/systems/CareerFit.js';
 
 let pass = 0, fail = 0;
@@ -84,6 +84,42 @@ ok('formatTried 有职业', formatTriedCareersLine([
 ok('resolveInteract 从 pos', resolveInteractGoalPos('vending', {
   interactables: [{ id: 'vending', pos: [1, 2] }],
 })?.x === 1);
+
+const pause = buildPauseInsight({
+  profile: geek,
+  stats: { stress: 80, health: 40, passion: 60, energy: 30 },
+  career: 'programmer',
+  act: 2,
+});
+ok('pauseInsight headline 含幕', pause.headline.includes('第2幕'));
+ok('pauseInsight body 含体感或建议', pause.body.includes('体感') || pause.body.includes('建议'));
+ok('pauseInsight tryKeys 非空', Array.isArray(pause.tryKeys) && pause.tryKeys.length >= 1);
+ok('pauseInsight 有 fitScore', typeof pause.fitScore === 'number');
+ok('pauseInsight signals 数组', Array.isArray(pause.signals) && pause.signals.length >= 1);
+
+// 无 profile：仍可读 headline / 默认兜底
+const pauseBare = buildPauseInsight({ stats: null, career: 'product', act: 1 });
+ok('pause 无 profile 不崩', pauseBare.headline.includes('产品') && pauseBare.headline.includes('第1幕'));
+ok('pause 无 profile 有兜底 body', (pauseBare.body || '').length > 8);
+ok('pause 无 profile fitScore null', pauseBare.fitScore == null);
+
+// 低契合分支文案
+const lowFit = buildPauseInsight({
+  profile: salesy,
+  stats: { stress: 40, health: 70, passion: 40, energy: 60 },
+  career: 'programmer',
+  act: 1,
+});
+ok('低契合提示再试', lowFit.body.includes('再试') || lowFit.body.includes('契合') || lowFit.body.includes('建议'));
+
+// 高契合 + 高热情
+const highFit = buildPauseInsight({
+  profile: geek,
+  stats: { stress: 30, health: 80, passion: 80, energy: 70 },
+  career: 'programmer',
+  act: 3,
+});
+ok('高契合热情提示', highFit.body.includes('热情') || highFit.body.includes('值得') || highFit.fitScore >= 60);
 
 console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);
 process.exit(fail === 0 ? 0 : 1);

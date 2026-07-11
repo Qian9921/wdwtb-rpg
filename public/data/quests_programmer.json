@@ -11,13 +11,34 @@
       "giver": "senior",
       "type": "main",
       "desc": "老陈让你改一个小 bug，跑通测试后找他交付。",
-      "trigger": { "act": 1 },
+      "trigger": {
+        "act": 1
+      },
       "objectives": [
-        { "id": "o1", "kind": "talk", "target": "peer", "text": "先问同事江野要代码库权限" },
-        { "id": "o2", "kind": "minigame", "target": "coding", "text": "在工位完成 coding 小游戏" },
-        { "id": "o3", "kind": "interact", "target": "computer", "text": "在工位电脑上提交代码" }
+        {
+          "id": "o1",
+          "kind": "talk",
+          "target": "peer",
+          "text": "先问同事江野要代码库权限"
+        },
+        {
+          "id": "o2",
+          "kind": "minigame",
+          "target": "coding",
+          "text": "在工位完成 coding 小游戏"
+        },
+        {
+          "id": "o3",
+          "kind": "interact",
+          "target": "computer",
+          "text": "在工位电脑上提交代码"
+        }
       ],
-      "reward": { "skill": 5, "performance": 3, "money": 200 }
+      "reward": {
+        "skill": 5,
+        "performance": 3,
+        "money": 200
+      }
     },
     {
       "id": "q_mentor_chat",
@@ -25,23 +46,21 @@
       "giver": "vet",
       "type": "side",
       "desc": "前辈周哥总泡着咖啡，去问问他这行的门道。",
-      "trigger": { "act": 1 },
+      "trigger": {
+        "act": 1
+      },
       "objectives": [
-        { "id": "o1", "kind": "talk", "target": "vet", "text": "和周哥聊聊职业心得" }
+        {
+          "id": "o1",
+          "kind": "talk",
+          "target": "vet",
+          "text": "和周哥聊聊职业心得"
+        }
       ],
-      "reward": { "san": 8, "skill": 2 }
-    },
-    {
-      "id": "q_water_plant",
-      "title": "照顾工位绿植",
-      "giver": "senior",
-      "type": "side",
-      "desc": "老陈说工位那盆绿萝快蔫了，让你帮忙浇浇水。",
-      "trigger": { "act": 2 },
-      "objectives": [
-        { "id": "o1", "kind": "interact", "target": "plant", "text": "给绿植浇水" }
-      ],
-      "reward": { "san": 10, "passion": 3 }
+      "reward": {
+        "san": 8,
+        "skill": 2
+      }
     },
     {
       "id": "q_code_review",
@@ -49,12 +68,28 @@
       "giver": "senior",
       "type": "main",
       "desc": "老陈让你评审一段同事的代码，找出问题。",
-      "trigger": { "act": 2 },
+      "trigger": {
+        "act": 2
+      },
       "objectives": [
-        { "id": "o1", "kind": "minigame", "target": "coding", "text": "完成代码评审闯关" },
-        { "id": "o2", "kind": "talk", "target": "senior", "text": "把评审结果汇报给老陈" }
+        {
+          "id": "o1",
+          "kind": "minigame",
+          "target": "coding",
+          "text": "完成代码评审闯关"
+        },
+        {
+          "id": "o2",
+          "kind": "talk",
+          "target": "senior",
+          "text": "把评审结果汇报给老陈"
+        }
       ],
-      "reward": { "skill": 6, "performance": 4, "money": 300 }
+      "reward": {
+        "skill": 6,
+        "performance": 4,
+        "money": 300
+      }
     },
     {
       "id": "q_coffee_break",
@@ -62,11 +97,21 @@
       "giver": "peer",
       "type": "side",
       "desc": "江野说茶水间有新到的咖啡豆，去放松一下。",
-      "trigger": { "act": 2 },
+      "trigger": {
+        "act": 2
+      },
       "objectives": [
-        { "id": "o1", "kind": "interact", "target": "vending", "text": "在售货机买杯咖啡" }
+        {
+          "id": "o1",
+          "kind": "interact",
+          "target": "vending",
+          "text": "在售货机买杯咖啡"
+        }
       ],
-      "reward": { "energy": 15, "stress": -5 }
+      "reward": {
+        "energy": 15,
+        "stress": -5
+      }
     },
     {
       "id": "q_late_night",
@@ -74,24 +119,29 @@
       "giver": "senior",
       "type": "main",
       "desc": "项目要上线，老陈让你今晚加班把功能做完。",
-      "trigger": { "act": 3 },
+      "trigger": {
+        "act": 3
+      },
       "objectives": [
-        { "id": "o1", "kind": "interact", "target": "computer", "text": "在电脑前加班赶工" },
-        { "id": "o2", "kind": "minigame", "target": "coding", "text": "解决紧急 bug" }
+        {
+          "id": "o1",
+          "kind": "interact",
+          "target": "computer",
+          "text": "在电脑前加班赶工"
+        },
+        {
+          "id": "o2",
+          "kind": "minigame",
+          "target": "coding",
+          "text": "解决紧急 bug"
+        }
       ],
-      "reward": { "performance": 8, "money": 500, "energy": -20, "stress": 10 }
-    },
-    {
-      "id": "q_window_gaze",
-      "title": "望向窗外",
-      "giver": "peer",
-      "type": "side",
-      "desc": "加班间隙，江野让你一起看看窗外的夜景。",
-      "trigger": { "act": 3 },
-      "objectives": [
-        { "id": "o1", "kind": "interact", "target": "window", "text": "走到窗边望向夜空" }
-      ],
-      "reward": { "san": 12, "stress": -8 }
+      "reward": {
+        "performance": 8,
+        "money": 500,
+        "energy": -20,
+        "stress": 10
+      }
     },
     {
       "id": "q_help_peer",
@@ -99,12 +149,28 @@
       "giver": "peer",
       "type": "side",
       "desc": "江野卡在一个 bug 上，问你能不能帮忙看看。",
-      "trigger": { "act": 3 },
+      "trigger": {
+        "act": 3
+      },
       "objectives": [
-        { "id": "o1", "kind": "talk", "target": "peer", "text": "听江野描述问题" },
-        { "id": "o2", "kind": "minigame", "target": "coding", "text": "帮江野定位 bug" }
+        {
+          "id": "o1",
+          "kind": "talk",
+          "target": "peer",
+          "text": "听江野描述问题"
+        },
+        {
+          "id": "o2",
+          "kind": "minigame",
+          "target": "coding",
+          "text": "帮江野定位 bug"
+        }
       ],
-      "reward": { "san": 6, "skill": 3, "passion": 4 }
+      "reward": {
+        "san": 6,
+        "skill": 3,
+        "passion": 4
+      }
     },
     {
       "id": "q_breakdown",
@@ -112,12 +178,28 @@
       "giver": "senior",
       "type": "main",
       "desc": "项目出了大事故，老陈让你顶住压力处理。",
-      "trigger": { "act": 4 },
+      "trigger": {
+        "act": 4
+      },
       "objectives": [
-        { "id": "o1", "kind": "interact", "target": "computer", "text": "排查事故根因" },
-        { "id": "o2", "kind": "talk", "target": "senior", "text": "和老陈商量对策" }
+        {
+          "id": "o1",
+          "kind": "interact",
+          "target": "computer",
+          "text": "排查事故根因"
+        },
+        {
+          "id": "o2",
+          "kind": "talk",
+          "target": "senior",
+          "text": "和老陈商量对策"
+        }
       ],
-      "reward": { "skill": 8, "stress": 15, "performance": 5 }
+      "reward": {
+        "skill": 8,
+        "stress": 15,
+        "performance": 5
+      }
     },
     {
       "id": "q_call_home",
@@ -125,11 +207,22 @@
       "giver": "vet",
       "type": "side",
       "desc": "周哥看你好久没联系家里，劝你打个电话回去。",
-      "trigger": { "act": 4 },
+      "trigger": {
+        "act": 4
+      },
       "objectives": [
-        { "id": "o1", "kind": "interact", "target": "phone", "text": "找个安静的地方打电话" }
+        {
+          "id": "o1",
+          "kind": "interact",
+          "target": "phone",
+          "text": "找个安静的地方打电话"
+        }
       ],
-      "reward": { "san": 15, "passion": 5, "stress": -10 }
+      "reward": {
+        "san": 15,
+        "passion": 5,
+        "stress": -10
+      }
     },
     {
       "id": "q_whiteboard",
@@ -137,12 +230,27 @@
       "giver": "senior",
       "type": "main",
       "desc": "老陈在白板上列了几条路，让你想想接下来怎么走。",
-      "trigger": { "act": 5 },
+      "trigger": {
+        "act": 5
+      },
       "objectives": [
-        { "id": "o1", "kind": "interact", "target": "whiteboard", "text": "看看白板上的选项" },
-        { "id": "o2", "kind": "talk", "target": "senior", "text": "和老陈谈你的决定" }
+        {
+          "id": "o1",
+          "kind": "interact",
+          "target": "whiteboard",
+          "text": "看看白板上的选项"
+        },
+        {
+          "id": "o2",
+          "kind": "talk",
+          "target": "senior",
+          "text": "和老陈谈你的决定"
+        }
       ],
-      "reward": { "passion": 10, "san": 10 }
+      "reward": {
+        "passion": 10,
+        "san": 10
+      }
     }
   ]
 }

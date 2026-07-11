@@ -1,14 +1,15 @@
 {
   "_meta": {
-    "title": "Debug 找茬关卡",
-    "desc": "程序员专属动作玩法：给一段有 bug 的代码，玩家点击 bug 所在的那一行来定位。找对高亮+过关，找错扣时间。lines 是代码行数组，bugLine 是有 bug 的行号(0-based)，hint 提示，explain 解释。按 act 分难度。",
-    "usage": "DebugGameScene 按当前 act 抽对应难度的关卡。act1-2 单bug简单，act3-4 代码更长，act5 多bug/更隐蔽。"
+    "title": "Debug 找茬·分职业题库",
+    "desc": "按 MinigameFlavor.key 分池：dev/test=代码；其余=职业文本挑错。字段同前：lines/bugLine/hint/explain/difficulty。",
+    "schema": "pools.{flavorKey}: Puzzle[]  兼容旧版顶层 puzzles=dev"
   },
   "puzzles": [
     {
-      "id": "d_act1_range",
+      "id": "p_range",
+      "difficulty": "easy",
       "act": 1,
-      "title": "第一个 bug",
+      "title": "数组越界",
       "lang": "python",
       "lines": [
         "def print_scores(scores):",
@@ -18,127 +19,1851 @@
         "print_scores([85, 92, 78])"
       ],
       "bugLine": 1,
-      "hint": "循环跑了几次？列表有几个元素？",
-      "explain": "range(0, 4) 会访问索引 0~3，但列表只有 3 个元素（索引 0~2），第 4 次就越界。应改成 range(len(scores))。"
+      "hint": "循环跑了几次?列表有几个元素?",
+      "explain": "range(0,4) 访问索引 0~3,但列表只有 3 个元素,第 4 次越界。应改成 range(len(scores))。"
     },
     {
-      "id": "d_act1_assign",
+      "id": "p_assign",
+      "difficulty": "easy",
       "act": 1,
-      "title": "少写了个等号",
-      "lang": "python",
+      "title": "该比较却赋值",
+      "lang": "c",
       "lines": [
-        "total = 0",
-        "count = 5",
-        "if count = 5:",
-        "    total = count * 2",
-        "print(total)"
+        "int check(int x) {",
+        "    if (x = 5) {",
+        "        return 1;",
+        "    }",
+        "    return 0;",
+        "}"
       ],
-      "bugLine": 2,
-      "hint": "判断相等和赋值，是同一个符号吗？",
-      "explain": "if 里判断相等要用 ==，写成 = 是赋值，语法错误。应改成 if count == 5。"
+      "bugLine": 1,
+      "hint": "= 和 == 有什么区别?",
+      "explain": "if (x = 5) 是赋值,恒为真。比较相等要用 ==。这是最经典的 C 语言坑。"
     },
     {
-      "id": "d_act2_offbyone",
-      "act": 2,
-      "title": "差了一个",
-      "lang": "python",
+      "id": "p_return",
+      "difficulty": "easy",
+      "act": 1,
+      "title": "忘了 return",
+      "lang": "js",
       "lines": [
-        "def sum_first_n(nums, n):",
-        "    total = 0",
-        "    for i in range(1, n):",
-        "        total += nums[i]",
-        "    return total",
-        "",
-        "# 想累加前 n 个元素"
-      ],
-      "bugLine": 2,
-      "hint": "range 从哪开始、到哪结束？前 n 个元素的索引是？",
-      "explain": "range(1, n) 从索引 1 开始且不含 n，漏了第 0 个、少算一个。前 n 个应是 range(0, n)。经典 off-by-one。"
-    },
-    {
-      "id": "d_act2_none",
-      "act": 2,
-      "title": "空的东西",
-      "lang": "javascript",
-      "lines": [
-        "function getName(user) {",
-        "  return user.name.toUpperCase();",
+        "function add(a, b) {",
+        "    const sum = a + b;",
         "}",
         "",
-        "getName(null);"
+        "const r = add(2, 3);",
+        "console.log(r); // undefined"
       ],
       "bugLine": 1,
-      "hint": "user 可能是什么？访问它的属性前该检查吗？",
-      "explain": "user 传了 null，直接读 user.name 会抛 TypeError。应先判空：user && user.name。这是最常见的线上崩溃。"
+      "hint": "函数把结果给出去了吗?",
+      "explain": "算了 sum 却没 return,函数返回 undefined。第 2 行应为 return a + b。"
     },
     {
-      "id": "d_act3_mutate",
-      "act": 3,
-      "title": "边遍历边删",
+      "id": "p_eqeq",
+      "difficulty": "easy",
+      "act": 1,
+      "title": "松散相等",
+      "lang": "js",
+      "lines": [
+        "function isReady(v) {",
+        "    if (v == null) return false;",
+        "    if (v == 0) return false;",
+        "    return true;",
+        "}",
+        "// isReady('') 竟然返回 false"
+      ],
+      "bugLine": 2,
+      "hint": "== 会做类型转换,'' 会变成什么?",
+      "explain": "v == 0 时 '' 被转成 0 判真,导致空字符串被误判。应该用 === 严格比较。"
+    },
+    {
+      "id": "p_slice",
+      "difficulty": "easy",
+      "act": 2,
+      "title": "切片少一个",
       "lang": "python",
       "lines": [
-        "def remove_zeros(nums):",
-        "    for i in range(len(nums)):",
-        "        if nums[i] == 0:",
-        "            nums.pop(i)",
-        "    return nums",
+        "def last_three(items):",
+        "    return items[-3:-1]",
         "",
-        "remove_zeros([1, 0, 0, 3])"
-      ],
-      "bugLine": 3,
-      "hint": "一边遍历一边改变列表长度，索引还对得上吗？",
-      "explain": "在遍历时 pop 会让后面元素前移、索引错位，漏删连续的 0。应用列表推导 [x for x in nums if x != 0]。"
-    },
-    {
-      "id": "d_act3_async",
-      "act": 3,
-      "title": "没等它回来",
-      "lang": "javascript",
-      "lines": [
-        "async function loadUser(id) {",
-        "  const res = fetch('/api/user/' + id);",
-        "  const data = res.json();",
-        "  return data;",
-        "}"
+        "# 期望拿最后 3 个,却只拿到 2 个"
       ],
       "bugLine": 1,
-      "hint": "fetch 返回的是什么？异步操作要等吗？",
-      "explain": "fetch 返回 Promise，少了 await，res 不是响应对象、res.json() 会报错。应写 const res = await fetch(...)。"
+      "hint": "-1 是取到哪里?",
+      "explain": "items[-3:-1] 不含最后一个元素。要最后 3 个应写 items[-3:]。"
     },
     {
-      "id": "d_act4_race",
-      "act": 4,
-      "title": "深夜的并发",
+      "id": "p_type",
+      "difficulty": "easy",
+      "act": 2,
+      "title": "字符串拼接当加法",
+      "lang": "js",
+      "lines": [
+        "const a = prompt('数字');",
+        "const b = prompt('数字');",
+        "const sum = a + b;",
+        "// 输入 2 和 3,结果是 '23'"
+      ],
+      "bugLine": 2,
+      "hint": "prompt 返回的是什么类型?",
+      "explain": "prompt 返回字符串,+ 变成拼接。要先 Number(a)+Number(b)。"
+    },
+    {
+      "id": "p_null",
+      "difficulty": "mid",
+      "act": 2,
+      "title": "空指针访问",
+      "lang": "js",
+      "lines": [
+        "function getName(user) {",
+        "    return user.profile.name;",
+        "}",
+        "",
+        "getName({}); // 崩溃"
+      ],
+      "bugLine": 1,
+      "hint": "user.profile 一定存在吗?",
+      "explain": "user 没有 profile 时,访问 .name 抛错。应用可选链 user?.profile?.name。"
+    },
+    {
+      "id": "p_mutate",
+      "difficulty": "mid",
+      "act": 2,
+      "title": "遍历中删除",
       "lang": "python",
       "lines": [
-        "balance = 100",
-        "def withdraw(amount):",
-        "    global balance",
-        "    if balance >= amount:",
-        "        balance = balance - amount",
-        "    return balance",
-        "# 多线程同时调用 withdraw"
+        "def drop_zeros(nums):",
+        "    for n in nums:",
+        "        if n == 0:",
+        "            nums.remove(n)",
+        "    return nums"
       ],
       "bugLine": 3,
-      "hint": "检查和扣款之间，别的线程会插进来吗？",
-      "explain": "检查余额和扣款不是原子操作，多线程下两个请求可能都通过检查、导致超额扣款。需要加锁。至暗时刻的经典事故。"
+      "hint": "边遍历边改动同一个列表会怎样?",
+      "explain": "遍历时 remove 会打乱索引,漏删元素。应遍历副本或用列表推导 [n for n in nums if n]。"
     },
     {
-      "id": "d_act5_logic",
-      "act": 5,
-      "title": "最后一关",
-      "lang": "javascript",
+      "id": "p_await",
+      "difficulty": "mid",
+      "act": 3,
+      "title": "漏了 await",
+      "lang": "js",
       "lines": [
-        "function shouldRetry(err, attempts) {",
-        "  if (err.code === 'TIMEOUT' || 'NETWORK') {",
-        "    return attempts < 3;",
-        "  }",
-        "  return false;",
+        "async function load() {",
+        "    const res = fetch('/api/data');",
+        "    const json = res.json();",
+        "    return json;",
         "}"
       ],
       "bugLine": 1,
-      "hint": "'NETWORK' 这个字符串，单独放在 || 后面，永远是什么？",
-      "explain": "|| 'NETWORK' 里的字符串恒为真，条件永远成立，任何错误都会重试。应写 err.code === 'TIMEOUT' || err.code === 'NETWORK'。看似简单，却是最容易漏的逻辑 bug。"
+      "hint": "fetch 返回的是什么?Promise 还是结果?",
+      "explain": "fetch 返回 Promise,漏 await 拿到的是 Promise 而非响应。应 const res = await fetch(...)。"
+    },
+    {
+      "id": "p_closure",
+      "difficulty": "mid",
+      "act": 3,
+      "title": "循环里的闭包",
+      "lang": "js",
+      "lines": [
+        "for (var i = 0; i < 3; i++) {",
+        "    setTimeout(() => console.log(i), 0);",
+        "}",
+        "// 打印 3 3 3,而不是 0 1 2"
+      ],
+      "bugLine": 0,
+      "hint": "var 的作用域是?",
+      "explain": "var 是函数作用域,所有回调共享同一个 i。把 var 改成 let(块级作用域)即可。"
+    },
+    {
+      "id": "p_intdiv",
+      "difficulty": "mid",
+      "act": 3,
+      "title": "整数除法",
+      "lang": "python",
+      "lines": [
+        "def average(total, count):",
+        "    return total // count",
+        "",
+        "# average(10, 4) 得到 2,期望 2.5"
+      ],
+      "bugLine": 1,
+      "hint": "// 和 / 有什么不同?",
+      "explain": "// 是整除,丢掉小数。求平均应用 / 得到浮点结果。"
+    },
+    {
+      "id": "p_offbyone",
+      "difficulty": "mid",
+      "act": 3,
+      "title": "边界差一",
+      "lang": "js",
+      "lines": [
+        "function sum(arr) {",
+        "    let s = 0;",
+        "    for (let i = 0; i <= arr.length; i++) {",
+        "        s += arr[i];",
+        "    }",
+        "    return s; // 结果是 NaN"
+      ],
+      "bugLine": 2,
+      "hint": "i 最大能取到哪?",
+      "explain": "i <= arr.length 会多访问一次越界的 undefined,导致 NaN。应为 i < arr.length。"
+    },
+    {
+      "id": "p_race",
+      "difficulty": "hard",
+      "act": 4,
+      "title": "并发数据错乱",
+      "lang": "js",
+      "lines": [
+        "let balance = 100;",
+        "async function withdraw(n) {",
+        "    const b = balance;",
+        "    await delay(10);",
+        "    balance = b - n;",
+        "}",
+        "// 并发两笔,少扣了钱"
+      ],
+      "bugLine": 2,
+      "hint": "读和写之间隔了一个 await,会发生什么?",
+      "explain": "先读快照再异步写,两笔并发会用同一个旧快照,后写覆盖前写(竞态)。需加锁或原子操作。"
+    },
+    {
+      "id": "p_leak",
+      "difficulty": "hard",
+      "act": 4,
+      "title": "内存泄漏",
+      "lang": "js",
+      "lines": [
+        "function mount(el) {",
+        "    window.addEventListener('resize', onResize);",
+        "}",
+        "function unmount(el) {",
+        "    // 忘了 removeEventListener",
+        "}"
+      ],
+      "bugLine": 4,
+      "hint": "加了监听,销毁时做了什么?",
+      "explain": "卸载时没 removeEventListener,监听器和闭包一直被引用,内存泄漏。unmount 里要移除监听。"
+    },
+    {
+      "id": "p_recur",
+      "difficulty": "hard",
+      "act": 4,
+      "title": "无限递归",
+      "lang": "python",
+      "lines": [
+        "def factorial(n):",
+        "    return n * factorial(n - 1)",
+        "",
+        "# factorial(5) 栈溢出"
+      ],
+      "bugLine": 1,
+      "hint": "递归什么时候停?",
+      "explain": "没有终止条件,无限递归导致栈溢出。要加 if n <= 1: return 1 的基线。"
+    },
+    {
+      "id": "p_float",
+      "difficulty": "hard",
+      "act": 5,
+      "title": "浮点比较",
+      "lang": "js",
+      "lines": [
+        "function isSum(a, b) {",
+        "    return a + b === 0.3;",
+        "}",
+        "",
+        "isSum(0.1, 0.2); // false!"
+      ],
+      "bugLine": 1,
+      "hint": "0.1 + 0.2 在计算机里等于?",
+      "explain": "浮点误差让 0.1+0.2 ≈ 0.30000000000000004,直接 === 会 false。应比较差值 < 一个极小 epsilon。"
+    },
+    {
+      "id": "p_sqli",
+      "difficulty": "hard",
+      "act": 5,
+      "title": "SQL 注入",
+      "lang": "js",
+      "lines": [
+        "function findUser(name) {",
+        "    const q = \"SELECT * FROM u WHERE name='\" + name + \"'\";",
+        "    return db.query(q);",
+        "}"
+      ],
+      "bugLine": 1,
+      "hint": "name 如果是恶意字符串会怎样?",
+      "explain": "字符串拼接 SQL 会被注入攻击(如 name=\"' OR '1'='1\")。必须用参数化查询/预编译语句。"
+    },
+    {
+      "id": "p_shallow",
+      "difficulty": "hard",
+      "act": 5,
+      "title": "浅拷贝陷阱",
+      "lang": "js",
+      "lines": [
+        "const a = { list: [1, 2] };",
+        "const b = { ...a };",
+        "b.list.push(3);",
+        "// a.list 也变成 [1,2,3] 了!"
+      ],
+      "bugLine": 1,
+      "hint": "展开运算符拷贝的是引用还是值?",
+      "explain": "{...a} 是浅拷贝,嵌套的 list 仍是同一个引用,改 b 影响 a。深层需深拷贝(如 structuredClone)。"
     }
-  ]
+  ],
+  "pools": {
+    "dev": [
+      {
+        "id": "p_range",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "数组越界",
+        "lang": "python",
+        "lines": [
+          "def print_scores(scores):",
+          "    for i in range(0, 4):",
+          "        print(scores[i])",
+          "",
+          "print_scores([85, 92, 78])"
+        ],
+        "bugLine": 1,
+        "hint": "循环跑了几次?列表有几个元素?",
+        "explain": "range(0,4) 访问索引 0~3,但列表只有 3 个元素,第 4 次越界。应改成 range(len(scores))。"
+      },
+      {
+        "id": "p_assign",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "该比较却赋值",
+        "lang": "c",
+        "lines": [
+          "int check(int x) {",
+          "    if (x = 5) {",
+          "        return 1;",
+          "    }",
+          "    return 0;",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "= 和 == 有什么区别?",
+        "explain": "if (x = 5) 是赋值,恒为真。比较相等要用 ==。这是最经典的 C 语言坑。"
+      },
+      {
+        "id": "p_return",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "忘了 return",
+        "lang": "js",
+        "lines": [
+          "function add(a, b) {",
+          "    const sum = a + b;",
+          "}",
+          "",
+          "const r = add(2, 3);",
+          "console.log(r); // undefined"
+        ],
+        "bugLine": 1,
+        "hint": "函数把结果给出去了吗?",
+        "explain": "算了 sum 却没 return,函数返回 undefined。第 2 行应为 return a + b。"
+      },
+      {
+        "id": "p_eqeq",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "松散相等",
+        "lang": "js",
+        "lines": [
+          "function isReady(v) {",
+          "    if (v == null) return false;",
+          "    if (v == 0) return false;",
+          "    return true;",
+          "}",
+          "// isReady('') 竟然返回 false"
+        ],
+        "bugLine": 2,
+        "hint": "== 会做类型转换,'' 会变成什么?",
+        "explain": "v == 0 时 '' 被转成 0 判真,导致空字符串被误判。应该用 === 严格比较。"
+      },
+      {
+        "id": "p_slice",
+        "difficulty": "easy",
+        "act": 2,
+        "title": "切片少一个",
+        "lang": "python",
+        "lines": [
+          "def last_three(items):",
+          "    return items[-3:-1]",
+          "",
+          "# 期望拿最后 3 个,却只拿到 2 个"
+        ],
+        "bugLine": 1,
+        "hint": "-1 是取到哪里?",
+        "explain": "items[-3:-1] 不含最后一个元素。要最后 3 个应写 items[-3:]。"
+      },
+      {
+        "id": "p_type",
+        "difficulty": "easy",
+        "act": 2,
+        "title": "字符串拼接当加法",
+        "lang": "js",
+        "lines": [
+          "const a = prompt('数字');",
+          "const b = prompt('数字');",
+          "const sum = a + b;",
+          "// 输入 2 和 3,结果是 '23'"
+        ],
+        "bugLine": 2,
+        "hint": "prompt 返回的是什么类型?",
+        "explain": "prompt 返回字符串,+ 变成拼接。要先 Number(a)+Number(b)。"
+      },
+      {
+        "id": "p_null",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "空指针访问",
+        "lang": "js",
+        "lines": [
+          "function getName(user) {",
+          "    return user.profile.name;",
+          "}",
+          "",
+          "getName({}); // 崩溃"
+        ],
+        "bugLine": 1,
+        "hint": "user.profile 一定存在吗?",
+        "explain": "user 没有 profile 时,访问 .name 抛错。应用可选链 user?.profile?.name。"
+      },
+      {
+        "id": "p_mutate",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "遍历中删除",
+        "lang": "python",
+        "lines": [
+          "def drop_zeros(nums):",
+          "    for n in nums:",
+          "        if n == 0:",
+          "            nums.remove(n)",
+          "    return nums"
+        ],
+        "bugLine": 3,
+        "hint": "边遍历边改动同一个列表会怎样?",
+        "explain": "遍历时 remove 会打乱索引,漏删元素。应遍历副本或用列表推导 [n for n in nums if n]。"
+      },
+      {
+        "id": "p_await",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "漏了 await",
+        "lang": "js",
+        "lines": [
+          "async function load() {",
+          "    const res = fetch('/api/data');",
+          "    const json = res.json();",
+          "    return json;",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "fetch 返回的是什么?Promise 还是结果?",
+        "explain": "fetch 返回 Promise,漏 await 拿到的是 Promise 而非响应。应 const res = await fetch(...)。"
+      },
+      {
+        "id": "p_closure",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "循环里的闭包",
+        "lang": "js",
+        "lines": [
+          "for (var i = 0; i < 3; i++) {",
+          "    setTimeout(() => console.log(i), 0);",
+          "}",
+          "// 打印 3 3 3,而不是 0 1 2"
+        ],
+        "bugLine": 0,
+        "hint": "var 的作用域是?",
+        "explain": "var 是函数作用域,所有回调共享同一个 i。把 var 改成 let(块级作用域)即可。"
+      },
+      {
+        "id": "p_intdiv",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "整数除法",
+        "lang": "python",
+        "lines": [
+          "def average(total, count):",
+          "    return total // count",
+          "",
+          "# average(10, 4) 得到 2,期望 2.5"
+        ],
+        "bugLine": 1,
+        "hint": "// 和 / 有什么不同?",
+        "explain": "// 是整除,丢掉小数。求平均应用 / 得到浮点结果。"
+      },
+      {
+        "id": "p_offbyone",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "边界差一",
+        "lang": "js",
+        "lines": [
+          "function sum(arr) {",
+          "    let s = 0;",
+          "    for (let i = 0; i <= arr.length; i++) {",
+          "        s += arr[i];",
+          "    }",
+          "    return s; // 结果是 NaN"
+        ],
+        "bugLine": 2,
+        "hint": "i 最大能取到哪?",
+        "explain": "i <= arr.length 会多访问一次越界的 undefined,导致 NaN。应为 i < arr.length。"
+      },
+      {
+        "id": "p_race",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "并发数据错乱",
+        "lang": "js",
+        "lines": [
+          "let balance = 100;",
+          "async function withdraw(n) {",
+          "    const b = balance;",
+          "    await delay(10);",
+          "    balance = b - n;",
+          "}",
+          "// 并发两笔,少扣了钱"
+        ],
+        "bugLine": 2,
+        "hint": "读和写之间隔了一个 await,会发生什么?",
+        "explain": "先读快照再异步写,两笔并发会用同一个旧快照,后写覆盖前写(竞态)。需加锁或原子操作。"
+      },
+      {
+        "id": "p_leak",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "内存泄漏",
+        "lang": "js",
+        "lines": [
+          "function mount(el) {",
+          "    window.addEventListener('resize', onResize);",
+          "}",
+          "function unmount(el) {",
+          "    // 忘了 removeEventListener",
+          "}"
+        ],
+        "bugLine": 4,
+        "hint": "加了监听,销毁时做了什么?",
+        "explain": "卸载时没 removeEventListener,监听器和闭包一直被引用,内存泄漏。unmount 里要移除监听。"
+      },
+      {
+        "id": "p_recur",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "无限递归",
+        "lang": "python",
+        "lines": [
+          "def factorial(n):",
+          "    return n * factorial(n - 1)",
+          "",
+          "# factorial(5) 栈溢出"
+        ],
+        "bugLine": 1,
+        "hint": "递归什么时候停?",
+        "explain": "没有终止条件,无限递归导致栈溢出。要加 if n <= 1: return 1 的基线。"
+      },
+      {
+        "id": "p_float",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "浮点比较",
+        "lang": "js",
+        "lines": [
+          "function isSum(a, b) {",
+          "    return a + b === 0.3;",
+          "}",
+          "",
+          "isSum(0.1, 0.2); // false!"
+        ],
+        "bugLine": 1,
+        "hint": "0.1 + 0.2 在计算机里等于?",
+        "explain": "浮点误差让 0.1+0.2 ≈ 0.30000000000000004,直接 === 会 false。应比较差值 < 一个极小 epsilon。"
+      },
+      {
+        "id": "p_sqli",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "SQL 注入",
+        "lang": "js",
+        "lines": [
+          "function findUser(name) {",
+          "    const q = \"SELECT * FROM u WHERE name='\" + name + \"'\";",
+          "    return db.query(q);",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "name 如果是恶意字符串会怎样?",
+        "explain": "字符串拼接 SQL 会被注入攻击(如 name=\"' OR '1'='1\")。必须用参数化查询/预编译语句。"
+      },
+      {
+        "id": "p_shallow",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "浅拷贝陷阱",
+        "lang": "js",
+        "lines": [
+          "const a = { list: [1, 2] };",
+          "const b = { ...a };",
+          "b.list.push(3);",
+          "// a.list 也变成 [1,2,3] 了!"
+        ],
+        "bugLine": 1,
+        "hint": "展开运算符拷贝的是引用还是值?",
+        "explain": "{...a} 是浅拷贝,嵌套的 list 仍是同一个引用,改 b 影响 a。深层需深拷贝(如 structuredClone)。"
+      }
+    ],
+    "test": [
+      {
+        "id": "p_range",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "数组越界",
+        "lang": "python",
+        "lines": [
+          "def print_scores(scores):",
+          "    for i in range(0, 4):",
+          "        print(scores[i])",
+          "",
+          "print_scores([85, 92, 78])"
+        ],
+        "bugLine": 1,
+        "hint": "循环跑了几次?列表有几个元素?",
+        "explain": "range(0,4) 访问索引 0~3,但列表只有 3 个元素,第 4 次越界。应改成 range(len(scores))。"
+      },
+      {
+        "id": "p_assign",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "该比较却赋值",
+        "lang": "c",
+        "lines": [
+          "int check(int x) {",
+          "    if (x = 5) {",
+          "        return 1;",
+          "    }",
+          "    return 0;",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "= 和 == 有什么区别?",
+        "explain": "if (x = 5) 是赋值,恒为真。比较相等要用 ==。这是最经典的 C 语言坑。"
+      },
+      {
+        "id": "p_return",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "忘了 return",
+        "lang": "js",
+        "lines": [
+          "function add(a, b) {",
+          "    const sum = a + b;",
+          "}",
+          "",
+          "const r = add(2, 3);",
+          "console.log(r); // undefined"
+        ],
+        "bugLine": 1,
+        "hint": "函数把结果给出去了吗?",
+        "explain": "算了 sum 却没 return,函数返回 undefined。第 2 行应为 return a + b。"
+      },
+      {
+        "id": "p_eqeq",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "松散相等",
+        "lang": "js",
+        "lines": [
+          "function isReady(v) {",
+          "    if (v == null) return false;",
+          "    if (v == 0) return false;",
+          "    return true;",
+          "}",
+          "// isReady('') 竟然返回 false"
+        ],
+        "bugLine": 2,
+        "hint": "== 会做类型转换,'' 会变成什么?",
+        "explain": "v == 0 时 '' 被转成 0 判真,导致空字符串被误判。应该用 === 严格比较。"
+      },
+      {
+        "id": "p_slice",
+        "difficulty": "easy",
+        "act": 2,
+        "title": "切片少一个",
+        "lang": "python",
+        "lines": [
+          "def last_three(items):",
+          "    return items[-3:-1]",
+          "",
+          "# 期望拿最后 3 个,却只拿到 2 个"
+        ],
+        "bugLine": 1,
+        "hint": "-1 是取到哪里?",
+        "explain": "items[-3:-1] 不含最后一个元素。要最后 3 个应写 items[-3:]。"
+      },
+      {
+        "id": "p_type",
+        "difficulty": "easy",
+        "act": 2,
+        "title": "字符串拼接当加法",
+        "lang": "js",
+        "lines": [
+          "const a = prompt('数字');",
+          "const b = prompt('数字');",
+          "const sum = a + b;",
+          "// 输入 2 和 3,结果是 '23'"
+        ],
+        "bugLine": 2,
+        "hint": "prompt 返回的是什么类型?",
+        "explain": "prompt 返回字符串,+ 变成拼接。要先 Number(a)+Number(b)。"
+      },
+      {
+        "id": "p_null",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "空指针访问",
+        "lang": "js",
+        "lines": [
+          "function getName(user) {",
+          "    return user.profile.name;",
+          "}",
+          "",
+          "getName({}); // 崩溃"
+        ],
+        "bugLine": 1,
+        "hint": "user.profile 一定存在吗?",
+        "explain": "user 没有 profile 时,访问 .name 抛错。应用可选链 user?.profile?.name。"
+      },
+      {
+        "id": "p_mutate",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "遍历中删除",
+        "lang": "python",
+        "lines": [
+          "def drop_zeros(nums):",
+          "    for n in nums:",
+          "        if n == 0:",
+          "            nums.remove(n)",
+          "    return nums"
+        ],
+        "bugLine": 3,
+        "hint": "边遍历边改动同一个列表会怎样?",
+        "explain": "遍历时 remove 会打乱索引,漏删元素。应遍历副本或用列表推导 [n for n in nums if n]。"
+      },
+      {
+        "id": "p_await",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "漏了 await",
+        "lang": "js",
+        "lines": [
+          "async function load() {",
+          "    const res = fetch('/api/data');",
+          "    const json = res.json();",
+          "    return json;",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "fetch 返回的是什么?Promise 还是结果?",
+        "explain": "fetch 返回 Promise,漏 await 拿到的是 Promise 而非响应。应 const res = await fetch(...)。"
+      },
+      {
+        "id": "p_closure",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "循环里的闭包",
+        "lang": "js",
+        "lines": [
+          "for (var i = 0; i < 3; i++) {",
+          "    setTimeout(() => console.log(i), 0);",
+          "}",
+          "// 打印 3 3 3,而不是 0 1 2"
+        ],
+        "bugLine": 0,
+        "hint": "var 的作用域是?",
+        "explain": "var 是函数作用域,所有回调共享同一个 i。把 var 改成 let(块级作用域)即可。"
+      },
+      {
+        "id": "p_intdiv",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "整数除法",
+        "lang": "python",
+        "lines": [
+          "def average(total, count):",
+          "    return total // count",
+          "",
+          "# average(10, 4) 得到 2,期望 2.5"
+        ],
+        "bugLine": 1,
+        "hint": "// 和 / 有什么不同?",
+        "explain": "// 是整除,丢掉小数。求平均应用 / 得到浮点结果。"
+      },
+      {
+        "id": "p_offbyone",
+        "difficulty": "mid",
+        "act": 3,
+        "title": "边界差一",
+        "lang": "js",
+        "lines": [
+          "function sum(arr) {",
+          "    let s = 0;",
+          "    for (let i = 0; i <= arr.length; i++) {",
+          "        s += arr[i];",
+          "    }",
+          "    return s; // 结果是 NaN"
+        ],
+        "bugLine": 2,
+        "hint": "i 最大能取到哪?",
+        "explain": "i <= arr.length 会多访问一次越界的 undefined,导致 NaN。应为 i < arr.length。"
+      },
+      {
+        "id": "p_race",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "并发数据错乱",
+        "lang": "js",
+        "lines": [
+          "let balance = 100;",
+          "async function withdraw(n) {",
+          "    const b = balance;",
+          "    await delay(10);",
+          "    balance = b - n;",
+          "}",
+          "// 并发两笔,少扣了钱"
+        ],
+        "bugLine": 2,
+        "hint": "读和写之间隔了一个 await,会发生什么?",
+        "explain": "先读快照再异步写,两笔并发会用同一个旧快照,后写覆盖前写(竞态)。需加锁或原子操作。"
+      },
+      {
+        "id": "p_leak",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "内存泄漏",
+        "lang": "js",
+        "lines": [
+          "function mount(el) {",
+          "    window.addEventListener('resize', onResize);",
+          "}",
+          "function unmount(el) {",
+          "    // 忘了 removeEventListener",
+          "}"
+        ],
+        "bugLine": 4,
+        "hint": "加了监听,销毁时做了什么?",
+        "explain": "卸载时没 removeEventListener,监听器和闭包一直被引用,内存泄漏。unmount 里要移除监听。"
+      },
+      {
+        "id": "p_recur",
+        "difficulty": "hard",
+        "act": 4,
+        "title": "无限递归",
+        "lang": "python",
+        "lines": [
+          "def factorial(n):",
+          "    return n * factorial(n - 1)",
+          "",
+          "# factorial(5) 栈溢出"
+        ],
+        "bugLine": 1,
+        "hint": "递归什么时候停?",
+        "explain": "没有终止条件,无限递归导致栈溢出。要加 if n <= 1: return 1 的基线。"
+      },
+      {
+        "id": "p_float",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "浮点比较",
+        "lang": "js",
+        "lines": [
+          "function isSum(a, b) {",
+          "    return a + b === 0.3;",
+          "}",
+          "",
+          "isSum(0.1, 0.2); // false!"
+        ],
+        "bugLine": 1,
+        "hint": "0.1 + 0.2 在计算机里等于?",
+        "explain": "浮点误差让 0.1+0.2 ≈ 0.30000000000000004,直接 === 会 false。应比较差值 < 一个极小 epsilon。"
+      },
+      {
+        "id": "p_sqli",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "SQL 注入",
+        "lang": "js",
+        "lines": [
+          "function findUser(name) {",
+          "    const q = \"SELECT * FROM u WHERE name='\" + name + \"'\";",
+          "    return db.query(q);",
+          "}"
+        ],
+        "bugLine": 1,
+        "hint": "name 如果是恶意字符串会怎样?",
+        "explain": "字符串拼接 SQL 会被注入攻击(如 name=\"' OR '1'='1\")。必须用参数化查询/预编译语句。"
+      },
+      {
+        "id": "p_shallow",
+        "difficulty": "hard",
+        "act": 5,
+        "title": "浅拷贝陷阱",
+        "lang": "js",
+        "lines": [
+          "const a = { list: [1, 2] };",
+          "const b = { ...a };",
+          "b.list.push(3);",
+          "// a.list 也变成 [1,2,3] 了!"
+        ],
+        "bugLine": 1,
+        "hint": "展开运算符拷贝的是引用还是值?",
+        "explain": "{...a} 是浅拷贝,嵌套的 list 仍是同一个引用,改 b 影响 a。深层需深拷贝(如 structuredClone)。"
+      }
+    ],
+    "product": [
+      {
+        "id": "pp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "需求漏了验收标准",
+        "lang": "text",
+        "lines": [
+          "功能：用户可重置密码",
+          "入口：登录页「忘记密码」",
+          "流程：邮箱验证 → 设新密码",
+          "（未写）成功/失败如何提示、超时多久",
+          "优先级：P1"
+        ],
+        "bugLine": 3,
+        "hint": "验收标准在哪一行？",
+        "explain": "没有可测的成功/失败标准，研发和测试会对不齐。应补验收标准。"
+      },
+      {
+        "id": "pp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "范围偷偷膨胀",
+        "lang": "text",
+        "lines": [
+          "目标：提升注册转化",
+          "本期：简化注册表单为 3 项",
+          "本期：顺便重做个人中心全部视觉",
+          "非目标：积分体系",
+          "指标：注册完成率"
+        ],
+        "bugLine": 2,
+        "hint": "哪一行把范围带跑了？",
+        "explain": "「顺便重做个人中心」是范围膨胀，应挪出本期或单独立项。"
+      },
+      {
+        "id": "pp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "指标与方案错位",
+        "lang": "text",
+        "lines": [
+          "北极星：次日留存 +5%",
+          "方案：首页加弹窗广告位",
+          "假设：更多曝光 → 更多点击",
+          "未验证：弹窗是否伤害留存",
+          "排期：本周上线"
+        ],
+        "bugLine": 1,
+        "hint": "哪一行方案可能伤害目标？",
+        "explain": "用伤留存的弹窗去拉次日留存，方案与北极星冲突。"
+      },
+      {
+        "id": "pp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "PRD 主语不清",
+        "lang": "text",
+        "lines": [
+          "当用户提交订单",
+          "系统应发送通知",
+          "如果失败则重试",
+          "（谁重试？客户端还是服务端？几次？）",
+          "最终状态：已支付"
+        ],
+        "bugLine": 3,
+        "hint": "哪一行含糊到无法实现？",
+        "explain": "失败重试缺少责任方与次数，无法开发。"
+      },
+      {
+        "id": "pp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "实验设计缺对照",
+        "lang": "text",
+        "lines": [
+          "改动：新引导动效",
+          "样本：全量用户一周",
+          "观察：注册率是否上升",
+          "无对照组、无分群",
+          "结论：直接定稿"
+        ],
+        "bugLine": 3,
+        "hint": "科学决策缺什么？",
+        "explain": "没有对照与分群，无法归因。应 A/B 或分阶段放量。"
+      },
+      {
+        "id": "pp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "依赖未声明",
+        "lang": "text",
+        "lines": [
+          "需求：展示实时库存",
+          "数据源：库存中心 API",
+          "刷新：每次进页",
+          "未写：接口限流与降级文案",
+          "UI：数字标红"
+        ],
+        "bugLine": 3,
+        "hint": "上线风险在哪？",
+        "explain": "缺限流/降级，高峰会白屏或刷爆接口。"
+      }
+    ],
+    "admin": [
+      {
+        "id": "ap_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "收文未登记就分办",
+        "lang": "text",
+        "lines": [
+          "收到纸质来文",
+          "直接递给业务科室",
+          "未做收文登记与编号",
+          "三天后找不到原件",
+          "领导问进度无人应答"
+        ],
+        "bugLine": 2,
+        "hint": "致命漏步？",
+        "explain": "未登记编号就分办，闭环断裂。应先登记再分办。"
+      },
+      {
+        "id": "ap_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "通知主送抄送颠倒",
+        "lang": "text",
+        "lines": [
+          "标题：关于开展安全检查的通知",
+          "主送：各相关处室（正确）",
+          "抄送：市政府（误作主送口吻写进正文强制执行）",
+          "落款：本单位办公室",
+          "日期：已填"
+        ],
+        "bugLine": 2,
+        "hint": "行文关系问题？",
+        "explain": "对上级应用请示/报告语气，抄送单位不能当主送强制执行。"
+      },
+      {
+        "id": "ap_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "用章材料不齐仍盖章",
+        "lang": "text",
+        "lines": [
+          "申请单：已签字",
+          "合同正文：缺页",
+          "审批流：已通过",
+          "操作：先盖章后补页",
+          "登记：未写"
+        ],
+        "bugLine": 3,
+        "hint": "违规点？",
+        "explain": "材料不齐盖章且未登记，属于严重程序风险。"
+      },
+      {
+        "id": "ap_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "会议纪要只记结论不记争议",
+        "lang": "text",
+        "lines": [
+          "议题：是否外包保洁",
+          "结论：同意外包",
+          "未记录：两处室反对理由",
+          "未写：落实责任人与时限",
+          "分发：已发"
+        ],
+        "bugLine": 3,
+        "hint": "纪要残缺？",
+        "explain": "缺责任人时限，结论无法督办；争议不记不利于追溯。"
+      },
+      {
+        "id": "ap_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "督办只催不给台阶",
+        "lang": "text",
+        "lines": [
+          "逾期事项：3 件",
+          "催办函：请尽快办理",
+          "未写：缺什么材料、联系谁、截止日期",
+          "对方：已读不回",
+          "台账：仍红灯"
+        ],
+        "bugLine": 2,
+        "hint": "无效催办？",
+        "explain": "催办须写清缺口、接口人与时限，否则无法推进。"
+      },
+      {
+        "id": "ap_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "归档编号自创",
+        "lang": "text",
+        "lines": [
+          "年度：2026",
+          "编号：张三-重要-1",
+          "应遵循：单位流水号规则",
+          "结果：检索失败",
+          "检查：被点名"
+        ],
+        "bugLine": 1,
+        "hint": "哪行破坏检索？",
+        "explain": "自创编号无法与档案系统对齐。"
+      }
+    ],
+    "design": [
+      {
+        "id": "dp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "对比度不够",
+        "lang": "text",
+        "lines": [
+          "主按钮：浅灰字 + 浅灰底",
+          "辅助文案：#999 on #fff",
+          "品牌色：仅用于装饰线",
+          "无障碍：未测对比度",
+          "标注：已导出"
+        ],
+        "bugLine": 0,
+        "hint": "可读性问题？",
+        "explain": "主按钮对比不足，首要修复可点击主操作。"
+      },
+      {
+        "id": "dp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "状态缺失",
+        "lang": "text",
+        "lines": [
+          "列表页：有数据态",
+          "加载中：未设计",
+          "空态：未设计",
+          "错误态：未设计",
+          "正常态：精美"
+        ],
+        "bugLine": 1,
+        "hint": "交付缺口从哪开始？",
+        "explain": "缺加载/空/错态，研发会随意发挥。"
+      },
+      {
+        "id": "dp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "标注与视觉不一致",
+        "lang": "text",
+        "lines": [
+          "视觉：间距 16",
+          "标注：写 12",
+          "切图：@2x 齐全",
+          "走查：未做",
+          "交付：已甩链接"
+        ],
+        "bugLine": 1,
+        "hint": "联调炸弹？",
+        "explain": "标注与视觉不一致会导致返工。"
+      },
+      {
+        "id": "dp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "动效无降级",
+        "lang": "text",
+        "lines": [
+          "主路径：复杂模糊动效",
+          "低端机：未给静态方案",
+          "时长：800ms",
+          "可关闭：无",
+          "目标：炫一点"
+        ],
+        "bugLine": 1,
+        "hint": "实现风险？",
+        "explain": "无降级方案，弱机卡顿伤害转化。"
+      },
+      {
+        "id": "dp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "组件不复用硬造",
+        "lang": "text",
+        "lines": [
+          "按钮：本页新建第三种高度",
+          "输入框：又一套圆角",
+          "设计系统：已有标准",
+          "原因：感觉更好看",
+          "后果：开发成本×2"
+        ],
+        "bugLine": 0,
+        "hint": "系统债务？",
+        "explain": "脱离组件库硬造，破坏一致性。"
+      },
+      {
+        "id": "dp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "反馈未翻译就改",
+        "lang": "text",
+        "lines": [
+          "甲方：再年轻一点",
+          "设计师：立刻把色调全改粉",
+          "未确认：年轻=亮/圆/插画？",
+          "两天后：又不满意",
+          "工时：烧掉"
+        ],
+        "bugLine": 1,
+        "hint": "错误应对？",
+        "explain": "模糊反馈要先翻译成可执行项再改。"
+      }
+    ],
+    "ops": [
+      {
+        "id": "op_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "标题党伤害留存",
+        "lang": "text",
+        "lines": [
+          "标题：不看后悔一辈子",
+          "正文：普通产品介绍",
+          "完读率：极低",
+          "转化：更低",
+          "复盘：怪算法"
+        ],
+        "bugLine": 0,
+        "hint": "内容问题？",
+        "explain": "标题欺骗导致完读崩，应标题与内容匹配。"
+      },
+      {
+        "id": "op_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "活动规则自相矛盾",
+        "lang": "text",
+        "lines": [
+          "满 100 减 20",
+          "每用户限 1 次",
+          "文案：不限次数叠满减",
+          "客服：被问爆",
+          "开发：按限 1 次实现"
+        ],
+        "bugLine": 2,
+        "hint": "冲突行？",
+        "explain": "文案与规则冲突，必出客诉。"
+      },
+      {
+        "id": "op_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "只看点击不看转化",
+        "lang": "text",
+        "lines": [
+          "投放：点击成本下降",
+          "落地页：跳出 80%",
+          "结论：投放很成功",
+          "业务：零成单",
+          "决策：加预算"
+        ],
+        "bugLine": 2,
+        "hint": "错误结论？",
+        "explain": "点击≠转化，应看全漏斗。"
+      },
+      {
+        "id": "op_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "触达通道未对齐就定 KV",
+        "lang": "text",
+        "lines": [
+          "主 KV：横版超宽",
+          "通道：仅支持正方形",
+          "时间：今晚要上",
+          "设计：重做",
+          "运营：骂街"
+        ],
+        "bugLine": 1,
+        "hint": "前置失败？",
+        "explain": "先定通道尺寸再出 KV。"
+      },
+      {
+        "id": "op_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "复盘只贴截图",
+        "lang": "text",
+        "lines": [
+          "数据：截图三张",
+          "无：假设/对照/结论/下一刀",
+          "会议：开了 40 分钟",
+          "输出：无",
+          "下周：重复错误"
+        ],
+        "bugLine": 1,
+        "hint": "复盘无效点？",
+        "explain": "缺结构化结论与下一动作。"
+      },
+      {
+        "id": "op_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "预算砍半仍全开渠道",
+        "lang": "text",
+        "lines": [
+          "预算：-50%",
+          "计划：渠道全开各砍一点",
+          "结果：处处不够量",
+          "更好：保核心 2 渠道",
+          "实际：ROI 更差"
+        ],
+        "bugLine": 1,
+        "hint": "策略错误？",
+        "explain": "砍预算应聚焦而非均匀稀释。"
+      }
+    ],
+    "teach": [
+      {
+        "id": "tp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "目标写成活动",
+        "lang": "text",
+        "lines": [
+          "目标：播放 PPT 并提问",
+          "应写：学生能独立解一类方程",
+          "活动：小组讨论",
+          "评价：无",
+          "作业：习题 1-5"
+        ],
+        "bugLine": 0,
+        "hint": "目标问题？",
+        "explain": "目标应是学习结果不是教师动作。"
+      },
+      {
+        "id": "tp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "作业要求含糊",
+        "lang": "text",
+        "lines": [
+          "作业：认真完成练习",
+          "未写：题号、格式、截止",
+          "提交：随意",
+          "批改：无法对齐",
+          "讲评：空对空"
+        ],
+        "bugLine": 0,
+        "hint": "布置缺陷？",
+        "explain": "要求必须具体可检查。"
+      },
+      {
+        "id": "tp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "提问不留思考",
+        "lang": "text",
+        "lines": [
+          "教师连问 5 个",
+          "间隔：不足 1 秒",
+          "学生：沉默或猜答",
+          "建议：关键问后留 3 秒",
+          "实际：赶进度"
+        ],
+        "bugLine": 1,
+        "hint": "课堂问题？",
+        "explain": "不留思考时间会扼杀思维。"
+      },
+      {
+        "id": "tp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "家校沟通只告状",
+        "lang": "text",
+        "lines": [
+          "开场：孩子又迟到",
+          "无：具体事实时间",
+          "无：已做的帮助",
+          "无：共同建议",
+          "家长：抵触"
+        ],
+        "bugLine": 0,
+        "hint": "沟通结构错在？",
+        "explain": "应事实→已做→建议→约定，而非纯指责。"
+      },
+      {
+        "id": "tp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "公开课表演化",
+        "lang": "text",
+        "lines": [
+          "选生：只点优生",
+          "难度：远低于学情",
+          "目标：好看",
+          "日常：两张皮",
+          "评委：难迁移"
+        ],
+        "bugLine": 0,
+        "hint": "教学诚信？",
+        "explain": "表演课无法服务真实学情。"
+      },
+      {
+        "id": "tp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "讲评只对答案",
+        "lang": "text",
+        "lines": [
+          "共性错：审题",
+          "讲评：报正确答案",
+          "未练：如何审题",
+          "订正：抄答案",
+          "再测：同错"
+        ],
+        "bugLine": 1,
+        "hint": "讲评失效？",
+        "explain": "应针对共性问题设计再练。"
+      }
+    ],
+    "medical": [
+      {
+        "id": "mp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "过敏史写在备注",
+        "lang": "text",
+        "lines": [
+          "主诉：发热",
+          "查体：咽红",
+          "过敏史：见备注（很不起眼）",
+          "医嘱：阿莫西林",
+          "风险：过敏暴露"
+        ],
+        "bugLine": 2,
+        "hint": "安全隐患？",
+        "explain": "过敏史必须醒目置顶，不能埋备注。"
+      },
+      {
+        "id": "mp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "未核身份就处置",
+        "lang": "text",
+        "lines": [
+          "床旁：直接输液",
+          "腕带：未核对",
+          "姓名：未双人查",
+          "药物：正确",
+          "结果：险些错床"
+        ],
+        "bugLine": 0,
+        "hint": "第一步错？",
+        "explain": "必须先核身份。"
+      },
+      {
+        "id": "mp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "危急值只回系统",
+        "lang": "text",
+        "lines": [
+          "接报：血钾危急",
+          "操作：系统点已读",
+          "未到：床旁评估",
+          "患者：症状加重",
+          "规范：床旁优先"
+        ],
+        "bugLine": 2,
+        "hint": "错误处置？",
+        "explain": "危急值要到床旁评估处置再回执。"
+      },
+      {
+        "id": "mp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "医嘱存疑仍执行",
+        "lang": "text",
+        "lines": [
+          "医嘱：剂量异常偏大",
+          "护士：觉得不对",
+          "行动：先执行再问",
+          "正确：先澄清",
+          "结果：险些过量"
+        ],
+        "bugLine": 2,
+        "hint": "原则？",
+        "explain": "有疑先问，不硬执行。"
+      },
+      {
+        "id": "mp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "知情同意套话",
+        "lang": "text",
+        "lines": [
+          "谈话：差不多就那些风险",
+          "未写：具体替代方案",
+          "签字：催促",
+          "记录：事后补",
+          "纠纷：说不清"
+        ],
+        "bugLine": 0,
+        "hint": "合规问题？",
+        "explain": "知情同意须具体、可理解、当时记录。"
+      },
+      {
+        "id": "mp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "交班靠记忆",
+        "lang": "text",
+        "lines": [
+          "交班：口头说了",
+          "管道/余液：未写",
+          "疼痛评分：未记",
+          "下一班：信息丢失",
+          "规范：书面+床旁"
+        ],
+        "bugLine": 1,
+        "hint": "交班漏洞？",
+        "explain": "关键项目必须书面交班。"
+      }
+    ],
+    "gov": [
+      {
+        "id": "gp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "未问诉求就收材料",
+        "lang": "text",
+        "lines": [
+          "群众：递上一堆材料",
+          "窗口：先收着",
+          "未问：办什么事",
+          "事后：材料不对口",
+          "白跑：第二趟"
+        ],
+        "bugLine": 2,
+        "hint": "第一步？",
+        "explain": "先问清诉求再对目录。"
+      },
+      {
+        "id": "gp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "口头承诺无依据",
+        "lang": "text",
+        "lines": [
+          "群众：能不能通融",
+          "窗口：行，我帮你特批",
+          "依据：无",
+          "结果：办不成",
+          "投诉：态度与诚信"
+        ],
+        "bugLine": 1,
+        "hint": "违规点？",
+        "explain": "无依据不承诺。"
+      },
+      {
+        "id": "gp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "退件不写补正清单",
+        "lang": "text",
+        "lines": [
+          "结论：材料不齐退回",
+          "告知：回去准备好再来",
+          "未列：缺哪几项",
+          "群众：第三次仍缺",
+          "规范：书面补正清单"
+        ],
+        "bugLine": 2,
+        "hint": "服务失败？",
+        "explain": "退件必须书面列明缺项。"
+      },
+      {
+        "id": "gp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "会商无记录",
+        "lang": "text",
+        "lines": [
+          "疑难件：找了法规股",
+          "口头：说可以办",
+          "记录：无",
+          "事后：口径不一致",
+          "风险：追责说不清"
+        ],
+        "bugLine": 2,
+        "hint": "缺什么？",
+        "explain": "会商必须书面留痕。"
+      },
+      {
+        "id": "gp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "办结未告知",
+        "lang": "text",
+        "lines": [
+          "内部：已办结",
+          "系统：已归档",
+          "当事人：不知情",
+          "电话：打爆咨询",
+          "规范：告知+回执"
+        ],
+        "bugLine": 2,
+        "hint": "闭环缺口？",
+        "explain": "办结必须告知当事人。"
+      },
+      {
+        "id": "gp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "归档不分流",
+        "lang": "text",
+        "lines": [
+          "原件复印件混装",
+          "编号：随意",
+          "检索：失败",
+          "迎检：扣分",
+          "规则：分装+流水号"
+        ],
+        "bugLine": 0,
+        "hint": "档案错误？",
+        "explain": "原件复印件应分装并按规则编号。"
+      }
+    ],
+    "sales": [
+      {
+        "id": "sp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "开场超时",
+        "lang": "text",
+        "lines": [
+          "自我介绍：2 分钟公司历史",
+          "客户需求：未问",
+          "客户：打断挂断",
+          "更好：15 秒说清价值",
+          "CRM：记了「无意向」"
+        ],
+        "bugLine": 0,
+        "hint": "触达问题？",
+        "explain": "开场过长，应快速确认需求。"
+      },
+      {
+        "id": "sp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "CRM 空字段",
+        "lang": "text",
+        "lines": [
+          "线索：已转化",
+          "决策人：空",
+          "预算：空",
+          "下次动作：空",
+          "自己：靠记忆"
+        ],
+        "bugLine": 1,
+        "hint": "协作风险？",
+        "explain": "关键字段空导致无法交接与预测。"
+      },
+      {
+        "id": "sp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "先打折再问价值",
+        "lang": "text",
+        "lines": [
+          "客户：有点贵",
+          "销售：那给您九折",
+          "未问：对比的是什么方案",
+          "结果：仍要再降",
+          "原则：先探需求再谈价"
+        ],
+        "bugLine": 1,
+        "hint": "错误路径？",
+        "explain": "价格异议先澄清价值与决策链。"
+      },
+      {
+        "id": "sp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "承诺售前未评审功能",
+        "lang": "text",
+        "lines": [
+          "客户：要定制报表",
+          "销售：没问题都能做",
+          "售前：未评估",
+          "研发：排期半年",
+          "交付：翻车"
+        ],
+        "bugLine": 1,
+        "hint": "乱承诺？",
+        "explain": "能力边界须售前确认。"
+      },
+      {
+        "id": "sp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "签约不交接",
+        "lang": "text",
+        "lines": [
+          "合同：已签",
+          "承诺：口头一堆",
+          "客成：不知情",
+          "上线：预期管理失败",
+          "续费：危险"
+        ],
+        "bugLine": 2,
+        "hint": "后半程？",
+        "explain": "必须书面交接承诺与范围。"
+      },
+      {
+        "id": "sp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "撞单私了无规则",
+        "lang": "text",
+        "lines": [
+          "两人均跟同一客户",
+          "处理：私下谁嗓门大谁跟",
+          "CRM：时间戳可查",
+          "团队：互不信任",
+          "正确：按规则公开裁定"
+        ],
+        "bugLine": 1,
+        "hint": "管理问题？",
+        "explain": "撞单应按规则留痕处理。"
+      }
+    ],
+    "law": [
+      {
+        "id": "lp_e1",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "结论埋在最后",
+        "lang": "text",
+        "lines": [
+          "意见书：大段法条",
+          "事实：很长",
+          "结论：最后一段才出现",
+          "客户：看不完",
+          "结构：结论先行"
+        ],
+        "bugLine": 2,
+        "hint": "可读性？",
+        "explain": "法律意见应结论先行。"
+      },
+      {
+        "id": "lp_e2",
+        "difficulty": "easy",
+        "act": 1,
+        "title": "证据无证明目的",
+        "lang": "text",
+        "lines": [
+          "证据 1：合同复印件",
+          "证据 2：聊天记录",
+          "证明目的：未写",
+          "目录：有编号",
+          "庭审：法官追问"
+        ],
+        "bugLine": 2,
+        "hint": "组织缺陷？",
+        "explain": "每份证据须写证明目的。"
+      },
+      {
+        "id": "lp_m1",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "回避不利事实",
+        "lang": "text",
+        "lines": [
+          "我方时间线：完美",
+          "对方可能主张：未列",
+          "风险：庭上被动",
+          "何律建议：先写对方最强三点",
+          "实际：没写"
+        ],
+        "bugLine": 1,
+        "hint": "策略漏洞？",
+        "explain": "必须直面并准备回应不利点。"
+      },
+      {
+        "id": "lp_m2",
+        "difficulty": "mid",
+        "act": 2,
+        "title": "合同无限连带顺过",
+        "lang": "text",
+        "lines": [
+          "条款：乙方承担无限连带",
+          "审查：标了「注意」",
+          "建议：未给替代表述",
+          "客户：仍签了原样",
+          "风险：巨大"
+        ],
+        "bugLine": 2,
+        "hint": "审查失职？",
+        "explain": "高风险条款须给可执行修改建议。"
+      },
+      {
+        "id": "lp_h1",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "利益冲突未检索",
+        "lang": "text",
+        "lines": [
+          "新客户：老客户竞品",
+          "动作：先深度聊方案",
+          "冲突检索：事后",
+          "结果：进退两难",
+          "规范：先检索再接待"
+        ],
+        "bugLine": 1,
+        "hint": "合规红线？",
+        "explain": "先利益冲突检索。"
+      },
+      {
+        "id": "lp_h2",
+        "difficulty": "hard",
+        "act": 3,
+        "title": "保证胜诉",
+        "lang": "text",
+        "lines": [
+          "客户：能赢吗",
+          "律师：保证赢",
+          "实际：诉讼有风险",
+          "伦理：禁止打包票",
+          "正确：给风险区间与策略"
+        ],
+        "bugLine": 1,
+        "hint": "职业伦理？",
+        "explain": "不得保证结果，应披露风险。"
+      }
+    ]
+  }
 }

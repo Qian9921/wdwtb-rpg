@@ -275,6 +275,31 @@ export function mergeReportHistory(prevList, entry, max = 8) {
 }
 
 /**
+ * 暂停菜单「一眼读懂自己」：开局建议 + 本局体感 + 当前职业。
+ * @returns {{ headline: string, body: string, tryKeys: string[] }}
+ */
+export function buildPauseInsight({ profile = null, stats = null, career = 'programmer', act = 1 } = {}) {
+  const careerName = CAREER_NAMES[career] || career;
+  const body = bodySignalsFromStats(stats || {});
+  const advice = profile ? buildTryFirstAdvice(profile, 2) : null;
+  const fit = profile ? scoreCareer(profile, career) : null;
+  const tryKeys = (advice?.tryFirst || []).map(t => t.key);
+  const tryNames = (advice?.tryFirst || []).map(t => t.name).join('、');
+  const headline = fit != null
+    ? `${careerName} · 第${act}幕 · 开局契合 ${fit}`
+    : `${careerName} · 第${act}幕`;
+  const lines = [];
+  if (tryNames) lines.push(`测评曾建议先试：${tryNames}（可改）`);
+  if (body.signals[0]) lines.push(`此刻体感：${body.signals[0]}`);
+  if (fit != null && fit < 40) lines.push('契合偏低不代表失败——对照体感，再试一条线往往更清楚。');
+  if (fit != null && fit >= 60 && (stats?.passion ?? 50) >= 55) {
+    lines.push('兴趣与热情都在线：这条路值得再多过几天班对照。');
+  }
+  if (!lines.length) lines.push('过完几天班，再问自己：适不适合、喜不喜欢。');
+  return { headline, body: lines.join('\n'), tryKeys, fitScore: fit, signals: body.signals };
+}
+
+/**
  * Hub/暂停用：把试过的职业历史格式化成一行提示（关闭测评→体验→报告多周目）。
  * @param {Array|null} hist
  * @param {number} maxNames

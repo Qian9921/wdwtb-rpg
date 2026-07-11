@@ -5,68 +5,463 @@
   },
   "events": [
     {
-      "id": "ev_p0", "icon": "🚨", "title": "线上 P0 事故!", "urgent": true,
+      "id": "ev_p0",
+      "icon": "🚨",
+      "title": "线上 P0 事故!",
+      "urgent": true,
       "text": "监控疯狂告警——支付接口挂了,用户下不了单,群里 @所有人。老陈:「谁手头能停一下?」",
       "choices": [
-        { "label": "我来!立刻扑上去救火", "result": "你冲了上去。肾上腺素飙升,但今晚别想准点走了。", "effects": { "stress": 8, "performance": 6, "energy": -8 }, "addOrder": true },
-        { "label": "先看日志定位,别慌", "result": "你冷静翻日志,稳住了节奏。老陈点了点头。", "effects": { "stress": 4, "skill": 3, "performance": 3 } },
-        { "label": "让更熟这块的同事先上", "result": "你把它交给了更合适的人。稳妥,但存在感低了点。", "effects": { "performance": -3, "san": 2 } }
+        {
+          "label": "我来!立刻扑上去救火",
+          "result": "你冲了上去。肾上腺素飙升,但今晚别想准点走了。",
+          "effects": {
+            "stress": 8,
+            "performance": 6,
+            "energy": -8
+          },
+          "addOrder": true
+        },
+        {
+          "label": "先看日志定位,别慌",
+          "result": "你冷静翻日志,稳住了节奏。老陈点了点头。",
+          "effects": {
+            "stress": 4,
+            "skill": 3,
+            "performance": 3
+          }
+        },
+        {
+          "label": "让更熟这块的同事先上",
+          "result": "你把它交给了更合适的人。稳妥,但存在感低了点。",
+          "effects": {
+            "performance": -3,
+            "san": 2
+          }
+        }
       ]
     },
     {
-      "id": "ev_boss", "icon": "👔", "title": "老板巡场", "urgent": false,
+      "id": "ev_boss",
+      "icon": "👔",
+      "title": "老板巡场",
+      "urgent": false,
       "text": "总监背着手从工位后面走过,大家不约而同坐直了。他在你屏幕后停了两秒。",
       "choices": [
-        { "label": "坐直,假装在专注写代码", "result": "你屏住呼吸。他「嗯」了一声走了。虚惊一场。", "effects": { "stress": 3 } },
-        { "label": "主动汇报一下进度", "result": "你简短汇报,他记住了你的名字——也记住了你的承诺。", "effects": { "performance": 5, "stress": 4 } }
+        {
+          "label": "坐直,假装在专注写代码",
+          "result": "你屏住呼吸。他「嗯」了一声走了。虚惊一场。",
+          "effects": {
+            "stress": 3
+          }
+        },
+        {
+          "label": "主动汇报一下进度",
+          "result": "你简短汇报,他记住了你的名字——也记住了你的承诺。",
+          "effects": {
+            "performance": 5,
+            "stress": 4
+          }
+        }
       ]
     },
     {
-      "id": "ev_reqchange", "icon": "🔄", "title": "需求又变了", "urgent": true,
+      "id": "ev_reqchange",
+      "icon": "🔄",
+      "title": "需求又变了",
+      "urgent": true,
       "text": "产品经理端着咖啡过来:「那个……昨天说的方案,老板觉得不如反过来做。就改一点点,不难吧?」",
       "choices": [
-        { "label": "「行,我改。」默默返工", "result": "你把写好的推倒重来。进度条往回缩了一截,心也凉了半截。", "effects": { "stress": 7, "passion": -4, "performance": 2 }, "projectDelta": -6 },
-        { "label": "「这得重新排期。」把话摊开讲", "result": "你据理力争,守住了边界。产品讪讪地走了。", "effects": { "stress": 3, "san": 3, "performance": -2 } }
+        {
+          "label": "「行,我改。」默默返工",
+          "result": "你把写好的推倒重来。进度条往回缩了一截,心也凉了半截。",
+          "effects": {
+            "stress": 7,
+            "passion": -4,
+            "performance": 2
+          },
+          "projectDelta": -6
+        },
+        {
+          "label": "「这得重新排期。」把话摊开讲",
+          "result": "你据理力争,守住了边界。产品讪讪地走了。",
+          "effects": {
+            "stress": 3,
+            "san": 3,
+            "performance": -2
+          }
+        }
       ]
     },
     {
-      "id": "ev_takeout", "icon": "🍔", "title": "外卖到了", "urgent": false,
+      "id": "ev_takeout",
+      "icon": "🍔",
+      "title": "外卖到了",
+      "urgent": false,
       "text": "前台喊:「XX 的外卖!」你这才想起中午为了赶工没好好吃。饭有点凉了。",
       "choices": [
-        { "label": "停下来,好好吃顿饭", "result": "热乎的一顿下肚,人也回了血。", "effects": { "energy": 12, "san": 4, "stress": -3 } },
-        { "label": "边写边扒两口,不停手", "result": "你机械地扒完饭,继续赶工。胃有点抗议。", "effects": { "energy": 4, "health": -3 } }
+        {
+          "label": "停下来,好好吃顿饭",
+          "result": "热乎的一顿下肚,人也回了血。",
+          "effects": {
+            "energy": 12,
+            "san": 4,
+            "stress": -3
+          }
+        },
+        {
+          "label": "边写边扒两口,不停手",
+          "result": "你机械地扒完饭,继续赶工。胃有点抗议。",
+          "effects": {
+            "energy": 4,
+            "health": -3
+          }
+        }
       ]
     },
     {
-      "id": "ev_blame", "icon": "🙃", "title": "甩锅现场", "urgent": false,
+      "id": "ev_blame",
+      "icon": "🙃",
+      "title": "甩锅现场",
+      "urgent": false,
       "text": "复盘会上,隔壁组把一个线上问题的锅往你这边推:「好像是他们那个接口的问题吧?」全场看向你。",
       "choices": [
-        { "label": "当场把证据摆出来澄清", "result": "你调出日志和提交记录,锅稳稳甩了回去。有点得罪人,但站住了。", "effects": { "stress": 6, "performance": 4, "san": -2 } },
-        { "label": "算了,不想撕,先认下来", "result": "你把话咽了回去。会散了,心里堵得慌。", "effects": { "performance": -4, "san": -5, "passion": -2 } }
+        {
+          "label": "当场把证据摆出来澄清",
+          "result": "你调出日志和提交记录,锅稳稳甩了回去。有点得罪人,但站住了。",
+          "effects": {
+            "stress": 6,
+            "performance": 4,
+            "san": -2
+          }
+        },
+        {
+          "label": "算了,不想撕,先认下来",
+          "result": "你把话咽了回去。会散了,心里堵得慌。",
+          "effects": {
+            "performance": -4,
+            "san": -5,
+            "passion": -2
+          }
+        }
       ]
     },
     {
-      "id": "ev_gossip", "icon": "☕", "title": "茶水间八卦", "urgent": false,
+      "id": "ev_gossip",
+      "icon": "☕",
+      "title": "茶水间八卦",
+      "urgent": false,
       "text": "茶水间里,几个同事压低声音聊起了裁员小道消息和谁又跳槽涨薪了。江野朝你使眼色:「来听不?」",
       "choices": [
-        { "label": "凑过去听两句", "result": "你听了一耳朵八卦,信息量拉满,也更焦虑了一点。", "effects": { "san": 3, "stress": 2, "performance": -1 } },
-        { "label": "笑笑,回工位专注干活", "result": "你摇摇头回了工位。少了点谈资,多了点进度。", "effects": { "skill": 3, "performance": 2 } }
+        {
+          "label": "凑过去听两句",
+          "result": "你听了一耳朵八卦,信息量拉满,也更焦虑了一点。",
+          "effects": {
+            "san": 3,
+            "stress": 2,
+            "performance": -1
+          }
+        },
+        {
+          "label": "笑笑,回工位专注干活",
+          "result": "你摇摇头回了工位。少了点谈资,多了点进度。",
+          "effects": {
+            "skill": 3,
+            "performance": 2
+          }
+        }
       ]
     },
     {
-      "id": "ev_help", "icon": "🆘", "title": "江野求助", "urgent": false,
+      "id": "ev_help",
+      "icon": "🆘",
+      "title": "江野求助",
+      "urgent": false,
       "text": "江野抓着头凑过来:「哥,我这段跑不通两小时了,能帮我瞄一眼吗?就一眼!」",
       "choices": [
-        { "label": "帮他看,顺手教他排查", "result": "你三下五除二帮他定位了。他两眼放光。你也踏实。", "effects": { "san": 4, "passion": 3, "energy": -4 } },
-        { "label": "「我手头也急,你先自己顶顶」", "result": "你没停下手里的活。江野悻悻回去了,气氛有点尬。", "effects": { "san": -2, "performance": 2 } }
+        {
+          "label": "帮他看,顺手教他排查",
+          "result": "你三下五除二帮他定位了。他两眼放光。你也踏实。",
+          "effects": {
+            "san": 4,
+            "passion": 3,
+            "energy": -4
+          }
+        },
+        {
+          "label": "「我手头也急,你先自己顶顶」",
+          "result": "你没停下手里的活。江野悻悻回去了,气氛有点尬。",
+          "effects": {
+            "san": -2,
+            "performance": 2
+          }
+        }
       ]
     },
     {
-      "id": "ev_deploy", "icon": "🌙", "title": "临时上线通知", "urgent": true,
+      "id": "ev_deploy",
+      "icon": "🌙",
+      "title": "临时上线通知",
+      "urgent": true,
       "text": "下午五点,群里突然通知:「今晚 8 点有个紧急版本要上,相关同学留一下。」你看了眼窗外的天色。",
       "choices": [
-        { "label": "留下来盯上线", "result": "你退掉了晚上的约。上线很顺,但这一天被拉得很长很长。", "effects": { "stress": 8, "performance": 6, "health": -5, "energy": -8 } },
-        { "label": "「我这块没耦合,先撤了」", "result": "你确认无关后准点走了。走出楼时松了口气,又有点心虚。", "effects": { "san": 3, "performance": -3 } }
+        {
+          "label": "留下来盯上线",
+          "result": "你退掉了晚上的约。上线很顺,但这一天被拉得很长很长。",
+          "effects": {
+            "stress": 8,
+            "performance": 6,
+            "health": -5,
+            "energy": -8
+          }
+        },
+        {
+          "label": "「我这块没耦合,先撤了」",
+          "result": "你确认无关后准点走了。走出楼时松了口气,又有点心虚。",
+          "effects": {
+            "san": 3,
+            "performance": -3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_mentor_snack",
+      "icon": "🍪",
+      "title": "老陈的抽屉",
+      "minAct": 1,
+      "maxAct": 2,
+      "text": "老陈路过你工位,不动声色放下一包苏打饼干:「加班别空腹。」说完就走,好像什么都没发生。",
+      "choices": [
+        {
+          "label": "追上去说声谢谢",
+          "result": "他摆摆手:「吃你的。」耳朵有点红。",
+          "effects": {
+            "san": 4,
+            "passion": 2
+          }
+        },
+        {
+          "label": "默默收下,记在心里",
+          "result": "有些好意不用说破。你把饼干放进抽屉,和那盆绿植一起。",
+          "effects": {
+            "san": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rubberduck",
+      "icon": "🦆",
+      "title": "小黄鸭调试法",
+      "minAct": 1,
+      "maxAct": 3,
+      "text": "卡了一小时的 bug,你对着桌上的小黄鸭把逻辑讲了一遍——讲到一半,突然明白问题在哪了。",
+      "choices": [
+        {
+          "label": "「鸭兄,你真是个天才!」",
+          "result": "隔壁小赵探头:「你刚在跟谁说话?」你俩对视,都笑了。",
+          "effects": {
+            "skill": 3,
+            "passion": 3
+          }
+        },
+        {
+          "label": "冷静修掉,深藏功与名",
+          "result": "bug 修了。鸭子面无表情,一如既往地专业。",
+          "effects": {
+            "skill": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_night_light",
+      "icon": "🌃",
+      "title": "最后一盏灯",
+      "minAct": 3,
+      "text": "加班到深夜,你起身接水,发现整层楼只剩你和老陈两盏灯。他的背影在屏幕蓝光里,像一座沉默的岛。",
+      "choices": [
+        {
+          "label": "给他也带杯热水",
+          "result": "他愣了一下,说了声谢。那晚你们没聊工作,聊了十分钟老家。",
+          "effects": {
+            "san": 4,
+            "passion": 2,
+            "energy": -3
+          }
+        },
+        {
+          "label": "拍下这一幕,发进了草稿箱",
+          "result": "你想配文'奋斗'。想了想,又删了。有些疲惫发不出去。",
+          "effects": {
+            "san": -2,
+            "stress": 2
+          }
+        },
+        {
+          "label": "收拾东西,今天到此为止",
+          "result": "你关灯下班。走廊尽头,他那盏灯还亮着。",
+          "effects": {
+            "energy": 4,
+            "san": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_layoff_rumor",
+      "icon": "🪑",
+      "title": "裁员传闻",
+      "minAct": 3,
+      "text": "茶水间有人压低声音:「隔壁组在'优化'了,听说下个月轮到咱们这边……」空气瞬间安静。",
+      "choices": [
+        {
+          "label": "回工位默默更新简历",
+          "result": "不是要走,是想确认自己'随时可以走'。安全感这东西,得自己给。",
+          "effects": {
+            "stress": 3,
+            "skill": 2
+          }
+        },
+        {
+          "label": "「干好手上的活就行」",
+          "result": "话是这么说,那晚你还是失眠了半小时。",
+          "effects": {
+            "stress": 4,
+            "performance": 2
+          }
+        },
+        {
+          "label": "找周哥打听内幕",
+          "result": "周哥呷了口茶:「每年都传,该干嘛干嘛。」莫名安心了些。",
+          "effects": {
+            "san": 3,
+            "stress": -2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_offer_call",
+      "icon": "📞",
+      "title": "猎头电话",
+      "minAct": 3,
+      "text": "陌生来电:「您好,看到您的资料,有个薪资上浮 40% 的机会……」你下意识看了眼四周。",
+      "choices": [
+        {
+          "label": "「谢谢,暂时不考虑」",
+          "result": "挂了电话,心里却起了一丝波澜:原来我值这个数。",
+          "effects": {
+            "passion": 2,
+            "san": 2
+          }
+        },
+        {
+          "label": "「加个微信,细聊」",
+          "result": "不一定走,但世界很大,门要留一条缝。",
+          "effects": {
+            "san": 3,
+            "stress": -2
+          }
+        },
+        {
+          "label": "听完条件,失眠了",
+          "result": "数字在脑子里转了一夜。钱不是一切,但它是个刻度。",
+          "effects": {
+            "stress": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_plant_neighbor",
+      "icon": "🌱",
+      "title": "隔壁工位的绿萝",
+      "minAct": 4,
+      "text": "你给自己的绿植浇水时,发现隔壁空工位那盆绿萝已经枯透了——主人上个月离职,没人记得它。",
+      "choices": [
+        {
+          "label": "把它抱过来,试着救活",
+          "result": "剪掉枯叶,泡水生根。也许救它,也是救某种自己不敢想的东西。",
+          "effects": {
+            "san": 4,
+            "passion": 2
+          }
+        },
+        {
+          "label": "替它浇了最后一次水",
+          "result": "有些告别是安静的。你多看了一眼自己那盆还绿着的。",
+          "effects": {
+            "san": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_intern_question",
+      "icon": "🐣",
+      "title": "实习生的提问",
+      "minAct": 4,
+      "text": "新来的实习生怯生生地问你:「前辈,这行……真的会一直这么累吗?」你从他眼里看到一年前的自己。",
+      "choices": [
+        {
+          "label": "「累,但你可以选择怎么累」",
+          "result": "他似懂非懂。你忽然意识到,这句话也是说给自己听的。",
+          "effects": {
+            "san": 4,
+            "passion": 3
+          }
+        },
+        {
+          "label": "「先把手上的活干漂亮」",
+          "result": "标准答案。他点点头走了。你盯着屏幕,半天没敲一个字。",
+          "effects": {
+            "performance": 2,
+            "san": -1
+          }
+        },
+        {
+          "label": "请他喝了杯咖啡,聊了很久",
+          "result": "你把踩过的坑一个个讲给他。讲完,心里某处松了一块。",
+          "effects": {
+            "san": 5,
+            "energy": -3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_payday_treat",
+      "icon": "🧧",
+      "title": "发薪日",
+      "minAct": 2,
+      "text": "工资到账短信弹出来。群里小赵吆喝:「发薪日!今晚火锅,AA,谁来?」",
+      "choices": [
+        {
+          "label": "「算我一个!」",
+          "result": "热气腾腾的一锅,工作的事谁提谁罚酒。这顿吃得值。",
+          "effects": {
+            "san": 5,
+            "money": -50,
+            "energy": 3
+          }
+        },
+        {
+          "label": "「下次一定,今天想早点回」",
+          "result": "你回家煮了碗面。安静,也是一种犒劳。",
+          "effects": {
+            "energy": 4,
+            "san": 2
+          }
+        },
+        {
+          "label": "先给爸妈转了一笔",
+          "result": "妈妈秒回:「乱花钱!」然后是一个大红花表情。",
+          "effects": {
+            "san": 5,
+            "money": -100
+          }
+        }
       ]
     }
   ]

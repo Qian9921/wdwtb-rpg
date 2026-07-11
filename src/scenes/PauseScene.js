@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
+import { buildPauseInsight, CAREER_NAMES as FIT_NAMES } from '../systems/CareerFit.js';
 
 // PauseScene — 暂停菜单覆盖场景（完整像素 RPG 标配）
 // 由 WorldScene 通过 scene.launch('PauseScene', { origin, stateSystem, career, act }) 唤起，
@@ -9,6 +10,7 @@ const CAREER_NAMES = {
   programmer: '程序员', product: '产品经理', admin: '高校行政',
   designer: '设计师', operation: '运营', teacher: '教师',
   doctor: '医生/护士', civilservant: '公务员', sales: '销售', lawyer: '律师',
+  ...FIT_NAMES,
 };
 const ACT_NAMES = ['', '入职', '上手', '996 / 消耗', '至暗', '抉择'];
 const STAT_LABELS = [
@@ -121,19 +123,26 @@ export class PauseScene extends Phaser.Scene {
     let profile = null;
     try { profile = JSON.parse(localStorage.getItem('wdwtb_profile') || 'null'); } catch (e) {}
     const cardX = this.W / 2;
+    const insight = buildPauseInsight({
+      profile, stats: this.stats, career: this.career, act: this.act,
+    });
     if (profile) {
-      this.panel.add(this.add.text(cardX, 108, `${profile.mbti || ''}  ·  ${profile.holland || ''}`, {
-        fontSize: '24px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 3,
-      }).setOrigin(0.5));
-      const cn = CAREER_NAMES[this.career] || this.career;
-      this.panel.add(this.add.text(cardX, 138, `现在的你：${cn} · 第${this.act}幕`, {
-        fontSize: '14px', color: '#9aa0c0',
+      this.panel.add(this.add.text(cardX, 100, `${profile.mbti || ''}  ·  ${profile.holland || ''}`, {
+        fontSize: '22px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 3,
       }).setOrigin(0.5));
     }
+    this.panel.add(this.add.text(cardX, 128, insight.headline, {
+      fontSize: '14px', color: '#ffd24d',
+    }).setOrigin(0.5));
+    // 测评建议 + 本局体感（初衷：局中回看「适合/喜欢」）
+    this.panel.add(this.add.text(cardX, 158, insight.body, {
+      fontSize: '12px', color: '#9aa0c0', align: 'center',
+      wordWrap: { width: 620, useAdvancedWrap: true }, lineSpacing: 4,
+    }).setOrigin(0.5, 0));
 
     // 8 状态条
     if (this.stats) {
-      const startY = 180, rowH = 34, barW = 260, leftX = this.W / 2 - 150;
+      const startY = 230, rowH = 34, barW = 260, leftX = this.W / 2 - 150;
       STAT_LABELS.forEach(([key, label], i) => {
         const y = startY + i * rowH;
         const v = this.stats[key];

@@ -1462,12 +1462,18 @@ export class WorldScene extends Phaser.Scene {
       for (const q of this.questSystem.active()) {
         if (q.giver === 'senior' && this.questSystem.isReady(q.id)) {
           this.questSystem.complete(q.id);
+          // 交付：强反馈（手感 + 进度可见）
+          Juice.celebrate(this, this.player.x, this.player.y - 30, 0xffd24d);
+          Juice.floatText(this, this.player.x, this.player.y - 70, '✓ 交付', '#7eff7e');
+          AudioSystem.questDone?.();
           this._showLine(npc.name, q.doneLine || `「${q.title}」完成！干得漂亮。`);
           if (q.progressGain && this.projectSystem) {
             this.projectSystem.adjustProgress(q.progressGain);
             this._updateProjectHud && this._updateProjectHud();
+            Juice.floatText(this, this.player.x + 40, this.player.y - 50, `项目 +${q.progressGain}%`, '#5fbf7f');
           }
           this._updateNpcMarks();
+          this._autoSave?.();
           return;
         }
       }
@@ -1482,6 +1488,9 @@ export class WorldScene extends Phaser.Scene {
           this.questSystem.accept(q.id);
           const next = this.questSystem.nextObjective(q.id);
           const hint = next ? `\n▸ ${next.text}` : '';
+          Juice.pop(this, npc.spr || this.player, 1.08);
+          Juice.floatText(this, this.player.x, this.player.y - 64, '📋 新任务', '#ffd24d');
+          AudioSystem.uiClick?.();
           this._showLine(npc.name, `${q.acceptLine || `新任务：「${q.title}」`}${hint}`);
           this._updateNpcMarks();
           return;
@@ -2070,12 +2079,16 @@ export class WorldScene extends Phaser.Scene {
   _onProjectMilestone(pct) {
     const r = applyProjectMilestone(this._story, pct, this.act);
     this._story = r.story;
+    // impact(scene, intensity) — 仅震屏+顿帧，勿把坐标当 intensity
+    Juice.impact(this, 0.014);
+    Juice.floatText(this, this.player?.x || 400, (this.player?.y || 300) - 80, `📊 ${pct}%`, '#ffd24d');
     if (!r.unlocked) {
       this._showThoughtBubble(`（项目推进到 ${pct}% —— 一个阶段完成了。）`, '#ffd24d');
       return;
     }
     this._autoSave(); // 里程碑=存档点
     this._updateNpcMarks(); // 老陈头顶亮 ❗
+    Juice.celebrate(this, this.player?.x || 0, (this.player?.y || 0) - 30, 0xffd24d);
     this._showThoughtBubble(`（项目推进到 ${pct}%！导师想找你聊聊下一步——去找他（头顶 ❗）。）`, '#ffd24d');
   }
 
@@ -2246,9 +2259,14 @@ export class WorldScene extends Phaser.Scene {
     if (this.dialogueActive || this._workBoardUI || this._eventUI || this._sitting) return;
     if (!this._officeEvents || !this._officeEvents.length) return;
     if (Phaser.Math.RND.frac() > 0.55) return;
+    // 幕次门槛：minAct/maxAct 让事件跟着故事走(裁员传闻不该出现在蜜月期)
+    const inAct = (e) => (e.minAct == null || this.act >= e.minAct)
+      && (e.maxAct == null || this.act <= e.maxAct);
+    const eligible = this._officeEvents.filter(inAct);
+    if (!eligible.length) return;
     // 优先没见过的,尽量不重复
-    let pool = this._officeEvents.filter(e => !this._eventSeen.has(e.id));
-    if (!pool.length) { this._eventSeen.clear(); pool = this._officeEvents; }
+    let pool = eligible.filter(e => !this._eventSeen.has(e.id));
+    if (!pool.length) { this._eventSeen.clear(); pool = eligible; }
     const ev = Phaser.Utils.Array.GetRandom(pool);
     this._eventSeen.add(ev.id);
     this._showOfficeEvent(ev);
@@ -2337,6 +2355,8 @@ export class WorldScene extends Phaser.Scene {
     if (this._reportUI) return;
     this._reportShown = true;
     this.dialogueActive = true;
+    Juice.flash(this, 0x1a1a2e, 180);
+    Juice.floatText(this, this.scale.width / 2, this.scale.height / 2 - 200, '一天结束', '#ffd24d');
     if (this.guideText) this.guideText.setVisible(false);
     const { width, height } = this.scale;
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10002);

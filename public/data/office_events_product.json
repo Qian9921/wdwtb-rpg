@@ -9,7 +9,7 @@
       "icon": "👔",
       "title": "老板突然加需求",
       "urgent": true,
-      "text": "老板在群里丢了一句：「登录页再加个会员开通入口，不难吧？」研发群已读不回。",
+      "text": "老板在群里丢了一句：「登录页再加个会员开通入口，不难吧？」研发群已读不回。\n（产品的日常：优先级永远比时间多。）",
       "choices": [
         {
           "label": "先应下，回头再拆进迭代",
@@ -235,6 +235,115 @@
             "san": 4,
             "performance": -2,
             "stress": -2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_pd_datafight",
+      "icon": "📊",
+      "title": "数据打架",
+      "minAct": 2,
+      "text": "你的方案数据说 A 好,老板的直觉说 B 好。评审会上,所有人都在看你。",
+      "choices": [
+        {
+          "label": "「数据在这,我坚持 A」",
+          "result": "会议室安静三秒。老板:「……那就小流量试。」你赢了一半。",
+          "effects": {
+            "skill": 4,
+            "stress": 4,
+            "performance": 3
+          }
+        },
+        {
+          "label": "「可以 AB 实验,让用户投票」",
+          "result": "各退一步,科学背锅。这招你越用越熟了。",
+          "effects": {
+            "san": 3,
+            "skill": 3
+          }
+        },
+        {
+          "label": "顺着老板改成 B",
+          "result": "会好开了,方案却不再像你的了。",
+          "effects": {
+            "performance": 2,
+            "passion": -3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_pd_userletter",
+      "icon": "💌",
+      "title": "用户来信",
+      "minAct": 2,
+      "text": "客服转来一封长信:一位老用户手写了三页纸,说你们的产品陪他度过了住院的三个月。",
+      "choices": [
+        {
+          "label": "打印出来贴在工位上",
+          "result": "往后每次想砍需求,你都会先看它一眼。",
+          "effects": {
+            "passion": 5,
+            "san": 3
+          }
+        },
+        {
+          "label": "回了一封同样认真的信",
+          "result": "你写了四十分钟。这四十分钟,比一天的会都值。",
+          "effects": {
+            "san": 4,
+            "energy": -2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_pd_nightprd",
+      "icon": "🌙",
+      "title": "深夜的PRD",
+      "minAct": 3,
+      "text": "凌晨一点,你还在改明早评审的 PRD。文档右上角显示:还有两个人也在线——都是研发。",
+      "choices": [
+        {
+          "label": "在评论区打了句「辛苦了」",
+          "result": "两秒后收到回复:「彼此彼此」。深夜的文档里,有种奇怪的战友情。",
+          "effects": {
+            "san": 3,
+            "energy": -4
+          }
+        },
+        {
+          "label": "改完就睡,明天再说",
+          "result": "你合上电脑。有些完美主义,得学会明天再犯。",
+          "effects": {
+            "energy": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_pd_cut",
+      "icon": "✂️",
+      "title": "砍自己的需求",
+      "minAct": 3,
+      "text": "排期爆了,必须砍一个需求。列表里有一个,是你磨了两个月、最有感情的那个。",
+      "choices": [
+        {
+          "label": "砍它。对用户价值最小",
+          "result": "你亲手划掉了它。产品经理的成人礼,是杀死自己的孩子。",
+          "effects": {
+            "performance": 4,
+            "passion": -3,
+            "skill": 3
+          }
+        },
+        {
+          "label": "砍别的,保它",
+          "result": "你保住了它,代价是跟两个组各欠一个人情。",
+          "effects": {
+            "stress": 4,
+            "passion": 3
           }
         }
       ]

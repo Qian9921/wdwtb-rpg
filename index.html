@@ -4,10 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>你想成为谁</title>
+  <meta name="description" content="你想成为谁 — 职场疗愈叙事像素 RPG。上班、接任务、和同事对接，用选择认出本来的你。腾讯云黑客松参赛作品。" />
+  <meta name="theme-color" content="#0c0c14" />
+  <meta property="og:title" content="你想成为谁" />
+  <meta property="og:description" content="职场疗愈叙事像素 RPG · 经营一段职业人生" />
+  <meta property="og:type" content="website" />
   <!-- 内联 SVG favicon：主题金色「谁」字，避免 favicon.ico 404 -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2315151f'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23d4a353' font-family='sans-serif' font-weight='bold'%3E谁%3C/text%3E%3C/svg%3E" />
 
   <style>
+    /* 像素中文字体 Fusion Pixel 12px (OFL 许可, TakWolf/fusion-pixel-font)。
+       Phaser Text 引用 'Fusion Pixel'；main.js 用 FontFace API 等它加载完再启动游戏。 */
+    @font-face {
+      font-family: 'Fusion Pixel';
+      src: url('./assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');
+      font-display: swap;
+    }
     html, body {
       margin: 0;
       padding: 0;
@@ -32,10 +44,39 @@
       display: block;
       image-rendering: auto;
     }
+    /* 启动加载层：字体+引擎就绪前的占位（慢网络/手机下不再是纯黑屏）。
+       main.js 游戏 boot 后调 window.__hideBootLoader() 淡出移除。 */
+    #boot-loader {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #0c0c14; color: #d4a353;
+      font-family: monospace; font-size: 18px; letter-spacing: 0.35em;
+      transition: opacity 0.5s; pointer-events: none;
+    }
+    #boot-loader .dot-row { display: flex; gap: 10px; margin-top: 22px; }
+    #boot-loader .dot {
+      width: 10px; height: 10px; background: #d4a353;
+      animation: bl-blink 1.2s infinite;
+    }
+    #boot-loader .dot:nth-child(2) { animation-delay: 0.2s; }
+    #boot-loader .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bl-blink { 0%,80%,100% { opacity: 0.15; } 40% { opacity: 1; } }
   </style>
 </head>
 <body>
   <div id="game"></div>
+  <div id="boot-loader">
+    <div>你想成为谁</div>
+    <div class="dot-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  </div>
+  <script>
+    window.__hideBootLoader = function () {
+      var el = document.getElementById('boot-loader');
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 550);
+    };
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

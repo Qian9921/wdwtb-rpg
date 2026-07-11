@@ -1,0 +1,135 @@
+[
+  {
+    "title": "登录接口 · 手机号校验",
+    "act": 1, "difficulty": "easy",
+    "diff": [
+      { "text": "function login(phone, code) {", "added": false },
+      { "text": "  const user = db.findByPhone(phone)", "added": true },
+      { "text": "  if (user.code === code) {", "added": true },
+      { "text": "    return token(user)", "added": false },
+      { "text": "  }", "added": false }
+    ],
+    "badIndex": 2,
+    "category": "空指针",
+    "options": ["空指针", "边界处理", "命名风格", "安全隐患"],
+    "explain": "user 可能为 null（手机号不存在）。直接 user.code 会崩，应先判空再取字段。",
+    "hint": "findByPhone 找不到时会返回什么？"
+  },
+  {
+    "title": "分页查询 · 每页条数",
+    "act": 1, "difficulty": "easy",
+    "diff": [
+      { "text": "function listUsers(page, size) {", "added": false },
+      { "text": "  const offset = page * size", "added": true },
+      { "text": "  return db.query(offset, size)", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "边界处理",
+    "options": ["边界处理", "空指针", "命名风格", "重复代码"],
+    "explain": "page 从 1 开始时 offset 应是 (page-1)*size，否则第一页就跳过了一整页数据。",
+    "hint": "第一页 page=1 时 offset 是多少？"
+  },
+  {
+    "title": "订单金额 · 累加",
+    "act": 2, "difficulty": "mid",
+    "diff": [
+      { "text": "let total = 0", "added": false },
+      { "text": "for (let i = 0; i <= items.length; i++) {", "added": true },
+      { "text": "  total += items[i].price", "added": false },
+      { "text": "}", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "边界处理",
+    "options": ["边界处理", "空指针", "安全隐患", "性能问题"],
+    "explain": "i <= items.length 会越界访问 items[length]（undefined），应为 i < items.length。",
+    "hint": "循环最后一次 i 等于多少？"
+  },
+  {
+    "title": "用户搜索 · SQL 拼接",
+    "act": 2, "difficulty": "mid",
+    "diff": [
+      { "text": "function search(kw) {", "added": false },
+      { "text": "  const sql = `SELECT * FROM u WHERE name='${kw}'`", "added": true },
+      { "text": "  return db.exec(sql)", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "安全隐患",
+    "options": ["安全隐患", "命名风格", "空指针", "重复代码"],
+    "explain": "字符串直接拼进 SQL＝SQL 注入风险。应使用参数化查询（占位符 + 绑定参数）。",
+    "hint": "如果 kw 里带引号会发生什么？"
+  },
+  {
+    "title": "缓存读取 · 命名",
+    "act": 2, "difficulty": "easy",
+    "diff": [
+      { "text": "function getUser(id) {", "added": false },
+      { "text": "  let a = cache.get(id)", "added": true },
+      { "text": "  if (a) return a", "added": false },
+      { "text": "  return db.find(id)", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "命名风格",
+    "options": ["命名风格", "空指针", "边界处理", "安全隐患"],
+    "explain": "变量名 a 无意义，评审应要求改成 cached/user 之类的语义命名，便于维护。",
+    "hint": "半年后你还看得懂 a 是什么吗？"
+  },
+  {
+    "title": "重复提交 · 防抖",
+    "act": 3, "difficulty": "mid",
+    "diff": [
+      { "text": "async function submit(form) {", "added": false },
+      { "text": "  const res = await api.post(form)", "added": true },
+      { "text": "  toast('提交成功')", "added": false },
+      { "text": "}", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "边界处理",
+    "options": ["边界处理", "空指针", "安全隐患", "命名风格"],
+    "explain": "没有防重复提交：网络慢时用户连点会发多次请求。应在请求期间禁用按钮或加幂等键。",
+    "hint": "用户手一抖点两次会怎样？"
+  },
+  {
+    "title": "列表渲染 · 重复逻辑",
+    "act": 3, "difficulty": "hard",
+    "diff": [
+      { "text": "const a = fmt(user.a); render(a)", "added": true },
+      { "text": "const b = fmt(user.b); render(b)", "added": true },
+      { "text": "const c = fmt(user.c); render(c)", "added": true },
+      { "text": "const d = fmt(user.d); render(d)", "added": true }
+    ],
+    "badIndex": 0,
+    "category": "重复代码",
+    "options": ["重复代码", "空指针", "命名风格", "性能问题"],
+    "explain": "四行是同一模式的复制粘贴，应抽成循环/数组遍历，否则加字段就得再抄一行。",
+    "hint": "如果再加一个字段 e 会怎样？"
+  },
+  {
+    "title": "大列表 · 每帧重算",
+    "act": 4, "difficulty": "hard",
+    "diff": [
+      { "text": "render() {", "added": false },
+      { "text": "  const sorted = bigList.sort(cmp)", "added": true },
+      { "text": "  return sorted.map(row)", "added": false },
+      { "text": "}", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "性能问题",
+    "options": ["性能问题", "安全隐患", "边界处理", "命名风格"],
+    "explain": "每次 render 都对大列表重新排序＝性能杀手，且 sort 会原地改数组。应缓存排序结果。",
+    "hint": "render 一秒可能调用几十次。"
+  },
+  {
+    "title": "回滚开关 · 硬编码",
+    "act": 4, "difficulty": "hard",
+    "diff": [
+      { "text": "if (env === 'prod') {", "added": false },
+      { "text": "  featureOn = true", "added": true },
+      { "text": "}", "added": false }
+    ],
+    "badIndex": 1,
+    "category": "安全隐患",
+    "options": ["安全隐患", "重复代码", "命名风格", "边界处理"],
+    "explain": "把新功能开关硬编码为生产直接开，出问题无法快速回滚。应走可动态关闭的配置开关。",
+    "hint": "上线炸了，怎么关掉它？"
+  }
+]

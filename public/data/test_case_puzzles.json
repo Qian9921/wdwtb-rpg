@@ -1,0 +1,94 @@
+[
+  {
+    "title": "登录 · 手机号+验证码",
+    "act": 1, "difficulty": "easy",
+    "spec": "用户输入手机号和短信验证码登录。",
+    "cases": [
+      { "text": "正常：正确手机号+正确验证码", "mustCover": true, "why": "主流程必测" },
+      { "text": "空手机号", "mustCover": true, "why": "空值边界" },
+      { "text": "验证码错误", "mustCover": true, "why": "失败分支" },
+      { "text": "验证码已过期", "mustCover": true, "why": "时间边界" },
+      { "text": "手机号带前后空格", "mustCover": false, "why": "次要，可后补" },
+      { "text": "把浏览器换成深色模式", "mustCover": false, "why": "与登录逻辑无关" }
+    ],
+    "explain": "登录要覆盖：正常、空值、错误、过期。UI 主题这类与逻辑无关的不该进用例。"
+  },
+  {
+    "title": "购物车 · 数量加减",
+    "act": 1, "difficulty": "easy",
+    "spec": "商品数量可 + / -，范围 1~99。",
+    "cases": [
+      { "text": "正常：数量 1→2", "mustCover": true, "why": "主流程" },
+      { "text": "减到 0（下界）", "mustCover": true, "why": "下边界" },
+      { "text": "加到 100（上界）", "mustCover": true, "why": "上边界" },
+      { "text": "商品图片是否好看", "mustCover": false, "why": "非本需求" },
+      { "text": "库存不足时加数量", "mustCover": true, "why": "关联约束" }
+    ],
+    "explain": "数量类需求必测上下边界与关联约束（库存），主观审美不属于功能用例。"
+  },
+  {
+    "title": "支付 · 金额计算",
+    "act": 2, "difficulty": "mid",
+    "spec": "订单金额 = 商品和 - 优惠券，最低支付 0.01 元。",
+    "cases": [
+      { "text": "正常：有商品无券", "mustCover": true, "why": "主流程" },
+      { "text": "优惠券大于商品总额", "mustCover": true, "why": "负数/兜底边界" },
+      { "text": "金额刚好 0.01", "mustCover": true, "why": "最低边界" },
+      { "text": "并发：同一券被两单同时用", "mustCover": true, "why": "并发一致性" },
+      { "text": "把按钮颜色改成蓝色", "mustCover": false, "why": "与金额无关" }
+    ],
+    "explain": "钱相关必测：边界、负数兜底、并发。切忌漏并发——线上最容易出资损。"
+  },
+  {
+    "title": "文件上传",
+    "act": 2, "difficulty": "mid",
+    "spec": "支持上传图片，≤5MB，仅 jpg/png。",
+    "cases": [
+      { "text": "正常：3MB 的 jpg", "mustCover": true, "why": "主流程" },
+      { "text": "超过 5MB", "mustCover": true, "why": "大小边界" },
+      { "text": "上传 .exe 伪装成 .jpg", "mustCover": true, "why": "安全/类型校验" },
+      { "text": "0 字节空文件", "mustCover": true, "why": "空值边界" },
+      { "text": "网速快不快", "mustCover": false, "why": "非功能点" }
+    ],
+    "explain": "上传必测大小、类型、空文件与伪装类型（安全）。网速属性能测试，不是功能用例。"
+  },
+  {
+    "title": "搜索 · 关键词",
+    "act": 3, "difficulty": "mid",
+    "spec": "输入关键词返回匹配结果，支持中英文。",
+    "cases": [
+      { "text": "正常：常见词命中", "mustCover": true, "why": "主流程" },
+      { "text": "空关键词", "mustCover": true, "why": "空值" },
+      { "text": "特殊字符 % _ ' \"", "mustCover": true, "why": "转义/注入" },
+      { "text": "超长关键词（1万字）", "mustCover": true, "why": "长度边界" },
+      { "text": "结果按什么排序好看", "mustCover": false, "why": "主观，非用例" }
+    ],
+    "explain": "搜索必测空值、特殊字符（防注入）、超长输入。排序美感是产品判断不是测试用例。"
+  },
+  {
+    "title": "退款 · 状态流转",
+    "act": 3, "difficulty": "hard",
+    "spec": "已支付订单可申请退款；已发货不可退。",
+    "cases": [
+      { "text": "已支付未发货：可退", "mustCover": true, "why": "正向主流程" },
+      { "text": "已发货：拒绝退款", "mustCover": true, "why": "反向约束" },
+      { "text": "重复申请退款", "mustCover": true, "why": "幂等" },
+      { "text": "退款中再次点退款", "mustCover": true, "why": "并发/状态机" },
+      { "text": "退款按钮的圆角好不好看", "mustCover": false, "why": "视觉主观，非功能用例" }
+    ],
+    "explain": "状态机需求要把每个状态的允许/拒绝都测到，尤其重复与终态——漏一个就是资损口子。按钮美观不属于功能用例。"
+  },
+  {
+    "title": "定时任务 · 每日结算",
+    "act": 4, "difficulty": "hard",
+    "spec": "每天 00:00 结算前一天订单。",
+    "cases": [
+      { "text": "正常：有订单的一天", "mustCover": true, "why": "主流程" },
+      { "text": "跨月/跨年那一天", "mustCover": true, "why": "时间边界" },
+      { "text": "任务执行到一半崩溃后重跑", "mustCover": true, "why": "幂等/断点重跑" },
+      { "text": "当天零订单", "mustCover": true, "why": "空集合边界" },
+      { "text": "服务器机箱颜色", "mustCover": false, "why": "无关项" }
+    ],
+    "explain": "定时任务必测时间边界、空集合、以及最容易被忽略的『重跑幂等』。"
+  }
+]

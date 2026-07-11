@@ -2498,9 +2498,24 @@ export class WorldScene extends Phaser.Scene {
   // 启动程序员 Debug 小游戏，完成后回调 onComplete(result{correct,total,ratio})
   // 启动"干活"小游戏：两种玩法轮替(找bug行 / 流程排序)，防止单一玩法腻。
   // 细分岗位真差异：dev/test 各有自己的排序题库；找bug对测试岗是"缺陷排查"框架。
+  // 按子职业轮换「真实工作玩法」，避免单调、且各自还原真实工作：
+  //  dev(造物者)：调试 Debug → 构建/联调 Sequence → 代码评审 CodeReview
+  //  test(守护者)：写用例 TestCase → 找bug/回归 Debug → 流程 Sequence
+  //  其余职业：Debug ↔ Sequence 翻转（沿用旧行为）
+  _workGameRotation() {
+    if (this.career === 'programmer' && this.subRole === 'dev') {
+      return ['DebugGameScene', 'SequenceGameScene', 'CodeReviewScene'];
+    }
+    if (this.career === 'programmer' && this.subRole === 'test') {
+      return ['TestCaseScene', 'DebugGameScene', 'SequenceGameScene'];
+    }
+    return ['DebugGameScene', 'SequenceGameScene'];
+  }
+
   _launchCoding(onComplete, difficulty = null) {
-    this._workGameFlip = !this._workGameFlip;
-    const gameKey = this._workGameFlip ? 'DebugGameScene' : 'SequenceGameScene';
+    const rot = this._workGameRotation();
+    this._workGameIdx = ((this._workGameIdx == null ? -1 : this._workGameIdx) + 1) % rot.length;
+    const gameKey = rot[this._workGameIdx];
     this.scene.pause();
     this.scene.launch(gameKey, {
       act: this.act, difficulty, fromScene: null,

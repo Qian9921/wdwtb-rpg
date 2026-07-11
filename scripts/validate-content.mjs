@@ -203,6 +203,33 @@ for (const f of ['debug_puzzles.json', 'sequence_puzzles.json', 'minigame_coding
   else ok(`${f}: ${n} 题/关`);
 }
 
+// 程序员真实玩法题库：代码评审 / 写测试用例（P2）
+{
+  const cr = loadJson('code_review_puzzles.json');
+  if (!Array.isArray(cr) || cr.length < 3) error('code_review_puzzles 少于3题');
+  else {
+    let bad = 0;
+    for (const p of cr) {
+      if (!Array.isArray(p.diff) || p.badIndex == null || p.badIndex < 0 || p.badIndex >= p.diff.length) bad++;
+      else if (!p.category || !Array.isArray(p.options) || !p.options.includes(p.category)) bad++;
+    }
+    if (bad) error(`code_review_puzzles ${bad} 题 badIndex/category 非法`);
+    else ok(`code_review_puzzles: ${cr.length} 题（badIndex/category 合法）`);
+  }
+  const tc = loadJson('test_case_puzzles.json');
+  if (!Array.isArray(tc) || tc.length < 3) error('test_case_puzzles 少于3题');
+  else {
+    let bad = 0;
+    for (const p of tc) {
+      if (!Array.isArray(p.cases) || p.cases.length < 3) { bad++; continue; }
+      if (!p.cases.some(c => c.mustCover)) bad++;      // 至少一个必测
+      if (!p.cases.some(c => !c.mustCover)) bad++;     // 至少一个干扰项
+    }
+    if (bad) error(`test_case_puzzles ${bad} 题 cases 覆盖不合法`);
+    else ok(`test_case_puzzles: ${tc.length} 题（必测/干扰项齐全）`);
+  }
+}
+
 
 // sequence 职业分叉键（与 MinigameFlavor sequenceKey 对齐）
 {

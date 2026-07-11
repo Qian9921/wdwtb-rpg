@@ -22,6 +22,14 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     this._keyHandlers = []; // 本节点绑定的键盘 handler，_clearUI 时精确解绑防泄漏
     this._typeTimer = null; // 打字机计时器
     this._typing = false;
+    // 条件上下文：子职业 + 人格轴向量（供 subRole/axis 门控节点）。由 WorldScene 注入。
+    this._ctx = { subRole: null, getAxes: () => ({}) };
+  }
+
+  /** 注入条件上下文（子职业分支 + 人格轴门控）。getAxes 返回当前归一后的四轴向量。 */
+  setContext({ subRole, getAxes } = {}) {
+    if (subRole !== undefined) this._ctx.subRole = subRole;
+    if (typeof getAxes === 'function') this._ctx.getAxes = getAxes;
   }
 
   // 绑定空格/回车推进键。不用 once：玩家用鼠标推进时 once 不消费会残留旧闭包，
@@ -384,8 +392,10 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
   }
 
   // 条件判断：委托纯函数（单测见 test-dialogue-rules.mjs）
+  // 传入 ctx（子职业 + 人格轴向量），支持 subRole/axis 门控节点。
   _checkCondition(condition) {
-    return checkChoiceCondition(condition, (key) => this.state.get(key));
+    const ctx = { subRole: this._ctx.subRole, axes: this._ctx.getAxes() };
+    return checkChoiceCondition(condition, (key) => this.state.get(key), ctx);
   }
 
   _applyEffects(effects) {

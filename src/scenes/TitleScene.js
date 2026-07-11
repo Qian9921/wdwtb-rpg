@@ -48,6 +48,11 @@ export class TitleScene extends Phaser.Scene {
     // ===== 背景：明亮日出天际线 =====
     this._drawSkyline(W, H);
 
+    // ===== 可爱动态元素：飘云 + 飞鸟 + 热气球 =====
+    this._drawClouds(W, H);
+    this._drawBirds(W, H);
+    this._drawBalloon(W, H);
+
     // ===== 暖色光粒子 =====
     for (let i = 0; i < 20; i++) {
       const c = this.add.circle(
@@ -239,6 +244,95 @@ export class TitleScene extends Phaser.Scene {
     // 前景地面
     this.add.rectangle(0, H * 0.84, W, H * 0.16, 0x5a6a82).setOrigin(0, 0).setDepth(-3);
     this.add.rectangle(0, H * 0.84, W, 3, 0x7a8aa2).setOrigin(0, 0).setDepth(-3);
+  }
+
+  // ===== 可爱飘云：像素方块堆成的胖云，缓缓横向漂移，循环回绕 =====
+  _drawClouds(W, H) {
+    const puff = (cx, cy, scale, alpha) => {
+      const g = this.add.container(cx, cy).setDepth(-7).setAlpha(alpha);
+      // 用几个圆角方块堆成胖云
+      const parts = [
+        [0, 0, 46, 26], [-26, 6, 34, 20], [26, 6, 34, 20], [0, 10, 64, 20],
+      ];
+      for (const [dx, dy, pw, ph] of parts) {
+        g.add(this.add.rectangle(dx, dy, pw * scale, ph * scale, 0xffffff, 0.9));
+        g.add(this.add.rectangle(dx, dy + ph * scale * 0.35, pw * scale, ph * scale * 0.5, 0xeaf2ff, 0.9));
+      }
+      return g;
+    };
+    const clouds = [
+      { x: W * 0.15, y: H * 0.14, s: 1.1, a: 0.85, dur: 60000 },
+      { x: W * 0.55, y: H * 0.09, s: 0.8, a: 0.7, dur: 80000 },
+      { x: W * 0.82, y: H * 0.22, s: 1.3, a: 0.9, dur: 52000 },
+      { x: W * 0.38, y: H * 0.26, s: 0.7, a: 0.6, dur: 72000 },
+    ];
+    for (const cl of clouds) {
+      const g = puff(cl.x, cl.y, cl.s, cl.a);
+      const span = W + 200;
+      const travel = () => {
+        this.tweens.add({
+          targets: g, x: g.x + span, duration: cl.dur, ease: 'Linear',
+          onComplete: () => { g.x = -160; travel(); },
+        });
+      };
+      travel();
+      // 轻微上下浮（可爱呼吸感）
+      this.tweens.add({ targets: g, y: cl.y - 6, duration: 4000, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
+  }
+
+  // ===== 飞鸟：一小群 V 形鸟偶尔飞过（拍翅动画）=====
+  _drawBirds(W, H) {
+    const flock = () => {
+      const baseY = Phaser.Math.Between(H * 0.1, H * 0.24);
+      const n = Phaser.Math.Between(3, 5);
+      const birds = [];
+      for (let i = 0; i < n; i++) {
+        const g = this.add.graphics().setDepth(-6);
+        const bx = -60 - i * 34, by = baseY + i * (i % 2 ? 16 : -16) * 0.6;
+        g.x = bx; g.y = by;
+        const redraw = (flap) => {
+          g.clear(); g.lineStyle(3, 0x3a5a72, 0.8);
+          g.beginPath(); g.moveTo(-9, 0); g.lineTo(0, flap ? -5 : -1); g.lineTo(9, 0); g.strokePath();
+        };
+        redraw(true);
+        this.tweens.addCounter({
+          from: 0, to: 1, duration: 320, yoyo: true, repeat: -1,
+          onUpdate: (t) => redraw(t.getValue() > 0.5),
+        });
+        this.tweens.add({
+          targets: g, x: W + 80, y: `+=${Phaser.Math.Between(-30, 30)}`,
+          duration: Phaser.Math.Between(9000, 13000), ease: 'Sine.inOut',
+          delay: i * 120, onComplete: () => g.destroy(),
+        });
+        birds.push(g);
+      }
+    };
+    // 首次延迟出现，之后每隔一段随机再来一群
+    this.time.delayedCall(3000, flock);
+    this.time.addEvent({ delay: 18000, loop: true, callback: () => { if (Math.random() < 0.7) flock(); } });
+  }
+
+  // ===== 可爱热气球：缓缓从下往上飘过一次又一次（希望/上升感）=====
+  _drawBalloon(W, H) {
+    const g = this.add.container(0, 0).setDepth(-5);
+    const colors = [0xff9a7a, 0xffd870, 0x7ec8ff, 0x90e8b0, 0xe890b0];
+    const col = Phaser.Utils.Array.GetRandom(colors);
+    // 气球体
+    g.add(this.add.ellipse(0, 0, 44, 54, col, 0.95));
+    g.add(this.add.ellipse(-9, -6, 12, 22, 0xffffff, 0.35));
+    g.add(this.add.rectangle(0, 30, 18, 14, 0x8a5a3a, 0.95)); // 吊篮
+    g.add(this.add.line(0, 0, -14, 24, -7, 30, 0x6a4a2a).setLineWidth(1.5));
+    g.add(this.add.line(0, 0, 14, 24, 7, 30, 0x6a4a2a).setLineWidth(1.5));
+    const fly = () => {
+      g.x = Phaser.Math.Between(W * 0.2, W * 0.8); g.y = H + 80;
+      this.tweens.add({
+        targets: g, y: -100, duration: Phaser.Math.Between(26000, 34000), ease: 'Sine.inOut',
+        delay: Phaser.Math.Between(0, 8000), onComplete: fly,
+      });
+      this.tweens.add({ targets: g, x: g.x + Phaser.Math.Between(-60, 60), duration: 6000, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    };
+    fly();
   }
 
   // ===== 角色阵容：4 个 SkyOffice 角色站立，呼吸+阴影 =====

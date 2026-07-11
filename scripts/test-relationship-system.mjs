@@ -140,8 +140,13 @@ ok('ctx.relationSummary', !!ctx.relationSummary);
 const extra = buildWorldSaveExtra({ relations: rs.serialize(), story: { act: 1 } });
 ok('save extra 有 relations', extra.relations && extra.relations.affinity);
 
-// 真实数据：programmer / product / lawyer（E5 至少 3 职业）
-for (const career of ['programmer', 'product', 'lawyer']) {
+// 真实数据：10 职业 workLoop 全覆盖（E5）
+const ALL_CAREERS = [
+  'programmer', 'product', 'admin', 'designer', 'operation',
+  'teacher', 'doctor', 'civilservant', 'sales', 'lawyer',
+];
+const relBlobs = {};
+for (const career of ALL_CAREERS) {
   const roster = JSON.parse(readFileSync(join(DATA, `roster_${career}.json`), 'utf8'));
   const defs = npcDefsFromRoster(roster, career);
   const peer = defs?.find((n) => n.id === 'peer');
@@ -151,14 +156,30 @@ for (const career of ['programmer', 'product', 'lawyer']) {
   ok(`${career} warm 台词可选`, pickRelationAwareLine({
     npc: peer, act: 1, affinity: 80, rng: () => 0,
   })?.length > 4);
+  // cold / neutral 也要有，避免只写 warm
+  ok(`${career} peer cold 池`, normalizeAffinityPool(peer.linesByAffinity.cold, 1)?.length >= 1);
+  ok(`${career} vet neutral 池`, normalizeAffinityPool(vet.linesByAffinity.neutral, 1)?.length >= 1);
 
   const events = JSON.parse(readFileSync(join(DATA, `office_events_${career}.json`), 'utf8')).events;
   const gated = events.filter((e) => e.minAffinity || e.requiresMemory);
   ok(`${career} ≥2 关系门控事件`, gated.length >= 2, `got ${gated.length}`);
-  // 每职业至少有一条 minAffinity + 一条 requiresMemory
   ok(`${career} 有 minAffinity 事件`, gated.some((e) => e.minAffinity?.npc));
   ok(`${career} 有 requiresMemory 事件`, gated.some((e) => e.requiresMemory?.tag));
+  // 门控事件双选项 + 文案够长
+  for (const e of gated) {
+    ok(`${career}/${e.id} 双选项`, Array.isArray(e.choices) && e.choices.length >= 2);
+    ok(`${career}/${e.id} text≥20`, (e.text || '').length >= 20);
+  }
+  relBlobs[career] = JSON.stringify(gated.map((e) => e.id + e.title + e.text));
 }
+
+// 防换皮：关系事件开头不全同
+ok('product≠lawyer 关系事件不雷同',
+  relBlobs.product.slice(0, 80) !== relBlobs.lawyer.slice(0, 80));
+ok('admin≠sales 关系事件不雷同',
+  relBlobs.admin.slice(0, 80) !== relBlobs.sales.slice(0, 80));
+ok('doctor≠teacher 关系事件不雷同',
+  relBlobs.doctor.slice(0, 80) !== relBlobs.teacher.slice(0, 80));
 
 // 程序员具名事件 id 仍在
 const progEv = JSON.parse(readFileSync(join(DATA, 'office_events_programmer.json'), 'utf8')).events;

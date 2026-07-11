@@ -329,6 +329,90 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_ad_liu_tea",
+      "icon": "🍵",
+      "title": "刘姐请喝茶",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "刘姐把一杯茶搁在你桌上：「收文那套你上手了。走走，我讲讲迎检那年。」\n（跟她磨合够了，她才会把真教训摊开。）",
+      "choices": [
+        {
+          "label": "跟去，把坑记下来",
+          "result": "她点出三本最容易翻车的台账。你回来改了自己的检查表。",
+          "effects": {
+            "skill": 4,
+            "san": 2
+          }
+        },
+        {
+          "label": "先把手头通知发出去",
+          "result": "「行，发出去再来。」她把要点写在便签上留给你。",
+          "effects": {
+            "performance": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_ad_fang_proof",
+      "icon": "📄",
+      "title": "小方拉你对通知",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "小方探头：「这份开会通知我写完了，就差你这双眼。来？」\n（你们聊过之后，她才会把半成品给你挑刺。）",
+      "choices": [
+        {
+          "label": "逐句对格式和抬头",
+          "result": "你标了两处不规范。她回：「这才叫行政。」",
+          "effects": {
+            "skill": 3,
+            "performance": 2
+          }
+        },
+        {
+          "label": "五分钟后，先回个电话",
+          "result": "她把文档丢到共享盘：「批注打上面。」人情还在。",
+          "effects": {
+            "performance": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_ad_quiet_office",
+      "icon": "🧊",
+      "title": "综合办很安静",
+      "maxAct": 2,
+      "text": "你几乎还没跟同期说过话。打印机嗡嗡响，没人喊你的名字。",
+      "choices": [
+        {
+          "label": "起身问小方模板在哪",
+          "result": "有点尬，但模板到手了。关系从一句「打扰一下」开始。",
+          "effects": {
+            "san": 2,
+            "skill": 1
+          }
+        },
+        {
+          "label": "自己摸索收文系统",
+          "result": "系统摸清了。人与人的系统，还没登录。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

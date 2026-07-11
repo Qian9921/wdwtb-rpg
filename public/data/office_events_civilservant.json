@@ -274,6 +274,92 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_cs_zhou_case",
+      "icon": "🗂️",
+      "title": "老周约谈疑难件",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "老周把一沓材料搁你桌上：「这个，我想听你怎么判。」\n（跟他磨合够了，他才会把真难度摊开。）",
+      "choices": [
+        {
+          "label": "按规范拆步骤讲清",
+          "result": "他点头：「能讲清，就能办稳。」你技能涨了。",
+          "effects": {
+            "skill": 4,
+            "san": 2
+          }
+        },
+        {
+          "label": "先回去查依据再答",
+          "result": "「可以。明天一上班放到我桌上。」",
+          "effects": {
+            "performance": 2,
+            "skill": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_cs_min_window",
+      "icon": "🪟",
+      "title": "小闵约对窗口",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "小闵小声：「明天窗口我怕措辞硬。帮我过一遍话术？」\n（聊过之后，她才敢把慌张给你看。）",
+      "choices": [
+        {
+          "label": "认真当「刁钻群众」",
+          "result": "她被问倒两次，笑了：「再来。」你们都更稳。",
+          "effects": {
+            "skill": 3,
+            "san": 2
+          }
+        },
+        {
+          "label": "换你练，她来挑",
+          "result": "你也被问住了。原来窗口永远在临场——但你们更像搭档。",
+          "effects": {
+            "skill": 3,
+            "stress": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_cs_quiet_desk",
+      "icon": "🧊",
+      "title": "内勤位很安静",
+      "maxAct": 2,
+      "text": "你几乎还没跟同期说过话。印章盒盖着，没人喊你。",
+      "choices": [
+        {
+          "label": "主动找小闵对清单",
+          "result": "有点尬，但对齐了。关系从「一起看看？」开始。",
+          "effects": {
+            "san": 2,
+            "skill": 1
+          }
+        },
+        {
+          "label": "埋头写自己的办件",
+          "result": "办件更规范了。人与人的办件，还没开始。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

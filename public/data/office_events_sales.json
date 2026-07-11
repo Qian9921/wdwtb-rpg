@@ -271,6 +271,90 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_sa_biao_debrief",
+      "icon": "🤝",
+      "title": "彪哥约复盘",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "彪哥敲敲你桌：「上周那单，我想听你怎么看输赢。」\n（跟他磨合够了，他才会把真话摊开。）",
+      "choices": [
+        {
+          "label": "把输的原因讲透",
+          "result": "他点头：「敢讲输，才配赢。」你技能涨了。",
+          "effects": {
+            "skill": 4,
+            "san": 2
+          }
+        },
+        {
+          "label": "先把今晚客户回完",
+          "result": "「行，回完来找我。」他把框架留给你。",
+          "effects": {
+            "performance": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_sa_ke_script",
+      "icon": "📞",
+      "title": "小柯约对异议",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "小柯探头：「异议话术我写了一半，就差你这张嘴。」\n（聊过之后，她才敢把半成品给你挑。）",
+      "choices": [
+        {
+          "label": "认真互诘一轮",
+          "result": "你们都更利落。下一通客户电话不慌了。",
+          "effects": {
+            "skill": 3,
+            "san": 2
+          }
+        },
+        {
+          "label": "稍后，先跟一条线索",
+          "result": "她把文档丢你：「批注打上面。」",
+          "effects": {
+            "performance": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_sa_quiet_bay",
+      "icon": "🧊",
+      "title": "销售湾很安静",
+      "maxAct": 2,
+      "text": "你几乎还没跟同期说过话。电话此起彼伏，没人看你。",
+      "choices": [
+        {
+          "label": "主动找小柯对脚本",
+          "result": "有点尬，但对齐了。关系从「一起练？」开始。",
+          "effects": {
+            "san": 2,
+            "skill": 1
+          }
+        },
+        {
+          "label": "埋头洗自己的线索",
+          "result": "池子更干净了。人与人的池子，还没开始。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

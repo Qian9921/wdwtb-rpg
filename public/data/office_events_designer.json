@@ -272,6 +272,90 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_ds_ge_review",
+      "icon": "🎨",
+      "title": "老葛约复盘稿",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "老葛敲敲你桌：「那组图标我看了。下去聊十分钟？」\n（跟他磨合够了，他才会把真审美标准摊开。）",
+      "choices": [
+        {
+          "label": "跟去，把问题听全",
+          "result": "他指出三处不一致。你回来统一了规范，手更稳了。",
+          "effects": {
+            "skill": 4,
+            "stress": 2
+          }
+        },
+        {
+          "label": "先把今晚交付交了",
+          "result": "「行，交了喊我。」他把批注链留给你。",
+          "effects": {
+            "performance": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_ds_tang_walk",
+      "icon": "👁️",
+      "title": "阿棠拉你走查",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "阿棠探头：「竞品走查我写了一半，缺你这双眼睛。」\n（聊过之后，他才会把半成品给你挑。）",
+      "choices": [
+        {
+          "label": "一起盯断点和节奏",
+          "result": "你们标了五个「偷师点」。协作感回来了。",
+          "effects": {
+            "skill": 3,
+            "san": 2
+          }
+        },
+        {
+          "label": "稍后，先回评审意见",
+          "result": "他把文档丢你：「批注打上面。」",
+          "effects": {
+            "performance": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_ds_silent_desk",
+      "icon": "🧊",
+      "title": "设计区很安静",
+      "maxAct": 2,
+      "text": "你几乎还没跟同期说过话。耳机此起彼伏，没人看你的稿。",
+      "choices": [
+        {
+          "label": "主动找阿棠对组件",
+          "result": "有点尬，但对齐了。关系从「你有空吗」开始。",
+          "effects": {
+            "san": 2,
+            "skill": 1
+          }
+        },
+        {
+          "label": "埋头改自己的栅格",
+          "result": "栅格更齐了。人与人的栅格，还没对齐。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

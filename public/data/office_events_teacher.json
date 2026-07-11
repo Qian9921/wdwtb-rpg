@@ -273,6 +273,91 @@
           }
         }
       ]
+    },
+    {
+      "id": "ev_rel_te_wu_office",
+      "icon": "📚",
+      "title": "吴老师约谈班",
+      "minAct": 2,
+      "minAffinity": {
+        "npc": "vet",
+        "min": 60
+      },
+      "text": "吴老师敲敲你桌：「你们班那几个孩子，我想跟你对一下。」\n（跟她磨合够了，她才会把真经验摊开。）",
+      "choices": [
+        {
+          "label": "认真听，把要点记下",
+          "result": "她讲了两个「看起来没事、其实会炸」的信号。你更懂班了。",
+          "effects": {
+            "skill": 4,
+            "san": 2
+          }
+        },
+        {
+          "label": "先把今晚家访回完",
+          "result": "「行，回完来找我。」她把名单留给你。",
+          "effects": {
+            "performance": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_te_xu_class",
+      "icon": "🎧",
+      "title": "小许约互听",
+      "minAffinity": {
+        "npc": "peer",
+        "min": 55
+      },
+      "requiresMemory": {
+        "npc": "peer",
+        "tag": "talked"
+      },
+      "text": "小许探头：「公开课预演，你来当学生刁难我？」\n（聊过之后，他才敢把慌张给你看。）",
+      "choices": [
+        {
+          "label": "认真当「难搞学生」",
+          "result": "他被问倒一次，笑了：「再来。」你们都更硬一点。",
+          "effects": {
+            "skill": 3,
+            "san": 2
+          }
+        },
+        {
+          "label": "换你讲，他来挑",
+          "result": "你也被问住了。原来备课永远不够——但你们更像搭档了。",
+          "effects": {
+            "skill": 3,
+            "stress": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ev_rel_te_quiet_office",
+      "icon": "🧊",
+      "title": "办公室很安静",
+      "maxAct": 2,
+      "text": "你几乎还没跟同期说过话。粉笔灰味道很重，没人喊你。",
+      "choices": [
+        {
+          "label": "主动找小许对教案",
+          "result": "有点尬，但对齐了。关系从「一起看看？」开始。",
+          "effects": {
+            "san": 2,
+            "skill": 1
+          }
+        },
+        {
+          "label": "埋头写自己的班会",
+          "result": "班会稿清楚了。人与人的班会，还没开始。",
+          "effects": {
+            "skill": 2,
+            "san": -1
+          }
+        }
+      ]
     }
   ]
 }

@@ -24,6 +24,7 @@ export class DebugGameScene extends Phaser.Scene {
     this.flavor = this.chrome.key;
     this.onComplete = data?.onComplete || null;
     this.fromScene = data?.fromScene || null;
+    this.skillBonus = data?.skillBonus || 0; // 技能→时限加成（秒）
     this.puzzles = null;      // 本局关卡（按难度随机抽,每局不同）
     this.idx = 0;
     this.solved = 0;
@@ -57,6 +58,9 @@ export class DebugGameScene extends Phaser.Scene {
   _buildChrome() {
     this.progressText = this.add.text(30, 18, '', { fontSize: '15px', color: '#8b949e' });
     this.timerText = this.add.text(930, 18, '', { fontSize: '15px', color: '#e6e6e6' }).setOrigin(1, 0);
+    if (this.skillBonus > 0) {
+      this.add.text(930, 38, `技能加成 +${this.skillBonus}s`, { fontSize: '11px', color: '#3fb950' }).setOrigin(1, 0);
+    }
     this.titleText = this.add.text(480, 20, this.chrome.debugTitle, { fontSize: '17px', color: '#58a6ff', fontStyle: 'bold' }).setOrigin(0.5, 0);
   }
 
@@ -88,8 +92,8 @@ export class DebugGameScene extends Phaser.Scene {
     const c = this.ui;
     const pz = this.puzzles[this.idx];
     this.answered = false;
-    // 难度决定限时：困难题时间更紧,制造紧迫感
-    this.timeLeft = { easy: 40, mid: 32, hard: 26 }[pz.difficulty] || 36;
+    // 难度决定限时：困难题时间更紧,制造紧迫感（技能加成延长时限）
+    this.timeLeft = ({ easy: 40, mid: 32, hard: 26 }[pz.difficulty] || 36) + this.skillBonus;
     this._roundTime = this.timeLeft;
     this.rowZones = [];
 

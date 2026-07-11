@@ -299,7 +299,8 @@ export class MinigameScene extends Phaser.Scene {
       fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
     btn.on('pointerdown', () => {
-      const result = { correct: this.correct, total, ratio: Math.round(ratio * 100) };
+      // ratio 契约：0-1（与 Debug/Sequence 场景一致），保留两位小数
+      const result = { correct: this.correct, total, ratio: Math.round(ratio * 100) / 100 };
       if (this.onComplete) {
         this.onComplete(result);
       } else {

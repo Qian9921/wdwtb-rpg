@@ -304,10 +304,14 @@ console.log('\n-- event choice + daily report --');
   ok('日报含健康变化', rep.rows.some(r => r.key === 'stat_health' && r.value.includes('-10')));
   ok('日报含压力变化', rep.rows.some(r => r.key === 'stat_stress'));
   ok('无变化 energy 不出现', !rep.rows.some(r => r.key === 'stat_energy'));
+  ok('未传 salary 不出现工资行', !rep.rows.some(r => r.key === 'salary'));
   const behind = buildDailyReportRows({
     day: 1, progressNow: 10, dayStartProgress: 10, daysLeft: 1, isBehind: true,
   });
   ok('落后 daysLeft 红色', behind.rows.find(r => r.key === 'daysLeft')?.color === '#ff7a7a');
+  const paid = buildDailyReportRows({ day: 3, progressNow: 30, dayStartProgress: 20, salary: 58 });
+  const salRow = paid.rows.find(r => r.key === 'salary');
+  ok('日报含今日工资 +58', !!salRow && salRow.value === '+58' && salRow.color === '#f0c060');
 }
 
 // WorldScene 静态接线

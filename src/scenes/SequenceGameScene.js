@@ -18,6 +18,7 @@ export class SequenceGameScene extends Phaser.Scene {
     }
     this.flavor = this.chrome.sequenceKey || this.chrome.key;
     this.onComplete = data?.onComplete || null;
+    this.skillBonus = data?.skillBonus || 0; // 技能→时限加成（秒）
     this.puzzles = null;
     this.idx = 0;
     this.solved = 0;
@@ -42,6 +43,9 @@ export class SequenceGameScene extends Phaser.Scene {
     this.titleText = this.add.text(480, 20, this.chrome.sequenceTitle, { fontSize: '17px', color: '#58a6ff', fontStyle: 'bold' }).setOrigin(0.5, 0);
     this.progressText = this.add.text(30, 18, '', { fontSize: '15px', color: '#8b949e' });
     this.timerText = this.add.text(930, 18, '', { fontSize: '15px', color: '#e6e6e6' }).setOrigin(1, 0);
+    if (this.skillBonus > 0) {
+      this.add.text(930, 38, `技能加成 +${this.skillBonus}s`, { fontSize: '11px', color: '#3fb950' }).setOrigin(1, 0);
+    }
     this._loadPuzzles();
   }
 
@@ -73,7 +77,7 @@ export class SequenceGameScene extends Phaser.Scene {
     this.nextExpect = 0;                     // 期望点第几步
     this.misses = 0;                         // 本题点错次数(影响判定)
     this.progressText.setText(`第 ${this.idx + 1}/${this.puzzles.length} 题`);
-    this.timeLeft = { easy: 40, mid: 45, hard: 55 }[pz.difficulty] || 45;
+    this.timeLeft = ({ easy: 40, mid: 45, hard: 55 }[pz.difficulty] || 45) + this.skillBonus;
     this._updateTimer();
 
     c.add(this.add.text(480, 52, pz.title, { fontSize: '16px', color: '#c9d1d9' }).setOrigin(0.5, 0));

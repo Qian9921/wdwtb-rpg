@@ -393,6 +393,7 @@ export function buildDailyReportRows({
   isBehind = false,
   statsNow = {},
   statsStart = {},
+  salary = null,
 } = {}) {
   const progGain = Math.max(0, Math.round((Number(progressNow) - Number(dayStartProgress || 0)) * 10) / 10);
   const rows = [
@@ -400,6 +401,9 @@ export function buildDailyReportRows({
     { key: 'perf', label: '⭐ 今日绩效', value: `+${Number(todayPerformance) || 0}`, color: '#ffd24d' },
     { key: 'progTotal', label: '📊 项目总进度', value: `${Math.round(Number(progressNow) || 0)}%`, color: '#8fd0ff' },
   ];
+  if (salary != null) {
+    rows.push({ key: 'salary', label: '💰 今日工资', value: `+${Number(salary) || 0}`, color: '#f0c060' });
+  }
   if (daysLeft != null) {
     rows.push({
       key: 'daysLeft',

@@ -146,14 +146,14 @@ try {
     careers: ['scripts/e2e-career-smoke.cjs'],
     chain:   ['scripts/e2e-taskchain.cjs', 'scripts/e2e-fullloop.cjs',
               'scripts/e2e-newfeatures.cjs', 'scripts/e2e-replay.cjs',
-              'scripts/e2e-events.cjs', 'scripts/e2e-title.cjs'],
+              'scripts/e2e-events.cjs', 'scripts/e2e-title.cjs', 'scripts/e2e-items.cjs'],
     full:    ['scripts/e2e-fullgame.cjs', 'scripts/e2e-fullgame-test.cjs'],
     all:     ['scripts/e2e-mainline.cjs', 'scripts/e2e-career-smoke.cjs',
               'scripts/e2e-taskchain.cjs', 'scripts/e2e-fullloop.cjs'],
   };
   SUITES.deep = [...SUITES.all, ...SUITES.chain.filter(s => !SUITES.all.includes(s)),
     ...SUITES.full, 'scripts/e2e-allcareers.cjs', 'scripts/e2e-shortstory.cjs',
-    'scripts/e2e-title.cjs'];
+    'scripts/e2e-title.cjs', 'scripts/e2e-items.cjs'];
   const scripts = SUITES[suite] || SUITES.main;
 
   let code = 0;

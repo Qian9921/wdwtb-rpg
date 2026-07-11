@@ -30,6 +30,7 @@ export class PauseScene extends Phaser.Scene {
     this.questSystem = data?.questSystem || null;  // 真实任务数据源（替代硬编码 goalByAct）
     this.choiceLog = data?.choiceLog || null;
     this.relationSummary = data?.relationSummary || null; // E5 办公室关系摘要
+    this.itemSystem = data?.itemSystem || null;    // 真实背包（WorldScene 的 ItemSystem）
     this.openPanel = data?.openPanel || null;      // 直接打开某面板（如白板打开 'quests'）
   }
 
@@ -184,21 +185,20 @@ export class PauseScene extends Phaser.Scene {
     }
   }
 
-  // ===== 物品 =====
+  // ===== 物品（真实背包 ItemSystem）=====
   _showItems() {
     this._clear(); this.inSub = true;
     this._title('物品'); this._backButton();
 
-    let items = [];
-    try { items = JSON.parse(localStorage.getItem('wdwtb_items') || '[]'); } catch (e) {}
-    // 内置固定物品（情感锚点）：绿植、信
+    // 内置固定物品（情感锚点）：绿植、期待记录（始终显示在最前）
     let plantName = '窗台的绿植';
     try { const p = JSON.parse(localStorage.getItem('wdwtb_plant') || 'null'); if (p?.name) plantName = p.name; } catch (e) {}
     const base = [
       { icon: '🪴', name: plantName, desc: '入职那天种下的小苗。它的样子，是你心里的样子。' },
-      { icon: '✉️', name: '给一年后自己的信', desc: '封存中。你会在故事的尽头，重新读到它。' },
+      { icon: '📝', name: '职业期待记录', desc: '入职时写下的期待。结局报告会拿它和现实对照。' },
     ];
-    const all = base.concat(items);
+    const bag = this.itemSystem ? this.itemSystem.list() : [];
+    const all = base.concat(bag);
 
     const cols = 4, cellW = 190, cellH = 100, startX = this.W / 2 - (cols * cellW) / 2 + cellW / 2, startY = 150;
     all.forEach((it, i) => {
@@ -207,20 +207,46 @@ export class PauseScene extends Phaser.Scene {
       const cell = this.add.rectangle(cx, cy, cellW - 16, cellH, 0x22223a, 0.95).setStrokeStyle(1, 0x44446a);
       this.panel.add(cell);
       this.panel.add(this.add.text(cx, cy - 26, it.icon, { fontSize: '28px' }).setOrigin(0.5));
-      this.panel.add(this.add.text(cx, cy + 6, it.name, { fontSize: '13px', color: '#e8e8f4', wordWrap: { width: cellW - 30, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
+      const label = it.count > 1 ? `${it.name} ×${it.count}` : it.name;
+      this.panel.add(this.add.text(cx, cy + 6, label, { fontSize: '13px', color: '#e8e8f4', wordWrap: { width: cellW - 30, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
       cell.setInteractive({ useHandCursor: true }).on('pointerdown', () => this._itemDetail(it));
     });
+    if (this.itemSystem && bag.length === 0) {
+      this.panel.add(this.add.text(this.W / 2, startY + 160, '（背包空空——办公室的售货机/咖啡角能买到东西）', {
+        fontSize: '13px', color: '#6a6a8a',
+      }).setOrigin(0.5));
+    }
     this.panel.add(this.add.text(this.W / 2, this.H - 30, '点击物品查看详情', { fontSize: '12px', color: '#5a5a7a' }).setOrigin(0.5));
   }
 
   _itemDetail(it) {
     const box = this.add.container(0, 0).setDepth(50);
     box.add(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x000000, 0.6).setInteractive());
-    box.add(this.add.rectangle(this.W / 2, this.H / 2, 460, 220, 0x1e1e34).setStrokeStyle(2, 0xf0d68a));
-    box.add(this.add.text(this.W / 2, this.H / 2 - 60, it.icon, { fontSize: '40px' }).setOrigin(0.5));
-    box.add(this.add.text(this.W / 2, this.H / 2 - 10, it.name, { fontSize: '18px', color: '#ffd68a', fontStyle: 'bold' }).setOrigin(0.5));
-    box.add(this.add.text(this.W / 2, this.H / 2 + 36, it.desc, { fontSize: '14px', color: '#c8c8dc', wordWrap: { width: 400, useAdvancedWrap: true }, align: 'center', lineSpacing: 6 }).setOrigin(0.5));
-    box.setInteractive = null;
+    box.add(this.add.rectangle(this.W / 2, this.H / 2, 460, 260, 0x1e1e34).setStrokeStyle(2, 0xf0d68a));
+    box.add(this.add.text(this.W / 2, this.H / 2 - 80, it.icon, { fontSize: '40px' }).setOrigin(0.5));
+    box.add(this.add.text(this.W / 2, this.H / 2 - 30, it.name, { fontSize: '18px', color: '#ffd68a', fontStyle: 'bold' }).setOrigin(0.5));
+    box.add(this.add.text(this.W / 2, this.H / 2 + 12, it.desc, { fontSize: '14px', color: '#c8c8dc', wordWrap: { width: 400, useAdvancedWrap: true }, align: 'center', lineSpacing: 6 }).setOrigin(0.5));
+    // 可使用的背包物品：使用按钮（应用效果到 StateSystem）
+    const usable = it.id && it.use && !it.readonly && this.itemSystem && this.stateSystem;
+    if (usable) {
+      const useBtn = this.add.rectangle(this.W / 2, this.H / 2 + 82, 140, 40, 0x3a5a3e)
+        .setStrokeStyle(2, 0x5fbf7f).setInteractive({ useHandCursor: true });
+      box.add(useBtn);
+      box.add(this.add.text(this.W / 2, this.H / 2 + 82, '使用', { fontSize: '16px', color: '#e8ffe8', fontStyle: 'bold' }).setOrigin(0.5));
+      useBtn.on('pointerdown', () => {
+        const r = this.itemSystem.use(it.id);
+        if (!r.ok) { box.destroy(true); return; }
+        for (const [k, v] of Object.entries(r.effects)) this.stateSystem.change(k, v);
+        this.stats = this.stateSystem.getAll();
+        AudioSystem.success();
+        box.destroy(true);
+        this._showItems(); // 重新渲染（计数变化）
+        const toast = this.add.text(this.W / 2, this.H - 60, `${it.icon} 已使用`, {
+          fontSize: '16px', color: '#8bd68b', backgroundColor: '#1e2e1e', padding: { x: 12, y: 6 },
+        }).setOrigin(0.5).setDepth(60);
+        this.tweens.add({ targets: toast, alpha: 0, delay: 1200, duration: 400, onComplete: () => toast.destroy() });
+      });
+    }
     box.list[0].on('pointerdown', () => box.destroy(true));
     this.panel.add(box);
   }

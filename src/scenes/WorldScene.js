@@ -57,6 +57,7 @@ import {
   eventMeetsRelations,
   summarizeRelations,
 } from '../systems/RelationshipSystem.js';
+import { ItemSystem, planGift, dailySalary, stressOutputMultiplier, energyGate, skillTimeBonus } from '../systems/ItemSystem.js';
 
 // WorldScene — LimeZu 现代办公室俯视角 RPG 探索 + NPC 交互 + 剧情合体
 //
@@ -265,6 +266,7 @@ export class WorldScene extends Phaser.Scene {
     this._savedSegment = null;
     this._savedProject = null;
     this._savedRelations = null;
+    this._savedItems = null;
     try {
       const saved = SaveSystem.loadSlot(this._activeSlot);
       // 同职业+同细分才续档；换职业或换方向 → 清旧档、全新开始（避免串档）。
@@ -280,6 +282,7 @@ export class WorldScene extends Phaser.Scene {
         this._savedSegment = Number.isInteger(saved.segment) ? saved.segment : null;
         this._savedProject = saved.project || null;
         this._savedRelations = saved.relations || null;
+        this._savedItems = saved.items || null;
         if (this.subRole == null && saved.subRole) this.subRole = saved.subRole; // 续档恢复方向
         if (saved.story) this._story = mergeStoryState(saved.story);
       } else if (saved) {
@@ -326,6 +329,8 @@ export class WorldScene extends Phaser.Scene {
     }
     // 办公室背景同事配置（12-15 人，让白天工位坐满像真实公司）
     this.load.json('office_npcs', './data/office_npcs.json');
+    // 物品目录（背包/售货机/送礼）
+    this.load.json('items_catalog', './data/items.json');
     // 工作日循环玩法：工单池 + 随机办公室事件 + 具名同事名册（目前程序员垂直切片）
     if (WORK_LOOP_CAREERS.has(this.career)) {
       this.load.json('work_orders', `./data/work_orders_${this.career}.json`);
@@ -400,6 +405,12 @@ export class WorldScene extends Phaser.Scene {
     // E5 关系网：好感/记忆（与存档同步）
     this.relations = new RelationshipSystem();
     if (this._savedRelations) this.relations.restore(this._savedRelations);
+    // 物品背包（目录来自 items.json；存档恢复）
+    const itemsData = this.cache.json.get('items_catalog');
+    this.items = new ItemSystem((itemsData && itemsData.items) || {});
+    if (this._savedItems) this.items.restore(this._savedItems);
+    // 新的一天到达（通勤进来）：清每日送礼记录
+    if (this._incomingDay && this.items) this.items.resetDaily();
     this._loadQuestData();
     // 任务完成时反馈（粒子+音效）+ 自动保存（任务链的每一环都是存档点）
     this.questSystem.on('completed', (id) => {
@@ -863,6 +874,7 @@ export class WorldScene extends Phaser.Scene {
         label: `${n.name} · ${n.role}`, mark: n.mark || '💬', markColor: n.markColor || '#7ec8ff',
         act: n.act, line: n.line, linesByAct: n.linesByAct || null,
         linesByAffinity: n.linesByAffinity || null,
+        favoriteItem: n.favoriteItem || null,
       }));
     } else {
       const theme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
@@ -1329,20 +1341,9 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const action = obj.action || '';
-    // buy_drink：即时状态交易（花 money 换 energy/san）
+    // buy_drink：打开商店面板（售货机/咖啡角），买到的物品进背包
     if (action === 'buy_drink') {
-      const cost = obj.cost || {};
-      const money = this.stateSystem.get('money');
-      const needMoney = Math.abs(cost.money || 0);
-      if (money < needMoney) {
-        this._showThoughtBubble('（钱不太够……下次吧。）', '#e8735a');
-        return;
-      }
-      for (const [k, v] of Object.entries(cost)) this.stateSystem.change(k, v);
-      for (const [k, v] of Object.entries(obj.effect || {})) this.stateSystem.change(k, v);
-      Juice.celebrate(this, this.player.x, this.player.y - 30, 0x6aaa6a);
-      this._showLine('', `${obj.icon} 喝下去，精神了一点。`);
-      this._afterInteract(obj);
+      this._openShopPanel(obj);
       return;
     }
     // water_plant：复用仪式弹窗 + 状态
@@ -1384,15 +1385,95 @@ export class WorldScene extends Phaser.Scene {
       this.questSystem.progress('interact', obj.id);
       this._updateNpcMarks();
     }
-    // 消耗每日精力预算，耗尽提示下班
-    if (this.daySystem) {
-      const left = this.daySystem.spendEnergy(12);
-      this._updateDayHud();
-      if (left <= 0 && !this._exhaustedPrompted) {
-        this._exhaustedPrompted = true;
-        this._showThoughtBubble('（今天有点累了……该下班回家了。）', '#f0c060');
-      }
+    // 精力=状态栏 energy（统一双轨）：交互消耗 4，耗尽提示下班
+    this.stateSystem.change('energy', -4);
+    this._updateDayHud();
+    const gate = energyGate(this.stateSystem.get('energy'));
+    if (gate.forceOff && !this._exhaustedPrompted) {
+      this._exhaustedPrompted = true;
+      this._showThoughtBubble('（精力见底了……今天到极限了，该下班了。）', '#f0c060');
     }
+  }
+
+  // ==================== 商店面板（售货机/咖啡角）====================
+  // 买到的物品进背包（ItemSystem），送礼/使用二选一——钱有了去处。
+  _openShopPanel(obj) {
+    if (this.dialogueActive) return;
+    this.dialogueActive = true;
+    this.ePrompt.setVisible(false);
+    if (this.guideText) this.guideText.setVisible(false);
+    const source = obj.id === 'vending' ? 'vending' : 'coffee';
+    const title = obj.id === 'vending' ? '自动售货机' : '咖啡角';
+    const goods = Object.entries(this.items.catalog)
+      .filter(([, def]) => def.source === source)
+      .map(([id, def]) => ({ id, ...def }));
+
+    const { width, height } = this.scale;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10002);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const close = () => {
+      c.destroy(true);
+      this.dialogueActive = false;
+      if (this.guideText) this.guideText.setVisible(true);
+      this._afterInteract(obj);
+    };
+    const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
+      .setScrollFactor(0).setInteractive();
+    c.add(mask);
+    const pw = 620, ph = 140 + goods.length * 84 + 40, px = width / 2, py = height / 2;
+    c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.98).setStrokeStyle(2, 0xd4a353));
+    c.add(this.add.text(px - pw / 2 + 28, py - ph / 2 + 30, `🛒 ${title}`, {
+      fontSize: '26px', fill: '#ffd24d', fontStyle: 'bold',
+    }).setOrigin(0, 0.5));
+    // 当前余额（右上角，购买后更新）
+    const moneyLabel = this.add.text(px + pw / 2 - 56, py - ph / 2 + 30,
+      `💰 ${this.stateSystem.get('money')}`, { fontSize: '20px', fill: '#f0c060', fontStyle: 'bold' })
+      .setOrigin(1, 0.5);
+    c.add(moneyLabel);
+
+    goods.forEach((g, i) => {
+      const gy = py - ph / 2 + 100 + i * 84;
+      c.add(this.add.rectangle(px, gy, pw - 56, 72, 0x232338, 0.96).setStrokeStyle(1, 0x4a4a6a));
+      c.add(this.add.text(px - pw / 2 + 52, gy - 14, `${g.icon} ${g.name}`, {
+        fontSize: '19px', fill: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 52, gy + 16, g.desc || '', {
+        fontSize: '13px', fill: '#8a8a9e',
+      }).setOrigin(0, 0.5));
+      c.add(this.add.text(px + pw / 2 - 160, gy, `💰${g.price}`, {
+        fontSize: '17px', fill: '#f0c060',
+      }).setOrigin(1, 0.5));
+      const buyBtn = this.add.rectangle(px + pw / 2 - 84, gy, 96, 44, 0x2a4a3e, 0.96)
+        .setStrokeStyle(2, 0x5fbf7f).setInteractive({ useHandCursor: true });
+      buyBtn.on('pointerover', () => buyBtn.setFillStyle(0x35604e));
+      buyBtn.on('pointerout', () => buyBtn.setFillStyle(0x2a4a3e));
+      buyBtn.on('pointerdown', () => {
+        const money = this.stateSystem.get('money');
+        if (money < g.price) {
+          this._showThoughtBubble('（钱不太够……下次吧。）', '#e8735a');
+          return;
+        }
+        const r = this.items.add(g.id);
+        if (!r.ok) {
+          if (r.reason === 'full') this._showThoughtBubble('（背包满了，先用掉一些吧。）', '#e8a05a');
+          return;
+        }
+        this.stateSystem.change('money', -g.price);
+        moneyLabel.setText(`💰 ${this.stateSystem.get('money')}`);
+        AudioSystem.uiClick();
+        Juice.floatText(this, this.scale.width / 2, this.scale.height / 2 - 160,
+          `${g.icon} ${g.name} 已放进背包`, '#7eff9a');
+      });
+      c.add(buyBtn);
+      c.add(this.add.text(px + pw / 2 - 84, gy, '购买', { fontSize: '17px', fill: '#eafff0', fontStyle: 'bold' }).setOrigin(0.5));
+    });
+
+    const closeBtn = this.add.text(px + pw / 2 - 16, py - ph / 2 + 12, '✕', { fontSize: '24px', fill: '#8a8a9e' })
+      .setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerover', () => closeBtn.setColor('#ff9a9a'));
+    closeBtn.on('pointerdown', close);
+    c.add(closeBtn);
+    this.time.delayedCall(120, () => mask.on('pointerdown', close));
   }
 
   _interact(npc) {
@@ -1454,14 +1535,136 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // 其余 NPC → 寒暄。台词随幕 + 好感分档（linesByAffinity / linesByAct）。
-    // 有选择历史时，NPC 可能说一句"记得你做过什么"的个性化台词（AI 生成）。
-    this._noteNpcChat(npc, { questTalk: false });
-    const aff = this.relations ? this.relations.getAffinity(npc.id) : 50;
-    const line = pickRelationAwareLine({
-      npc, act: this.act, affinity: aff, rng: () => Phaser.Math.RND.frac(),
-    }) || npcLineForAct(npc, this.act);
-    if (line) this._showNpcLineWithMemory(npc, line);
+    // 其余 NPC → 小交互菜单：聊两句 / 送礼 / 算了
+    this._openNpcMenu(npc);
+  }
+
+  // ==================== NPC 交互菜单（聊天/送礼）====================
+  _openNpcMenu(npc) {
+    if (this.dialogueActive) return;
+    this.dialogueActive = true;
+    this.ePrompt.setVisible(false);
+    if (this.guideText) this.guideText.setVisible(false);
+    const { width, height } = this.scale;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10001);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const kb = this.input.keyboard;
+    const closeMenu = (keepFrozen = false) => {
+      kb.off('keydown-ESC', onEsc);
+      c.destroy(true);
+      if (!keepFrozen) {
+        this.dialogueActive = false;
+        if (this.guideText) this.guideText.setVisible(true);
+      }
+    };
+    const onEsc = () => closeMenu(false);
+
+    const pw = 380, ph = 250, px = width / 2, py = height - ph / 2 - 80;
+    c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.97).setStrokeStyle(2, 0x4a4a6a));
+    c.add(this.add.text(px, py - ph / 2 + 28, `${npc.name} · ${npc.role || ''}`, {
+      fontSize: '20px', fill: '#ffd24d', fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    const menuBtn = (i, label, cb) => {
+      const by = py - ph / 2 + 74 + i * 56;
+      const btn = this.add.rectangle(px, by, pw - 48, 46, 0x232338, 0.96)
+        .setStrokeStyle(1, 0x4a4a6a).setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setFillStyle(0x33334e));
+      btn.on('pointerout', () => btn.setFillStyle(0x232338));
+      btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
+      c.add(btn);
+      c.add(this.add.text(px, by, label, { fontSize: '17px', fill: '#e8e8f4' }).setOrigin(0.5));
+    };
+    menuBtn(0, '💬 聊两句', () => {
+      closeMenu(true); // 保持冻结,由 _showLine 接管
+      this.dialogueActive = false; // _showLine 会重新置 true
+      this._noteNpcChat(npc, { questTalk: false });
+      const aff = this.relations ? this.relations.getAffinity(npc.id) : 50;
+      const line = pickRelationAwareLine({
+        npc, act: this.act, affinity: aff, rng: () => Phaser.Math.RND.frac(),
+      }) || npcLineForAct(npc, this.act);
+      if (line) this._showNpcLineWithMemory(npc, line);
+      else if (this.guideText) this.guideText.setVisible(true);
+    });
+    menuBtn(1, '🎁 送TA点什么', () => {
+      closeMenu(true);
+      this.dialogueActive = false;
+      this._openGiftPanel(npc);
+    });
+    menuBtn(2, '✕ 算了', () => closeMenu(false));
+    this.time.delayedCall(120, () => kb.on('keydown-ESC', onEsc));
+  }
+
+  // 送礼面板：列出背包里可送的物品，选一件送出（每 NPC 每天限 1 件）
+  _openGiftPanel(npc) {
+    const giftable = this.items ? this.items.giftable() : [];
+    if (!giftable.length) {
+      this._showThoughtBubble('（背包里没有能送的东西。去售货机买点吧。）', '#9a9ac0');
+      if (this.guideText) this.guideText.setVisible(true);
+      return;
+    }
+    if (!this.items.canGiftTo(npc.id)) {
+      this._showThoughtBubble('（今天已经送过TA东西了。）', '#9a9ac0');
+      if (this.guideText) this.guideText.setVisible(true);
+      return;
+    }
+    this.dialogueActive = true;
+    const { width, height } = this.scale;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10002);
+    if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const closePanel = (keepFrozen = false) => {
+      c.destroy(true);
+      if (!keepFrozen) {
+        this.dialogueActive = false;
+        if (this.guideText) this.guideText.setVisible(true);
+      }
+    };
+    const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
+      .setScrollFactor(0).setInteractive();
+    c.add(mask);
+    const pw = 540, ph = 120 + giftable.length * 68 + 30, px = width / 2, py = height / 2;
+    c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.98).setStrokeStyle(2, 0xd48ab5));
+    c.add(this.add.text(px, py - ph / 2 + 30, `🎁 送给 ${npc.name}`, {
+      fontSize: '24px', fill: '#ffb0d8', fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    giftable.forEach((it, i) => {
+      const gy = py - ph / 2 + 90 + i * 68;
+      const row = this.add.rectangle(px, gy, pw - 48, 58, 0x232338, 0.96)
+        .setStrokeStyle(1, 0x4a4a6a).setInteractive({ useHandCursor: true });
+      row.on('pointerover', () => row.setFillStyle(0x33334e));
+      row.on('pointerout', () => row.setFillStyle(0x232338));
+      row.on('pointerdown', () => {
+        const plan = planGift({ items: this.items, npc, itemId: it.id });
+        if (!plan.ok) { closePanel(false); return; }
+        this.items.removeOne(it.id);
+        this.items.markGifted(npc.id);
+        this.relations.bump(npc.id, plan.affinity);
+        this.relations.remember(npc.id, 'gifted');
+        AudioSystem.success();
+        Juice.floatText(this, this.player.x, this.player.y - 80, `好感 +${plan.affinity}`, '#7eff9a');
+        closePanel(true);
+        this.dialogueActive = false; // _showLine 重新接管冻结
+        const thanks = plan.favorite
+          ? `「${it.name}！你怎么知道我就好这口？谢了！」`
+          : '「哟，谢啦。改天请你喝东西。」';
+        this._showLine(npc.name, thanks);
+      });
+      c.add(row);
+      c.add(this.add.text(px - pw / 2 + 46, gy, `${it.icon} ${it.name} ×${it.count}`, {
+        fontSize: '18px', fill: '#ffffff',
+      }).setOrigin(0, 0.5));
+      c.add(this.add.text(px + pw / 2 - 46, gy, `好感+${it.giftAffinity}`, {
+        fontSize: '14px', fill: '#ffb0d8',
+      }).setOrigin(1, 0.5));
+    });
+
+    const closeBtn = this.add.text(px + pw / 2 - 16, py - ph / 2 + 12, '✕', { fontSize: '24px', fill: '#8a8a9e' })
+      .setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerover', () => closeBtn.setColor('#ff9a9a'));
+    closeBtn.on('pointerdown', () => closePanel(false));
+    c.add(closeBtn);
+    this.time.delayedCall(120, () => mask.on('pointerdown', () => closePanel(false)));
   }
 
   /**
@@ -1546,6 +1749,7 @@ export class WorldScene extends Phaser.Scene {
       questSystem: this.questSystem,
       choiceLog: this.choiceLog,
       relationSummary: this._relationSummaryText(),
+      itemSystem: this.items,
       ...extra,
     };
   }
@@ -1742,6 +1946,7 @@ export class WorldScene extends Phaser.Scene {
       project: this.projectSystem ? this.projectSystem.serialize() : null,
       story: this._story,
       relations: this.relations ? this.relations.serialize() : null,
+      items: this.items ? this.items.serialize() : null,
       ...extra,
     };
     return SaveSystem.saveSlot(slot, payload);
@@ -2197,6 +2402,8 @@ export class WorldScene extends Phaser.Scene {
       act: this.act, difficulty, fromScene: null,
       career: this.career,
       subRole: this.subRole,
+      skillBonus: skillTimeBonus(this.stateSystem.get('skill')), // 技能→小游戏时限加成
+
       // 保留旧 flavor 字段兼容；场景内优先用 career+subRole 解析 10 职业文案/题库
       flavor: this.subRole === 'test' ? 'test' : (this.subRole === 'dev' ? 'dev' : undefined),
       onComplete: (result) => {
@@ -2296,8 +2503,18 @@ export class WorldScene extends Phaser.Scene {
     // ════════ 次要区域：额外工单（降级、明确标注"额外"）════════
     const secY = py - ph / 2 + 250;
     c.add(this.add.text(px - pw / 2 + 48, secY, '📋 今日额外工单（推进项目进度）', { fontSize: '14px', fill: '#6a6a7e' }).setOrigin(0, 0.5));
-    if (!canWork && nextObj && nextObj.kind === 'talk') {
+    // 精力门槛：energy < 15 全部工单锁定（喝东西恢复或下班）
+    const eGate = energyGate(this.stateSystem.get('energy'));
+    if (!eGate.canWork) {
+      c.add(this.add.text(px, secY + 24, '（精力不足 15，喝点东西恢复，或下班休息）', { fontSize: '13px', fill: '#e8a05a' }).setOrigin(0.5));
+    } else if (!canWork && nextObj && nextObj.kind === 'talk') {
       c.add(this.add.text(px, secY + 24, '（完成对接后解锁）', { fontSize: '13px', fill: '#4a4a5e' }).setOrigin(0.5));
+    }
+    // 压力过高：产出打折警示（引导去心象世界/用物品减压）
+    if (stressOutputMultiplier(this.stateSystem.get('stress')).stressed) {
+      c.add(this.add.text(px, mainY + 138, '⚠ 压力过高，工单产出 ×0.8 —— 按 T 去心象世界调整，或用背包里的东西放松', {
+        fontSize: '13px', fill: '#ffd24d', wordWrap: { width: pw - 120, useAdvancedWrap: true }, align: 'center',
+      }).setOrigin(0.5));
     }
 
     const orders = this.projectSystem.getOrders();
@@ -2305,7 +2522,7 @@ export class WorldScene extends Phaser.Scene {
     orders.forEach((o, i) => {
       const oy = secY + 54 + i * 70;
       const done = o.done;
-      const disabled = !canWork && !done;
+      const disabled = (!canWork || !eGate.canWork) && !done;
       const card = this.add.rectangle(px, oy, pw - 80, 60, done ? 0x182618 : (disabled ? 0x1a1a24 : 0x232338), 0.96)
         .setStrokeStyle(2, done ? 0x3a5a3a : (disabled ? 0x2a2a34 : 0x4a4a6a));
       if (!done && !disabled) {
@@ -2349,7 +2566,13 @@ export class WorldScene extends Phaser.Scene {
     this._launchCoding((result) => {
       const quality = (result && result.ratio != null)
         ? result.ratio : ((result.correct || 0) / (result.total || 1));
-      const r = this.projectSystem.completeOrder(order.id, quality);
+      // 压力产出折扣：stress ≥ 70 → 产出 ×0.8（压力真的会咬人）
+      const stressMul = stressOutputMultiplier(this.stateSystem.get('stress'));
+      const effQuality = quality * stressMul.multiplier;
+      if (stressMul.stressed) {
+        Juice.floatText(this, this.player.x, this.player.y - 60, '压力过大，产出打折 ×0.8', '#e8a05a');
+      }
+      const r = this.projectSystem.completeOrder(order.id, effQuality);
       if (order.cost) for (const [k, v] of Object.entries(order.cost)) this.stateSystem.change(k, v);
       if (quality >= 0.99) this.stateSystem.change('passion', 3);       // 做得漂亮,有成就感
       else if (quality <= 0.34) this.stateSystem.change('stress', 3);   // 搞砸了,额外焦虑
@@ -2367,6 +2590,11 @@ export class WorldScene extends Phaser.Scene {
         this.time.delayedCall(1800, () => {
           if (!this.dialogueActive) this._showThoughtBubble('（今天的活都干完了,可以下班回家了。）', '#f0c060');
         });
+      }
+      // 工单身心消耗后精力见底 → 提示下班（与 _afterInteract 同一门槛）
+      if (energyGate(this.stateSystem.get('energy')).forceOff && !this._exhaustedPrompted) {
+        this._exhaustedPrompted = true;
+        this._showThoughtBubble('（精力见底了……今天到极限了，该下班了。）', '#f0c060');
       }
     }, order.difficulty); // 按工单难度抽对应难度的关卡
   }
@@ -2570,6 +2798,9 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.text(px, py - ph / 2 + 72, `第 ${day} 天`, { fontSize: '16px', fill: '#9aa0b0' }).setOrigin(0.5));
 
     const progNow = this.projectSystem.progress;
+    // 今日工资 = 底薪 + 今日绩效，进钱包（在 _doGoHome 存档前落账）
+    const salary = dailySalary(this.projectSystem.todayPerformance);
+    this.stateSystem.change('money', salary);
     const nowStats = this.stateSystem.getAll();
     const start = this._dayStartStats || nowStats;
     const report = buildDailyReportRows({
@@ -2581,6 +2812,7 @@ export class WorldScene extends Phaser.Scene {
       isBehind: this.projectSystem.isBehind(day),
       statsNow: nowStats,
       statsStart: start,
+      salary,
     });
     let ry = py - 150;
     for (const row of report.rows) {
@@ -2885,6 +3117,14 @@ export class WorldScene extends Phaser.Scene {
     };
     const hint = HINTS[key];
     if (hint) this._showThoughtBubble(hint, '#e8a05a');
+    // 健康真出事：低于 20 → 强制提前下班（身体是本钱，这条会咬人）
+    if (key === 'health' && this.stateSystem.get('health') < 20) {
+      this.time.delayedCall(2500, () => {
+        if (this._goingHome || this.dialogueActive) return;
+        this._showThoughtBubble('（身体撑不住了。今天必须提前下班——这也是这份工作教你的一课。）', '#ff9a7a');
+        this.time.delayedCall(2200, () => { if (!this._goingHome) this._goHome(); });
+      });
+    }
   }
 
   // 统一渲染：用 PhoneMessage 弹窗显示，期间冻结玩家移动

@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "desc": "物品目录。use=使用效果(数值变化)；giftAffinity=送礼好感；price=售价。source 标注哪里能买到：vending=自动售货机, coffee=咖啡角, special=特殊获得。"
+  },
+  "items": {
+    "cola": {
+      "name": "冰可乐", "icon": "🥤", "price": 5, "source": "vending",
+      "use": { "energy": 10, "san": 3 },
+      "giftAffinity": 8,
+      "desc": "冰凉的快乐水。打工人的即时快乐。"
+    },
+    "coffee": {
+      "name": "美式咖啡", "icon": "☕", "price": 8, "source": "coffee",
+      "use": { "energy": 16, "stress": -2 },
+      "giftAffinity": 8,
+      "desc": "工位续命水。苦，但有效。"
+    },
+    "milk_tea": {
+      "name": "奶茶", "icon": "🧋", "price": 15, "source": "coffee",
+      "use": { "san": 8, "energy": 6 },
+      "giftAffinity": 10,
+      "desc": "三分糖去冰。快乐是真的，热量也是真的。"
+    },
+    "biscuit": {
+      "name": "苏打饼干", "icon": "🍪", "price": 6, "source": "vending",
+      "use": { "energy": 8, "health": 2 },
+      "giftAffinity": 6,
+      "desc": "加班垫肚子的标配。"
+    },
+    "goji_tea": {
+      "name": "枸杞菊花茶", "icon": "🍵", "price": 10, "source": "coffee",
+      "use": { "health": 6, "stress": -4 },
+      "giftAffinity": 9,
+      "desc": "保温杯里泡枸杞——从今天开始养生。"
+    },
+    "energy_drink": {
+      "name": "能量饮料", "icon": "⚡", "price": 12, "source": "vending",
+      "use": { "energy": 25, "health": -3, "stress": 3 },
+      "giftAffinity": 7,
+      "desc": "透支型续命。效果猛，但身体记着账。"
+    },
+    "mint": {
+      "name": "薄荷糖", "icon": "🍬", "price": 3, "source": "vending",
+      "use": { "san": 4 },
+      "giftAffinity": 5,
+      "desc": "提神小糖。开会犯困时的救星。"
+    },
+    "mini_plant": {
+      "name": "迷你多肉", "icon": "🪴", "price": 20, "source": "coffee",
+      "use": { "san": 10, "passion": 3 },
+      "giftAffinity": 12,
+      "desc": "巴掌大的一盆绿。放在工位上，眼睛有地方休息。"
+    },
+    "expectation_note": {
+      "name": "职业期待记录", "icon": "📝", "price": 0, "source": "special",
+      "use": null,
+      "giftAffinity": 0,
+      "desc": "入职时写下的期待。结局报告会拿它和现实对照。",
+      "readonly": true
+    }
+  }
+}

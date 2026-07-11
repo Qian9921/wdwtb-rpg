@@ -38,6 +38,7 @@ export class StatusBarUI {
     this.state = stateSystem;
     this.rows = {};       // 展开面板行
     this.miniFills = {};  // 迷你条填充
+    this._dangerTweens = {}; // 危险状态迷你条脉冲 tween（key → tween）
     this.expanded = false;
     this._prevValues = stateSystem.getAll(); // 飘字用：记录上次值，算 delta
 
@@ -145,6 +146,9 @@ export class StatusBarUI {
     this.panel.add(this.scene.add.text(PANEL_X + PANEL_W - 12, PANEL_Y + 10, 'Tab 收起', {
       fontSize: '15px', color: '#55556a',
     }).setOrigin(1, 0).setResolution(TEXT_RES));
+    this.panel.add(this.scene.add.text(LABEL_X, y - GROUP_GAP + 2, '这些数值会影响你的工作产出与结局走向', {
+      fontSize: '13px', color: '#6a6a82',
+    }).setResolution(TEXT_RES));
   }
 
   _setExpanded(on) {
@@ -189,6 +193,23 @@ export class StatusBarUI {
     if (mf) {
       mf.setSize(this._ratio(key) * MINI_BAR_W, MINI_BAR_H);
       mf.setFillStyle(this._miniColor(key));
+      this._updateDangerPulse(key, mf);
+    }
+  }
+
+  // 危险状态（≤25 或压力≥75）迷你条闪烁脉冲；回到安全区停止并恢复不透明
+  _updateDangerPulse(key, fill) {
+    const v = this.state.get(key);
+    const danger = key === 'stress' ? v >= 75 : (key !== 'money' && v <= 25);
+    const tween = this._dangerTweens[key];
+    if (danger && !tween) {
+      this._dangerTweens[key] = this.scene.tweens.add({
+        targets: fill, alpha: 0.35, duration: 500, yoyo: true, repeat: -1,
+      });
+    } else if (!danger && tween) {
+      tween.stop();
+      delete this._dangerTweens[key];
+      fill.setAlpha(1);
     }
   }
 

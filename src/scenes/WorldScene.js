@@ -2872,67 +2872,98 @@ export class WorldScene extends Phaser.Scene {
     if (this.guideText) this.guideText.setVisible(false);
     AudioSystem.playSfx && AudioSystem.playSfx('notify');
 
-    // NPC 位置（事件以 TA 为中心）；无 courier 时用玩家位置兜底
-    const npc = courier;
-    const cx = npc ? npc.spr.x : this.player.x;
-    const cy = npc ? npc.spr.y : this.player.y;
-    // 转屏幕坐标
+    const { width, height } = this.scale;
+    const accent = ev.urgent ? 0xe8735a : 0xd4a353;
+    const choices = ev.choices || [];
+
+    // 尺寸
+    const bw = Math.min(620, width - 80);
+    const bh = 108;
+    const chW = Math.min(500, width - 120);
+    const chH = 46, chGap = 8;
+    const choicesH = choices.length * (chH + chGap);
+    // 整个事件簇（气泡 + 选项）的总高度
+    const clusterH = bh + 24 + choicesH;
+
+    // NPC 屏幕坐标（事件以 TA 为中心）——但必须钳制在屏幕内，否则气泡/选项跑到屏外＝灰屏卡死
     const cam = this.cameras.main;
-    const sx = (cx - cam.scrollX) * cam.zoom;
-    const sy = (cy - cam.scrollY) * cam.zoom;
+    const npc = courier;
+    const wx = npc ? npc.spr.x : this.player.x;
+    const wy = npc ? npc.spr.y : this.player.y;
+    let sx = (wx - cam.scrollX) * cam.zoom;
+    let sy = (wy - cam.scrollY) * cam.zoom;
+    // 水平钳制：气泡/选项完整留在屏内
+    const halfW = Math.max(bw, chW) / 2 + 24;
+    sx = Phaser.Math.Clamp(sx, halfW, width - halfW);
+    // 垂直：气泡放在 NPC 上方，但整个簇要完整可见——先算气泡 Y，再钳制整簇
+    let bubbleY = sy - 150;
+    // 整簇顶 = bubbleY - bh/2；整簇底 = bubbleY + bh/2 + 24 + choicesH
+    const topMargin = 90, botMargin = 40;
+    const clusterTop = bubbleY - bh / 2;
+    const clusterBot = bubbleY + bh / 2 + 24 + choicesH;
+    if (clusterBot > height - botMargin) bubbleY -= (clusterBot - (height - botMargin));
+    if (bubbleY - bh / 2 < topMargin) bubbleY = topMargin + bh / 2;
 
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10001);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
 
     // 很淡的暗角聚焦（不是全屏遮罩——画面保持可见）
-    const { width, height } = this.scale;
     c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35).setScrollFactor(0));
 
-    const accent = ev.urgent ? 0xe8735a : 0xd4a353;
-    const bubbleY = Math.max(120, sy - 130); // NPC 头上方，不超出屏幕
-
-    // 说话气泡（NPC 头上）
-    const bw = Math.min(620, width - 80);
-    const bh = 100;
-    c.add(this.add.rectangle(sx, bubbleY, bw, bh, 0x14141f, 0.96)
+    // 说话气泡
+    c.add(this.add.rectangle(sx, bubbleY, bw, bh, 0x14141f, 0.98)
       .setStrokeStyle(2, accent).setScrollFactor(0));
-    // 气泡尾巴（指向 NPC）
-    c.add(this.add.triangle(sx, bubbleY + bh / 2, 0, 0, 16, 14, -16, 14, 0x14141f, 0.96)
-      .setStrokeStyle(2, accent).setScrollFactor(0));
+    // 气泡尾巴（指向 NPC，仅当 NPC 在气泡下方且在屏内时画）
+    if (sy > bubbleY + bh / 2 && sy < height) {
+      c.add(this.add.triangle(sx, bubbleY + bh / 2, 0, 0, 16, 14, -16, 14, 0x14141f, 0.98)
+        .setStrokeStyle(2, accent).setScrollFactor(0));
+    }
 
     // NPC 名字
     const speakerName = npc ? npc.name : (ev.title || '同事');
-    c.add(this.add.text(sx - bw / 2 + 16, bubbleY - bh / 2 + 8,
+    c.add(this.add.text(sx - bw / 2 + 18, bubbleY - bh / 2 + 10,
       `${ev.icon || ''} ${speakerName}：`, {
-        fontSize: '16px', color: ev.urgent ? '#ff9a7a' : '#ffd24d', fontStyle: 'bold',
+        fontSize: '18px', color: ev.urgent ? '#ff9a7a' : '#ffd24d', fontStyle: 'bold',
       }).setOrigin(0, 0).setScrollFactor(0));
     // 事件正文
-    c.add(this.add.text(sx, bubbleY + 10, ev.text, {
-      fontSize: '17px', color: '#dfe3ea',
-      wordWrap: { width: bw - 40, useAdvancedWrap: true }, align: 'center', lineSpacing: 4,
+    c.add(this.add.text(sx, bubbleY + 12, ev.text, {
+      fontSize: '18px', color: '#dfe3ea',
+      wordWrap: { width: bw - 44, useAdvancedWrap: true }, align: 'center', lineSpacing: 4,
     }).setOrigin(0.5).setScrollFactor(0));
 
-    // 选项：NPC 旁边竖排（选完才能继续）
-    const choices = ev.choices || [];
-    const choiceStartY = bubbleY + bh / 2 + 28;
-    const chW = Math.min(500, width - 120);
+    // 选项：气泡下方竖排（选完才能继续）+ 数字键 1/2/3 兜底
+    const choiceStartY = bubbleY + bh / 2 + 24 + chH / 2;
+    this._eventChoiceKeys = [];
     choices.forEach((ch, i) => {
-      const cy2 = choiceStartY + i * 54;
-      const btn = this.add.rectangle(sx, cy2, chW, 44, 0x232338, 0.96)
-        .setStrokeStyle(2, 0x4a4a6a).setInteractive({ useHandCursor: true }).setScrollFactor(0);
+      const cy2 = choiceStartY + i * (chH + chGap);
+      const btn = this.add.rectangle(sx, cy2, chW, chH, 0x232338, 0.98)
+        .setStrokeStyle(2, 0x5a5a7a).setInteractive({ useHandCursor: true }).setScrollFactor(0);
       btn.on('pointerover', () => btn.setFillStyle(0x33334e));
       btn.on('pointerout', () => btn.setFillStyle(0x232338));
       btn.on('pointerdown', () => this._resolveEvent(ev, ch, c));
       c.add(btn);
-      c.add(this.add.text(sx, cy2, ch.label, {
-        fontSize: '16px', color: '#ffffff',
-        wordWrap: { width: chW - 30 }, align: 'center',
+      c.add(this.add.text(sx, cy2, `${i + 1}. ${ch.label}`, {
+        fontSize: '17px', color: '#ffffff',
+        wordWrap: { width: chW - 40 }, align: 'center',
       }).setOrigin(0.5).setScrollFactor(0));
+      // 数字键兜底：即使按钮被遮挡也能选，绝不卡死
+      const keyName = `keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i] || ''}`;
+      if (keyName !== 'keydown-') {
+        const handler = () => this._resolveEvent(ev, ch, c);
+        this.input.keyboard.on(keyName, handler);
+        this._eventChoiceKeys.push({ keyName, handler });
+      }
     });
     this._eventUI = c;
   }
 
   _resolveEvent(ev, choice, c) {
+    if (!this._eventUI) return; // 防重入（点击+数字键同时触发）
+    // 移除数字键兜底监听（防止泄漏/下次事件误触发）
+    if (this._eventChoiceKeys) {
+      for (const { keyName, handler } of this._eventChoiceKeys) this.input.keyboard.off(keyName, handler);
+      this._eventChoiceKeys = null;
+    }
     const plan = planEventChoiceEffects(choice, ev);
     for (const [k, v] of Object.entries(plan.effects)) this.stateSystem.change(k, v);
     if (plan.projectDelta && this.projectSystem) {

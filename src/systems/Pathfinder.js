@@ -48,7 +48,10 @@ export class Pathfinder {
     const h = (cx, cy) => Math.abs(cx - g.cx) + Math.abs(cy - g.cy);
     const start = { cx: s.cx, cy: s.cy, g: 0, f: h(s.cx, s.cy), parent: null };
     open.set(key(s.cx, s.cy), start);
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    // 只用上下左右四向（不走对角线）——对角线会在桌角/墙角穿模。
+    // 四向路径虽然绕一点，但 NPC 走的每一步都在可走格正中央，绝不踩家具。
+    // 另外：路点用格子正中央往走廊内侧偏移 4px，让 NPC 走在路中间、远离桌边。
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
     let guard = 0;
     while (open.size && guard++ < 20000) {

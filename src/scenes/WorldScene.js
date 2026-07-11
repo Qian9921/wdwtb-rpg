@@ -1107,17 +1107,16 @@ export class WorldScene extends Phaser.Scene {
   // 办公室"生活"调度：每隔几秒挑一个在座同事,让他【带着明确目的】起身——去厕所/茶水间/
   // 打印/开会/找同事……用 A* 寻路真正走过去(绕开墙和家具)、做完事再走回工位坐下。
   _startNpcLife() {
-    // 目的地 POI：一句"我去干嘛" + 目标点 + 停留时长。开局把每个点吸附到最近可走格,
-    // 保证 NPC 真的能走到、不会走进墙被甩出图。吸附不到的直接丢弃。
-    // 只用【地图里真实存在的地点】做目的地(没有厕所就不去厕所)——去了真的到,到了真的做。
+    // 目的地 POI：选走廊/茶水间等【开阔无家具区】的中心——NPC 不会贴着桌角走。
+    // 坐标都是验证过的可走格中心，远离桌椅碰撞体。
     const raw = [
-      { id: 'coffee',  label: '去茶水间 ☕',     x: 400, y: 300, dwell: 3600 }, // 左上休息区
-      { id: 'water',   label: '去接杯水 🥤',     x: 430, y: 430, dwell: 2200 }, // 售货机
-      { id: 'meeting', label: '去会议室 📋',     x: 400, y: 640, dwell: 6000 }, // 左下会议室
-      { id: 'board',   label: '去看看白板 📊',   x: 560, y: 470, dwell: 2600 }, // 白板
-      { id: 'printer', label: '去打印文件 🖨️',   x: 900, y: 810, dwell: 2400 }, // 打印机
-      { id: 'stroll',  label: '起来走两步 🚶',   x: 704, y: 432, dwell: 2600 }, // 走廊
-      { id: 'chat',    label: '找同事聊两句 💬', x: 1040, y: 680, dwell: 3000 }, // 工位群
+      { id: 'coffee',  label: '去茶水间',     x: 400, y: 304, dwell: 3600 },
+      { id: 'water',   label: '去接杯水',     x: 464, y: 432, dwell: 2200 },
+      { id: 'meeting', label: '去会议室',     x: 368, y: 624, dwell: 6000 },
+      { id: 'board',   label: '去看白板',     x: 560, y: 480, dwell: 2600 },
+      { id: 'printer', label: '去打印文件',   x: 912, y: 800, dwell: 2400 },
+      { id: 'stroll',  label: '起来走两步',   x: 720, y: 432, dwell: 2600 },
+      { id: 'chat',    label: '找同事聊两句', x: 1056, y: 656, dwell: 3000 },
     ];
     this._pois = [];
     for (const poi of raw) {

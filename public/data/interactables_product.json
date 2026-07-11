@@ -1,7 +1,7 @@
 {
   "_meta": {
     "career": "product",
-    "desc": "可交互物件——坐标对齐 SkyOffice 真实家具（售货机402,173/白板544,512/电脑1008,512/绿植208,384/沙发咖啡区656,145/顶窗），锚点=家具正面可走格。买饮料走商店面板进背包。"
+    "desc": "可交互物件——pos=玩家站立点, fx/fy=家具位置(选定圈显示处)。坐标对齐 SkyOffice map.json 真实家具。phone 已移除(地图上无电话实物)。"
   },
   "interactables": [
     {
@@ -10,6 +10,8 @@
         1008,
         576
       ],
+      "fx": 1008,
+      "fy": 512,
       "icon": "💻",
       "prompt": "打磨需求文档",
       "action": "minigame:review",
@@ -21,6 +23,8 @@
         544,
         560
       ],
+      "fx": 544,
+      "fy": 512,
       "icon": "📋",
       "prompt": "看看任务板",
       "action": "quest_board"
@@ -31,6 +35,8 @@
         400,
         224
       ],
+      "fx": 402,
+      "fy": 173,
       "icon": "🥤",
       "prompt": "买瓶饮料",
       "action": "buy_drink"
@@ -39,8 +45,10 @@
       "id": "plant",
       "pos": [
         240,
-        400
+        432
       ],
+      "fx": 208,
+      "fy": 400,
       "icon": "🪴",
       "prompt": "给绿植浇水",
       "action": "water_plant",
@@ -53,9 +61,11 @@
     {
       "id": "coffee",
       "pos": [
-        656,
-        192
+        664,
+        208
       ],
+      "fx": 664,
+      "fy": 161,
       "icon": "☕",
       "prompt": "接杯咖啡",
       "action": "buy_drink"
@@ -66,6 +76,8 @@
         656,
         112
       ],
+      "fx": 656,
+      "fy": 64,
       "icon": "🪟",
       "prompt": "望向窗外",
       "action": "monologue:auto"
@@ -73,16 +85,17 @@
     {
       "id": "phone",
       "pos": [
-        240,
+        272,
         432
       ],
+      "fx": 272,
+      "fy": 400,
       "icon": "📱",
-      "prompt": "给家里打个电话",
+      "prompt": "看看手机",
       "action": "monologue:auto",
       "effect": {
-        "san": 10,
-        "passion": 4,
-        "stress": -6
+        "san": 4,
+        "stress": -2
       },
       "cooldown": "daily"
     }

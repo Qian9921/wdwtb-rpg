@@ -1294,8 +1294,29 @@ export class WorldScene extends Phaser.Scene {
     this._updateInteraction();
   }
 
+  /**
+   * 墙体遮挡检查：玩家和目标之间是否有墙瓦片阻挡。
+   * 沿连线采样若干点，如果任何点落在碰撞瓦片上 → 阻挡。
+   * 防止隔着墙交互到另一侧的物件/椅子。
+   */
+  _isWallBlocked(x1, y1, x2, y2) {
+    if (!this.groundLayer) return false;
+    const dx = x2 - x1, dy = y2 - y1;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 8) return false; // 太近不做检查
+    const steps = Math.ceil(dist / 16); // 每 16px 采样一次
+    for (let i = 1; i < steps; i++) { // 不查起点和终点
+      const t = i / steps;
+      const px = Math.floor((x1 + dx * t) / 32);
+      const py = Math.floor((y1 + dy * t) / 32);
+      const tile = this.groundLayer.getTileAt(px, py);
+      if (tile && tile.collides) return true; // 中间有墙 → 阻挡
+    }
+    return false;
+  }
+
   _updateInteraction() {
-    const RANGE = 78;
+    const RANGE = 60; // 缩小交互范围——必须真正走近才能交互（不能隔墙/隔桌）
     // 统一交互框架：NPC（具名+背景同事）、交互物件、椅子用同一套 RANGE + [E] 逻辑，取最近的。
     let nearest = null, nd = RANGE, nearestType = null;
     for (const npc of this.npcs) {
@@ -1309,12 +1330,15 @@ export class WorldScene extends Phaser.Scene {
       if (d < nd) { nd = d; nearest = w; nearestType = 'worker'; }
     }
     for (const obj of (this._interactables || [])) {
+      // 墙体遮挡检查：玩家和物件之间如果有墙，不能交互
+      if (this._isWallBlocked(this.player.x, this.player.y, obj.x, obj.y)) continue;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
       if (d < nd) { nd = d; nearest = obj; nearestType = 'object'; }
     }
     // 空椅子可坐（NPC 占用的不算；玩家工位椅虽标记 taken 但留给玩家,可坐）
     for (const ch of (this.chairs || [])) {
       if (ch.taken && !ch.isPlayerDesk) continue;
+      if (this._isWallBlocked(this.player.x, this.player.y, ch.x, ch.y)) continue;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, ch.x, ch.y + 6);
       if (d < nd) { nd = d; nearest = ch; nearestType = 'chair'; }
     }
@@ -1323,13 +1347,16 @@ export class WorldScene extends Phaser.Scene {
     this.activeWorker = (nearestType === 'worker') ? nearest : null;
     this.activeObject = (nearestType === 'object') ? nearest : null;
 
-    // 选定圈：NPC/同事/物件/椅子都跟随脚下（贴地椭圆，金色发光脉冲）
+    // 选定圈：物件用家具位置(fx/fy)，NPC/同事用脚底，椅子用椅子位置
     const sel = this._selRing;
     if (sel) {
-      if (nearest && nearestType !== 'chair') {
-        const sx = nearest.spr ? nearest.spr.x : nearest.x;
-        const sy = nearest.spr ? nearest.spr.y : nearest.y;
-        sel.setPosition(sx, sy + 2).setVisible(true);
+      if (nearest && nearestType === 'object') {
+        // 物件：圈在家具脚下（fx/fy 或 x/y），不是玩家站立点
+        sel.setPosition(nearest.fx || nearest.x, (nearest.fy || nearest.y) + 8).setVisible(true);
+      } else if (nearest && nearestType === 'npc') {
+        sel.setPosition(nearest.spr.x, nearest.spr.y + 2).setVisible(true);
+      } else if (nearest && nearestType === 'worker') {
+        sel.setPosition(nearest.spr.x, nearest.spr.y + 2).setVisible(true);
       } else if (nearest && nearestType === 'chair') {
         sel.setPosition(nearest.x, nearest.y + 2).setVisible(true);
       } else {

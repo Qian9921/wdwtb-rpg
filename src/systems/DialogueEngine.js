@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import { AudioSystem } from './AudioSystem.js';
 import { checkChoiceCondition } from './DialogueRules.js';
+import { makeCuteChoice } from './UI.js';
+
+// 选项框主题色轮流（可爱、好区分）
+const CHOICE_TONES = [0x6fb2e8, 0x7bd88f, 0xe8a86f, 0xc79ae8, 0xe89ac0];
 
 // DialogueEngine：对话树演出引擎。
 // 读 data/schema.md 格式的对话 JSON：渲染对话框+选项，进入节点/选选项时应用 effects，
@@ -294,12 +298,6 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       const fallbackChoice = rawChoices.find(c => !c.condition) || rawChoices[0];
       const btnW = 560, btnH = 56;
       const cx = width / 2, cy = boxY - 20 - btnH / 2;
-      const btn = this.scene.add
-        .rectangle(cx, cy, btnW, btnH, 0x2a2a3e, 0.96)
-        .setStrokeStyle(2, 0x4a4a66).setInteractive({ useHandCursor: true });
-      const label = this.scene.add.text(cx, cy, '继续', { fontSize: '22px', color: '#e6e6e6' }).setOrigin(0.5);
-      btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
-      btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
       // 兜底也要应用 effects + 记录 choice（否则状态丢失、结局画像失真）
       const doFallback = () => {
         this._applyEffects(fallbackChoice.effects);
@@ -307,8 +305,11 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
         if (node.action) this.emit('action', node.action, node);
         this._showNode(fallbackChoice.next);
       };
-      btn.on('pointerdown', () => { AudioSystem.uiClick(); doFallback(); });
-      container.add(btn); container.add(label);
+      const btn = makeCuteChoice(this.scene, {
+        x: cx, y: cy, w: btnW, h: btnH, label: '继续', tone: 0x7bd88f,
+        onClick: () => { AudioSystem.uiClick(); doFallback(); },
+      });
+      container.add(btn);
       this._bindAdvanceKeys(() => {
         if (this._typing) { this._finishTyping(); return; }
         if (this._hasMorePages()) { this._nextPage(node.speaker); return; }
@@ -334,27 +335,21 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     const totalH = metas.reduce((s, m) => s + m.h, 0) + (metas.length - 1) * gap;
     let by = boxY - 18 - totalH;
 
-    metas.forEach(({ choice, style, w, h }) => {
+    metas.forEach(({ choice, w, h }, i) => {
       const cx = width / 2, cy = by + h / 2;
-      const btn = this.scene.add
-        .rectangle(cx, cy, w, h, 0x2a2a3e, 0.96)
-        .setStrokeStyle(2, 0x4a4a66)
-        .setInteractive({ useHandCursor: true });
-      const label = this.scene.add.text(cx, cy, choice.label, style).setOrigin(0.5);
-
-      btn.on('pointerover', () => btn.setFillStyle(0x3a3a4e));
-      btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
-      btn.on('pointerdown', () => {
-        AudioSystem.uiClick();
-        this._applyEffects(choice.effects);
-        // 记录选择：emit 'choice' 事件，外部场景写入 ChoiceLog（选择记忆/结局画像数据源）
-        this.emit('choice', { nodeId, choice, act: this.currentAct });
-        if (node.action) this.emit('action', node.action, node);
-        this._showNode(choice.next);
+      const btn = makeCuteChoice(this.scene, {
+        x: cx, y: cy, w, h, label: choice.label, index: i,
+        tone: CHOICE_TONES[i % CHOICE_TONES.length], fontSize: 22, popDelay: i * 70,
+        sound: () => AudioSystem.uiClick(),
+        onClick: () => {
+          this._applyEffects(choice.effects);
+          // 记录选择：emit 'choice' 事件，外部场景写入 ChoiceLog（选择记忆/结局画像数据源）
+          this.emit('choice', { nodeId, choice, act: this.currentAct });
+          if (node.action) this.emit('action', node.action, node);
+          this._showNode(choice.next);
+        },
       });
-
       container.add(btn);
-      container.add(label);
       by += h + gap;
     });
 

@@ -20,6 +20,7 @@ import { NpcAgent } from '../systems/NpcAgent.js';
 import { ProjectSystem } from '../systems/ProjectSystem.js';
 import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcons.js';
 import { Pathfinder } from '../systems/Pathfinder.js';
+import { makeCuteChoice } from '../systems/UI.js';
 import {
   ACT_DAYS as SP_ACT_DAYS,
   LIGHT_CAREERS as SP_LIGHT_CAREERS,
@@ -1655,20 +1656,22 @@ export class WorldScene extends Phaser.Scene {
     const onEsc = () => closeMenu(false);
 
     const pw = 380, ph = 250, px = width / 2, py = height - ph / 2 - 80;
-    c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.97).setStrokeStyle(2, 0x4a4a6a));
+    // 圆角面板底
+    const panelG = this.add.graphics().setScrollFactor(0);
+    panelG.fillStyle(0x14141f, 0.97); panelG.fillRoundedRect(px - pw / 2, py - ph / 2, pw, ph, 20);
+    panelG.lineStyle(2, 0xd4a353, 0.7); panelG.strokeRoundedRect(px - pw / 2, py - ph / 2, pw, ph, 20);
+    c.add(panelG);
     c.add(this.add.text(px, py - ph / 2 + 28, `${npc.name} · ${npc.role || ''}`, {
       fontSize: '20px', fill: '#ffd24d', fontStyle: 'bold',
     }).setOrigin(0.5));
 
+    const MENU_TONES = [0x7bd88f, 0xe8a86f, 0x9aa0c0];
     const menuBtn = (i, label, cb) => {
-      const by = py - ph / 2 + 74 + i * 56;
-      const btn = this.add.rectangle(px, by, pw - 48, 46, 0x232338, 0.96)
-        .setStrokeStyle(1, 0x4a4a6a).setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setFillStyle(0x33334e));
-      btn.on('pointerout', () => btn.setFillStyle(0x232338));
-      btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
-      c.add(btn);
-      c.add(this.add.text(px, by, label, { fontSize: '17px', fill: '#e8e8f4' }).setOrigin(0.5));
+      const by = py - ph / 2 + 78 + i * 56;
+      c.add(makeCuteChoice(this, {
+        x: px, y: by, w: pw - 48, h: 46, label, tone: MENU_TONES[i] || 0x6fb2e8,
+        fontSize: 17, popDelay: i * 60, sound: () => AudioSystem.uiClick(), onClick: cb,
+      }));
     };
     menuBtn(0, '💬 聊两句', () => {
       closeMenu(true); // 保持冻结,由 _showLine 接管

@@ -387,10 +387,7 @@ export class TitleScene extends Phaser.Scene {
   _highlightSelected() {
     if (!this._menuButtons || !this._menuButtons.length) return;
     this._menuButtons.forEach((b, i) => {
-      const rect = b.rect;
-      if (!rect) return;
-      if (i === this._selectedBtn) { rect.setStrokeStyle(4, 0xfff0a0, 1); rect.setFillStyle(0x3a5a8a); }
-      else { rect.setStrokeStyle(2, 0x8aaadd, 0.5); }
+      if (b.setSelected) b.setSelected(i === this._selectedBtn);
     });
   }
   _navButton(dir) {

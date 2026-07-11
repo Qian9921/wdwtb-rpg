@@ -32,25 +32,96 @@ export function makeButton(scene, o) {
     letterSpacing: o.letterSpacing ?? 2,
     align: 'center',
   };
-  // 先量文字
-  const txt = scene.add.text(o.x, o.y, o.label, style).setOrigin(0.5);
-  const w = Math.max(o.minW ?? 0, Math.ceil(txt.width) + padX * 2);
-  const h = Math.ceil(txt.height) + padY * 2;
+  // 先量文字定框尺寸
+  const label = scene.add.text(0, 0, o.label, style).setOrigin(0.5);
+  const w = Math.max(o.minW ?? 0, Math.ceil(label.width) + padX * 2);
+  const h = Math.ceil(label.height) + padY * 2;
   const fill = o.fill ?? 0x2a2a44;
   const stroke = o.stroke ?? 0x5a5a8a;
-  const btn = scene.add.rectangle(o.x, o.y, w, h, fill, o.alpha ?? 0.96)
-    .setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true });
-  // 让文字压在框上层
-  txt.setDepth((o.depth ?? 0) + 1);
-  if (o.depth != null) btn.setDepth(o.depth);
-  // hover
-  const hi = Phaser.Display.Color.IntegerToColor(fill).lighten(14).color;
-  btn.on('pointerover', () => btn.setFillStyle(hi));
-  btn.on('pointerout', () => btn.setFillStyle(fill));
-  if (o.onClick) btn.on('pointerdown', () => { if (o.sound) o.sound(); o.onClick(); });
-  return {
-    btn, label: txt, width: w, height: h,
-    setLabel: (s) => { txt.setText(s); },
-    destroy: () => { btn.destroy(); txt.destroy(); },
+  const hi = Phaser.Display.Color.IntegerToColor(fill).lighten(16).color;
+  const radius = Math.min(18, Math.floor(h / 2));
+  const c = scene.add.container(o.x, o.y);
+  if (o.depth != null) c.setDepth(o.depth);
+  const g = scene.add.graphics();
+  let selected = false;
+  const draw = (state) => {
+    g.clear();
+    g.fillStyle(state === 'hover' ? hi : fill, o.alpha ?? 0.96);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+    g.lineStyle(selected ? 4 : 2.5, selected ? 0xfff0a0 : stroke, 1);
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
   };
+  draw('normal');
+  c.add(g); c.add(label);
+  const zone = scene.add.zone(0, 0, w, h).setInteractive({ useHandCursor: true });
+  c.add(zone);
+  zone.on('pointerover', () => { draw('hover'); scene.tweens.add({ targets: c, scale: 1.04, duration: 120, ease: 'Back.out' }); });
+  zone.on('pointerout', () => { draw('normal'); scene.tweens.add({ targets: c, scale: selected ? 1.05 : 1, duration: 120 }); });
+  if (o.onClick) zone.on('pointerdown', () => { if (o.sound) o.sound(); o.onClick(); });
+  return {
+    btn: c, container: c, label, width: w, height: h,
+    setLabel: (s) => { label.setText(s); },
+    setSelected: (v) => {
+      selected = v; draw('normal');
+      scene.tweens.add({ targets: c, scale: v ? 1.05 : 1, duration: 150, ease: 'Back.out' });
+    },
+    destroy: () => { c.destroy(true); },
+  };
+}
+
+/**
+ * 可爱圆角选项框：圆角底板 + 彩色序号徽章 + 弹入 + hover 放大。
+ * 返回一个 Container（调用方 add 到父容器或直接留在场景，destroy 时随父容器一起销毁）。
+ * @param {Phaser.Scene} scene
+ * @param {object} o
+ *   x,y      中心
+ *   w,h      尺寸
+ *   label    文本
+ *   index    从 0 起的序号（画彩色徽章 index+1；null 则不画徽章）
+ *   tone     主题色（描边/徽章）
+ *   fontSize 字号（默认 22）
+ *   onClick  点击回调
+ *   sound    点击音（fn）
+ *   popDelay 弹入延迟 ms（交错动画用，默认 0）
+ * @returns {Phaser.GameObjects.Container}
+ */
+export function makeCuteChoice(scene, o) {
+  const tone = o.tone ?? 0x6fb2e8;
+  const w = o.w, h = o.h;
+  const hasBadge = o.index != null;
+  const c = scene.add.container(o.x, o.y).setScrollFactor(0);
+  const g = scene.add.graphics().setScrollFactor(0);
+  const radius = Math.min(16, Math.floor(h / 2));
+  const draw = (hover) => {
+    g.clear();
+    g.fillStyle(hover ? 0x33334e : 0x232338, 0.98);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+    g.lineStyle(3, hover ? tone : 0x5a5a7a, 1);
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+  };
+  draw(false);
+  c.add(g);
+  let labelX = 0;
+  if (hasBadge) {
+    const bx = -w / 2 + 28;
+    c.add(scene.add.circle(bx, 0, 14, tone, 1).setScrollFactor(0));
+    c.add(scene.add.text(bx, 0, `${o.index + 1}`, {
+      fontSize: '16px', color: '#16161f', fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0));
+    labelX = 16;
+  }
+  c.add(scene.add.text(labelX, 0, o.label, {
+    fontSize: `${o.fontSize ?? 22}px`, color: '#ffffff', align: 'center',
+    wordWrap: { width: w - (hasBadge ? 96 : 44), useAdvancedWrap: true },
+  }).setOrigin(0.5).setScrollFactor(0));
+  const zone = scene.add.zone(0, 0, w, h).setScrollFactor(0).setInteractive({ useHandCursor: true });
+  c.add(zone);
+  zone.on('pointerover', () => { draw(true); scene.tweens.add({ targets: c, scale: 1.04, duration: 120, ease: 'Back.out' }); });
+  zone.on('pointerout', () => { draw(false); scene.tweens.add({ targets: c, scale: 1, duration: 120 }); });
+  zone.on('pointerdown', () => { if (o.sound) o.sound(); if (o.onClick) o.onClick(); });
+  // 弹入
+  c.setScale(0);
+  scene.tweens.add({ targets: c, scale: 1, duration: 300, delay: o.popDelay ?? 0, ease: 'Back.out' });
+  c._zone = zone;
+  return c;
 }

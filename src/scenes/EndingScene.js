@@ -13,6 +13,7 @@ import {
 import { buildCareerReport } from '../systems/CareerReport.js';
 import { ExplorationArchive } from '../systems/ExplorationArchive.js';
 import { AXIS_META } from '../systems/PersonalityAxes.js';
+import { unlockedInsights, getInsight, INSIGHT_TOTAL } from '../systems/InsightCodex.js';
 
 // EndingScene：结局"心之画像"报告 — 测评×体验闭环，AI 据本局数据生成，模板兜底。
 const DEFAULT_PORTRAIT = {
@@ -79,6 +80,12 @@ export class EndingScene extends Phaser.Scene {
       profile: this.profile,
     });
     this._view = 'portrait'; // 'portrait' 心之画像 | 'report' 职业人格报告
+
+    // 职业感悟图鉴：按本局行为标签计数解锁
+    const entries0 = Array.isArray(this.choiceLog) ? this.choiceLog : (this.choiceLog?.entries || []);
+    const tagCounts = {};
+    for (const e of entries0) { if (e && e.tag) tagCounts[e.tag] = (tagCounts[e.tag] || 0) + 1; }
+    this._insights = unlockedInsights(tagCounts).map(getInsight).filter(Boolean);
   }
 
   // 无 WorkValues 时的占位折算（P6 接线后由真实累积替代）
@@ -131,6 +138,8 @@ export class EndingScene extends Phaser.Scene {
         fitScore: this.report ? this.report.fitScore : null,
         riasec: this.profile ? this.profile.riasec : null,
       });
+      // 解锁本局职业感悟到图鉴
+      for (const ins of (this._insights || [])) arch.unlockThought(ins.id);
     } catch (e) { /* 档案写入失败不挡报告 */ }
   }
 
@@ -537,6 +546,20 @@ export class EndingScene extends Phaser.Scene {
       });
       ui.add(t); y += t.height + 8;
     });
+
+    // 职业感悟图鉴（本局解锁）
+    if (this._insights && this._insights.length) {
+      y = this._divider(ui, width / 2, y, cardW - 120);
+      ui.add(this.add.text(innerL, y, `🗂 你悟到的（本局解锁 ${this._insights.length} / 图鉴共 ${INSIGHT_TOTAL}）`, {
+        fontSize: '13px', color: '#c79ae8', fontStyle: 'bold',
+      })); y += 22;
+      for (const ins of this._insights.slice(0, 6)) {
+        const t = this.add.text(innerL, y, `「${ins.title}」　${ins.text}`, {
+          fontSize: '11px', color: '#bdb4d0', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 2,
+        });
+        ui.add(t); y += t.height + 5;
+      }
+    }
 
     // 按钮
     const btnY = y + 24;

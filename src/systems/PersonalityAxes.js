@@ -109,6 +109,29 @@ const BLINDSPOT_TEXT = {
   risk: { pos: '爱冒险要配一张回滚方案——把下行风险先兜住。', neg: '太求稳会错过窗口——有些机会值得算清后果就上。' },
 };
 
+// 每日复盘用·一句人格微洞察（按当日最鲜明的轴给一句)
+const MICRO = {
+  collab: { pos: '今天你更愿意找人协作——借力也是一种能力。', neg: '今天你更爱独处深工——一个人也能扛。' },
+  plan: { pos: '今天你谋定而后动——规划让你稳。', neg: '今天你先跑起来再说——敏捷是你的节奏。' },
+  empathy: { pos: '今天你更顾及了人——温柔别忘了也留给自己。', neg: '今天你更就事论事——理性帮你守住判断。' },
+  risk: { pos: '今天你敢押注——记得给冒险配张回滚方案。', neg: '今天你选了稳妥——求稳是你的定海神针。' },
+};
+
+/**
+ * 一句人格微洞察：取当前最鲜明(|v|≥12)的轴给一句;都不鲜明则给通用鼓励。
+ * @param {Record<string,number>} axes  归一向量
+ * @returns {string}
+ */
+export function microInsight(axes = {}) {
+  let best = null, mag = 12;
+  for (const k of AXIS_KEYS) {
+    const v = Math.abs(Number(axes[k]) || 0);
+    if (v >= mag) { mag = v; best = k; }
+  }
+  if (!best) return '今天的选择还在慢慢拼出「你」——继续走。';
+  return MICRO[best][(Number(axes[best]) || 0) >= 0 ? 'pos' : 'neg'];
+}
+
 /**
  * 一站式：从 ChoiceLog 的 axisTotals → 归一向量 + 四字签 + 强项盲点。
  * @param {Record<string,number>} totals

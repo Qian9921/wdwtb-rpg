@@ -115,6 +115,7 @@
       "bg": "office_night",
       "effects": {},
       "action": "ending",
+      "ending": "backbone",
       "note": "🏆骨干结局(='成为下一个王主任'):克制带怅惘,不做失败排序。回收金句'稳定是糖也是茧'与主题'认出本来的你'的反面(没认出)。绿植克制的绿。",
       "choices": []
     },
@@ -165,6 +166,7 @@
       "bg": "window",
       "effects": {},
       "action": "ending",
+      "ending": "quit",
       "note": "🔥裸辞结局(passion触底+stress高+money有余):恐惧与自由并存,不做成功承诺,不悬浮。绿植带走后冒新芽=玩家勇敢。呼应边界信精神'来生活的'。",
       "choices": []
     },
@@ -215,6 +217,7 @@
       "bg": "window",
       "effects": {},
       "action": "ending",
+      "ending": "health",
       "note": "🏥身体警告结局(health/san触底):不是失败,是心替你喊停。不做道德排序,不悬浮。绿植缓慢复苏与玩家同步。",
       "choices": []
     },
@@ -265,6 +268,7 @@
       "bg": "window",
       "effects": {},
       "action": "ending",
+      "ending": "switch",
       "note": "🔄转行结局(passion对本职触底+skill可迁移+san稳):爱的是帮到人那一小块,带着它转岗。不做道德排序,不悬浮。绿植随迁复苏。",
       "choices": []
     },
@@ -325,6 +329,7 @@
       "bg": "window",
       "effects": {},
       "action": "ending",
+      "ending": "light",
       "note": "🌟找到光结局(最治愈·最难):passion回暖+san回升+stress释放。没离开但和自己和解,主动选择稳定(呼应'稳定是糖也是茧'—这次是主动含糖)。回收主题金句'认出那个本来的你'。绿植彻底复苏冒新绿。",
       "choices": []
     }

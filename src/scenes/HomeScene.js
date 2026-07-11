@@ -17,6 +17,7 @@ export class HomeScene extends Phaser.Scene {
     this.career = data?.career || 'programmer';
     this.act = data?.act || 1;
     this.day = data?.day || 1;
+    this.slot = data?.slot || 1;
     this.stats = data?.stats || {
       health: 80, energy: 100, san: 80, stress: 20, skill: 10, performance: 50, money: 0, passion: 70,
     };
@@ -120,30 +121,28 @@ export class HomeScene extends Phaser.Scene {
     this._sleeping = true;
     // 睡觉：把当日状态 + 经营期天数写回存档
     try {
-      const saved = SaveSystem.load() || {};
+      const saved = SaveSystem.loadSlot(this.slot) || {};
       const story = saved.story || { phase: 'ready', act: this.act, daysInAct: 0 };
       if (story.phase === 'working') story.daysInAct = (story.daysInAct || 0) + 1; // 经营期才累加
       // 合并写：保留 project/subRole/quests（SaveSystem 合并，但 explicit extra 勿丢字段）
-      SaveSystem.saveProgress({
+      SaveSystem.saveSlot(this.slot, {
         career: this.career, act: this.act, stats: this.stats,
-        extra: {
-          subRole: saved.subRole,
-          quests: saved.quests,
-          choiceLog: saved.choiceLog,
-          thought: saved.thought,
-          daySystem: saved.daySystem,
-          project: saved.project,
-          story,
-        },
+        subRole: saved.subRole,
+        quests: saved.quests,
+        choiceLog: saved.choiceLog,
+        thought: saved.thought,
+        daySystem: saved.daySystem,
+        project: saved.project,
+        story,
       });
     } catch (e) {}
     this.cameras.main.fadeOut(800, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       let subRole = null;
-      try { subRole = (SaveSystem.load() || {}).subRole || null; } catch (e) {}
+      try { subRole = (SaveSystem.loadSlot(this.slot) || {}).subRole || null; } catch (e) {}
       this.scene.start('CommuteScene', {
         career: this.career, act: this.act, day: this.day + 1,
-        stats: this.stats, subRole,
+        stats: this.stats, subRole, slot: this.slot,
       });
     });
   }

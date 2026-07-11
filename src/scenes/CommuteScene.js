@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { Juice } from '../systems/JuiceKit.js';
 import { SceneRouter } from '../systems/SceneRouter.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 // CommuteScene：晨间通勤——轻量事件卡场景（无 tilemap，纯 UI）。
 // 每天早上抽一条 commute_events.json 的事件，玩家做选择微调状态，然后进办公室(work)。
@@ -15,10 +16,11 @@ export class CommuteScene extends Phaser.Scene {
     this.day = data?.day || 1;
     this.stats = data?.stats || null; // 上一场景传来的状态快照
     this.subRole = data?.subRole || null;
+    this.slot = data?.slot || 1;
     // 续档兜底
     if (!this.subRole) {
       try {
-        const s = JSON.parse(localStorage.getItem('wdwtb_save') || 'null');
+        const s = SaveSystem.loadSlot(this.slot);
         if (s && s.subRole) this.subRole = s.subRole;
       } catch (e) { /* */ }
     }
@@ -117,6 +119,7 @@ export class CommuteScene extends Phaser.Scene {
     SceneRouter.goto(this, 'WorldScene', {
       career: this.career, act: this.act, day: this.day,
       stats: this.stats, phase: 'work', subRole: this.subRole,
+      slot: this.slot,
     });
   }
 }

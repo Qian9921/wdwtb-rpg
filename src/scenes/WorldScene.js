@@ -570,7 +570,16 @@ export class WorldScene extends Phaser.Scene {
     this.touchControls = new TouchControls(this);
     this.touchControls.onInteract(() => {
       if (this.dialogueActive) return;
+      // 坐着时:E=在自己工位开工作台 / 普通座位起身(复用键盘坐着分支)
+      if (this._sitting) {
+        if (this._sitting.isPlayerDesk) this._openWorkBoard();
+        else this._standUp();
+        return;
+      }
+      // 未坐:按 nearest 分派(与键盘E一致:npc/worker/chair/object)
       if (this.activeNpc) this._interact(this.activeNpc);
+      else if (this.activeWorker) this._interactWorker(this.activeWorker);
+      else if (this.activeChair) this._sitOnChair(this.activeChair);
       else if (this.activeObject) this._interactObject(this.activeObject);
     });
     this.touchControls.onMenu(() => {
@@ -1378,6 +1387,7 @@ export class WorldScene extends Phaser.Scene {
     this.activeNpc = (nearestType === 'npc') ? nearest : null;
     this.activeWorker = (nearestType === 'worker') ? nearest : null;
     this.activeObject = (nearestType === 'object') ? nearest : null;
+    this.activeChair = (nearestType === 'chair') ? nearest : null;
 
     // 选定圈：物件用家具位置(fx/fy)，NPC/同事用脚底，椅子用椅子位置
     const sel = this._selRing;
@@ -3200,6 +3210,7 @@ export class WorldScene extends Phaser.Scene {
     SceneRouter.goto(this, 'HomeScene', {
       career: this.career, act: this.act,
       day: this.daySystem.day, stats: this.stateSystem.getAll(),
+      slot: this._activeSlot,
     });
   }
 

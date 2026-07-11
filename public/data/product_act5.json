@@ -124,6 +124,7 @@
       "bg": "office_night",
       "effects": {},
       "action": "ending",
+      "ending": "backbone",
       "note": "🏆骨干结局:performance高+skill高+passion未底。熬成靠谱的人，夜深自问'我定义的真是我想做的吗'，带一丝空。林姐点题不说教。绿植克制的绿。不完美收场。",
       "choices": []
     },
@@ -184,6 +185,7 @@
       "bg": "apartment_night",
       "effects": {},
       "action": "ending",
+      "ending": "quit",
       "note": "🔥裸辞结局:passion触底+stress长期高+money有余。替自己活一次。带存款/未知的怅惘，不完美收场。回收'没有一个人对你的崩溃负责'→自己接住自己。绿植随行抽新叶。",
       "choices": []
     },
@@ -244,6 +246,7 @@
       "bg": "apartment_night",
       "effects": {},
       "action": "ending",
+      "ending": "health",
       "note": "🏥身体结局:health触底+energy枯竭。被迫停下，'我需要休息'用晕倒换。健康是1。不完美收场，警示不说教。绿植舍枯留活。",
       "choices": []
     },
@@ -305,6 +308,7 @@
       "bg": "office_night",
       "effects": {},
       "action": "ending",
+      "ending": "switch",
       "note": "🔄转行结局:passion对本职触底+skill可迁移+san稳。爱的是具体那块，带着它转别处。校准非逃跑。带降薪/未知怅惘，不完美收场。绿植随迁更舒展。",
       "choices": []
     },
@@ -375,6 +379,7 @@
       "bg": "apartment_night",
       "effects": {},
       "action": "ending",
+      "ending": "light",
       "note": "🌟光结局(最难最治愈):passion回暖+san回升+stress释放。夹缝里守住自己，'不必让所有人满意'，和自己和解。回收主题金句+林姐'替用户扛事'。绿植复苏。留白温暖但不悬浮。",
       "choices": []
     }

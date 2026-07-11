@@ -446,6 +446,25 @@ export class WorldScene extends Phaser.Scene {
     const SW = this.scale.width, SH = this.scale.height; // 1920×1080 屏幕坐标系
     this.uiObjects = [];
     const trackUI = (o) => { this.uiObjects.push(o); return o; };
+    // 可爱圆角 HUD 按钮（中心定位、自适应宽、金边、hover 高亮）——常驻功能统一风格
+    const cuteBtn = (cx, cy, label, cb, fill = 0x2a2a48) => {
+      const txt = this.add.text(cx, cy, label, { fontSize: '19px', fill: '#eef1ff', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+      const w = Math.ceil(txt.width) + 34, h = Math.ceil(txt.height) + 18, r = Math.min(15, h / 2);
+      const g = this.add.graphics().setScrollFactor(0).setDepth(9999);
+      const draw = (hover) => { g.clear(); g.fillStyle(hover ? 0x3a3a62 : fill, 0.97); g.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, r); g.lineStyle(2, 0xd4a353, hover ? 1 : 0.7); g.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, r); };
+      draw(false);
+      const zone = this.add.zone(cx, cy, w, h).setScrollFactor(0).setDepth(10000).setInteractive({ useHandCursor: true });
+      zone.on('pointerover', () => { draw(true); this.tweens.add({ targets: txt, scale: 1.05, duration: 100, ease: 'Back.out' }); });
+      zone.on('pointerout', () => { draw(false); this.tweens.add({ targets: txt, scale: 1, duration: 100 }); });
+      zone.on('pointerdown', cb);
+      trackUI(g); trackUI(txt); trackUI(zone);
+      return {
+        g, txt, zone, w,
+        setLabel: (s) => txt.setText(s),
+        setVisible: (v) => { g.setVisible(v); txt.setVisible(v); zone.setVisible(v); if (zone.input) zone.input.enabled = v; return this; },
+      };
+    };
+    this._cuteBtn = cuteBtn;
 
     // 环境滤镜层（bgChange 真换景）+ 情绪染色层（状态演出）——钉屏、UI相机、低 depth 作氛围底。
     // 用颜色叠加程序化地表现"晨街/大堂/深夜"和"压力/耗竭/心流"，不需要新美术。
@@ -475,13 +494,8 @@ export class WorldScene extends Phaser.Scene {
     this.timeSystem.kick();
     if (this.workLoopEnabled) this._startOfficeEvents(); // 随机办公室事件
 
-    // "下班回家"按钮（屏幕右上角，天数下方）
-    this.offWorkBtn = trackUI(this.add.text(SW - 20, 64, '🏠 下班回家', {
-      fontSize: '20px', fill: '#dfe3ff', backgroundColor: '#3a3a5aee', padding: { x: 14, y: 8 },
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(9999).setInteractive({ useHandCursor: true }));
-    this.offWorkBtn.on('pointerover', () => this.offWorkBtn.setBackgroundColor('#4a4a7aee'));
-    this.offWorkBtn.on('pointerout', () => this.offWorkBtn.setBackgroundColor('#3a3a5aee'));
-    this.offWorkBtn.on('pointerdown', () => this._goHome());
+    // "下班回家"按钮（屏幕右上角，天数下方）——可爱圆角
+    this.offWorkBtn = cuteBtn(SW - 92, 84, '🏠 下班回家', () => this._goHome(), 0x3a3a5a);
 
     // 项目进度 HUD（右上角，下班按钮下方）——工作日循环的核心可见产出
     if (this.workLoopEnabled) {
@@ -502,13 +516,9 @@ export class WorldScene extends Phaser.Scene {
       this._updateProjectHud();
     }
 
-    // 功能栏 HUD（左下角）：手机等常驻功能放这里，不再摆在地上（更真实）
-    this._phoneBtn = trackUI(this.add.text(24, SH - 66, '📱 手机', {
-      fontSize: '20px', fill: '#dfe3ff', backgroundColor: '#2a2a44dd', padding: { x: 14, y: 9 },
-    }).setOrigin(0, 0).setScrollFactor(0).setDepth(9999).setInteractive({ useHandCursor: true }));
-    this._phoneBtn.on('pointerover', () => this._phoneBtn.setBackgroundColor('#3a3a5edd'));
-    this._phoneBtn.on('pointerout', () => this._phoneBtn.setBackgroundColor('#2a2a44dd'));
-    this._phoneBtn.on('pointerdown', () => this._usePhone());
+    // 功能栏 HUD（左下角一排可爱圆角按钮）：手机 + 心象世界,常驻功能排整齐、风格统一
+    this._phoneBtn = cuteBtn(92, SH - 46, '📱 手机', () => this._usePhone());
+    this._mindBtn = cuteBtn(232, SH - 46, '🌌 心象世界', () => this._enterMindscapeFree());
 
     // 引导语（屏幕底部）——按职业主题生成"找谁报到"
     const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;

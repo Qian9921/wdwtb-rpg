@@ -14,6 +14,10 @@ export class HubScene extends Phaser.Scene {
     super('HubScene');
   }
 
+  init(data) {
+    this._newGameSlot = (data && data.newGameSlot) || null;
+  }
+
   create() {
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this.cameras.main.fadeIn(500, 10, 8, 20);
@@ -236,7 +240,7 @@ export class HubScene extends Phaser.Scene {
   _enterWorld(career, subRole) {
     this.cameras.main.fadeOut(400, 10, 8, 20);
     this.cameras.main.once('camerafadeoutcomplete', () =>
-      this.scene.start('WorldScene', { career: career.key, subRole, deep: career.deep, act: 1 }));
+      this.scene.start('WorldScene', { career: career.key, subRole, deep: career.deep, act: 1, newGameSlot: this._newGameSlot }));
   }
 
   // 细分职业选择弹窗：两个方向卡 + 测评推荐高亮

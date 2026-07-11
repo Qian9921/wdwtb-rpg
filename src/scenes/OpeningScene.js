@@ -8,6 +8,10 @@ import { buildTryFirstAdvice } from '../systems/CareerFit.js';
 export class OpeningScene extends Phaser.Scene {
   constructor() { super('OpeningScene'); }
 
+  init(data) {
+    this._newGameSlot = (data && data.newGameSlot) || null;
+  }
+
   preload() {
     this.load.json('assessment', './data/assessment.json');
     // 主角与 NPC 统一用 SkyOffice（同一 32×48 体系,尺寸/画风一致,不再混用 LimeZu）
@@ -289,7 +293,7 @@ export class OpeningScene extends Phaser.Scene {
     }).setOrigin(0.5));
 
     this._button(480, 448, 280, 44, '带着画像去试职业 →', () => {
-      this.scene.start('HubScene');
+      this.scene.start('HubScene', { newGameSlot: this._newGameSlot });
     }, 0x2a4a3e, '16px');
   }
 }

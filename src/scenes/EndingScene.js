@@ -40,6 +40,7 @@ export class EndingScene extends Phaser.Scene {
     this.projectProgress = data?.projectProgress != null ? data.projectProgress : null;
     this.relationSummary = data?.relationSummary || null; // E5 关系网摘要
     this.portrait = data?.portrait || null;
+    this._slot = data?.slot || 1;
     let profile = null;
     try { profile = JSON.parse(localStorage.getItem('wdwtb_profile') || 'null'); } catch (e) {}
     this.profile = profile;
@@ -62,7 +63,7 @@ export class EndingScene extends Phaser.Scene {
 
   create() {
     // 这一局已通关：清掉本局存档。否则"再玩一次/继续游戏"会落回打完的状态。
-    try { SaveSystem.clear(); } catch (e) {}
+    try { SaveSystem.clearSlot(this._slot || 1); } catch (e) {}
     AudioSystem.playBgm('ending'); // 温暖释然的收尾
     this.cameras.main.setBackgroundColor('#15151f');
     this.cameras.main.fadeIn(600, 0, 0, 0); // 从黑淡入（与 WorldScene 转场淡出衔接）

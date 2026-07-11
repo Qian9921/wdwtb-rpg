@@ -250,6 +250,7 @@ export class WorldScene extends Phaser.Scene {
     this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
+    this._activeSlot = (data && (data.slot || data.newGameSlot)) || 1;
     // 多天循环：从 CommuteScene 传入的 day + stats 快照（有则用，无则从存档/默认）
     this._incomingDay = (data && data.day) || null;
     this._incomingStats = (data && data.stats) || null;
@@ -264,7 +265,7 @@ export class WorldScene extends Phaser.Scene {
     this._savedProject = null;
     this._savedRelations = null;
     try {
-      const saved = SaveSystem.load();
+      const saved = SaveSystem.loadSlot(this._activeSlot);
       // 同职业+同细分才续档；换职业或换方向 → 清旧档、全新开始（避免串档）。
       // subRole 为空=从标题"继续"进来,用存档里的方向。
       const sameRun = saved && saved.career === this.career
@@ -281,20 +282,13 @@ export class WorldScene extends Phaser.Scene {
         if (this.subRole == null && saved.subRole) this.subRole = saved.subRole; // 续档恢复方向
         if (saved.story) this._story = mergeStoryState(saved.story);
       } else if (saved) {
-        SaveSystem.clear(); // 换职业/换方向：清掉上一个进度
+        SaveSystem.clearSlot(this._activeSlot); // 换职业/换方向：清掉上一个进度
       }
     } catch (e) {}
     // story.act 是权威幕次
     this.act = this._story.act || this.act;
     // 进场即存档（合并写，保留未提供字段）
-    SaveSystem.saveProgress({
-      career: this.career, act: this.act, stats: this._savedStats,
-      extra: {
-        subRole: this.subRole, quests: this._savedQuests, choiceLog: this._savedChoiceLog,
-        thought: this._savedThought, daySystem: this._savedDay, segment: this._savedSegment,
-        project: this._savedProject, story: this._story, relations: this._savedRelations,
-      },
-    });
+    this._saveProgressToSlot();
   }
 
   preload() {
@@ -1523,6 +1517,7 @@ export class WorldScene extends Phaser.Scene {
       choiceLog: this.choiceLog ? this.choiceLog.serialize() : null,
       projectProgress: this.projectSystem ? this.projectSystem.progress : null,
       relationSummary: this._relationSummaryText(),
+      slot: this._activeSlot || 1,
     };
   }
 
@@ -1685,21 +1680,26 @@ export class WorldScene extends Phaser.Scene {
 
   // 持久化剧情状态（story）到存档
   _persistStory() {
-    const saved = SaveSystem.load() || {};
-    SaveSystem.saveProgress({
-      career: this.career, act: this.act, stats: this.stateSystem.getAll(),
-      extra: {
-        subRole: this.subRole,
-        quests: this.questSystem.serialize(),
-        choiceLog: this.choiceLog.serialize(),
-        thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
-        daySystem: this.daySystem ? this.daySystem.serialize() : null,
-        segment: this.timeSystem ? this.timeSystem.index : null,
-        project: this.projectSystem ? this.projectSystem.serialize() : null,
-        story: this._story,
-        relations: this.relations ? this.relations.serialize() : null,
-      },
-    });
+    this._saveProgressToSlot();
+  }
+
+  _saveProgressToSlot(extra) {
+    const slot = this._activeSlot || 1;
+    const payload = {
+      career: this.career, act: this.act,
+      stats: this.stateSystem ? this.stateSystem.getAll() : null,
+      subRole: this.subRole,
+      quests: this.questSystem ? this.questSystem.serialize() : null,
+      choiceLog: this.choiceLog ? this.choiceLog.serialize() : null,
+      thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
+      daySystem: this.daySystem ? this.daySystem.serialize() : null,
+      segment: this.timeSystem ? this.timeSystem.index : null,
+      project: this.projectSystem ? this.projectSystem.serialize() : null,
+      story: this._story,
+      relations: this.relations ? this.relations.serialize() : null,
+      ...extra,
+    };
+    return SaveSystem.saveSlot(slot, payload);
   }
 
   // NPC 记忆台词：AI 按玩家选择历史生成个性化反应，让"世界记得你"。
@@ -1749,14 +1749,14 @@ export class WorldScene extends Phaser.Scene {
     const nameH = name ? 34 : 0;
     const hintH = 26;
     const bodyTxt = this.add.text(0, 0, text, {
-      fontSize: '26px', color: '#ffffff', lineSpacing: 8,
+      fontSize: '26px', color: '#f4f4f8', stroke: '#0a0a14', strokeThickness: 3, lineSpacing: 8,
       wordWrap: { width: wrapW, useAdvancedWrap: true },
     }).setOrigin(0, 0);
     const bodyH = bodyTxt.height;
     const boxH = PAD + nameH + bodyH + 14 + hintH + PAD;
     const by = height - 40 - boxH; // 框底距屏幕底 40
 
-    c.add(this.add.rectangle(bx + bw / 2, by + boxH / 2, bw, boxH, 0x0a0a14, 0.92).setStrokeStyle(2, 0xd4a353, 0.5));
+    c.add(this.add.rectangle(bx + bw / 2, by + boxH / 2, bw, boxH, 0x080812, 0.95).setStrokeStyle(2, 0xd4a353, 0.6));
     let ty = by + PAD;
     if (name) {
       c.add(this.add.text(bx + PAD, ty, name, {
@@ -2452,20 +2452,7 @@ export class WorldScene extends Phaser.Scene {
     if (this._goingHome) return;
     this._goingHome = true;
     // 存档（含天数 + 剧情阶段，缺 story 会导致下班后剧情进度被抹、卡在第一幕重播）
-    SaveSystem.saveProgress({
-      career: this.career, act: this.act, stats: this.stateSystem.getAll(),
-      extra: {
-        subRole: this.subRole,
-        quests: this.questSystem.serialize(),
-        choiceLog: this.choiceLog.serialize(),
-        thought: this.thoughtSystem ? this.thoughtSystem.serialize() : null,
-        daySystem: this.daySystem.serialize(),
-        segment: 0, // 下班回家=一天结束，明天从早晨（早会）重新开始
-        project: this.projectSystem ? this.projectSystem.serialize() : null,
-        story: this._story,
-        relations: this.relations ? this.relations.serialize() : null,
-      },
-    });
+    this._saveProgressToSlot({ segment: 0 });
     SceneRouter.goto(this, 'HomeScene', {
       career: this.career, act: this.act,
       day: this.daySystem.day, stats: this.stateSystem.getAll(),

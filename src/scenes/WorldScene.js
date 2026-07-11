@@ -2815,68 +2815,71 @@ export class WorldScene extends Phaser.Scene {
 
   _showOfficeEvent(ev, courier = null) {
     if (this._eventUI) return;
-    this.dialogueActive = true;
+    this.dialogueActive = true; // 冻结玩家移动（选完才能动）
     if (this.guideText) this.guideText.setVisible(false);
     AudioSystem.playSfx && AudioSystem.playSfx('notify');
-    // 事件弹出：轻手感，让「办公室会出事」可感知
-    Juice.flash(this, 0x2a2a4a, 100);
-    Juice.floatText(
-      this,
-      this.scale.width / 2,
-      this.scale.height / 2 - 220,
-      ev.icon ? `${ev.icon} 办公室事件` : '⚡ 办公室事件',
-      '#ffd24d',
-    );
-    const { width, height } = this.scale;
+
+    // NPC 位置（事件以 TA 为中心）；无 courier 时用玩家位置兜底
+    const npc = courier;
+    const cx = npc ? npc.spr.x : this.player.x;
+    const cy = npc ? npc.spr.y : this.player.y;
+    // 转屏幕坐标
+    const cam = this.cameras.main;
+    const sx = (cx - cam.scrollX) * cam.zoom;
+    const sy = (cy - cam.scrollY) * cam.zoom;
+
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10001);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
-    const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.78)
-      .setScrollFactor(0).setInteractive();
-    c.add(mask);
-    const pw = 780, ph = 440, px = width / 2, py = height / 2;
-    const accent = ev.urgent ? 0xe8735a : 0xd4a353;
-    c.add(this.add.rectangle(px, py, pw, ph, 0x14141f, 0.98).setStrokeStyle(3, accent));
-    // 送事件的同事名字（事件有来源，不再凭空蹦）
-    if (courier && courier.name) {
-      c.add(this.add.text(px - pw / 2 + 24, py - ph / 2 - 14, `💬 ${courier.name} 找你：`, {
-        fontSize: '18px', fill: '#8fc3ff', fontStyle: 'bold',
-        backgroundColor: '#14141fee', padding: { x: 10, y: 5 },
-      }).setOrigin(0, 0.5));
-    }
-    c.add(this.add.text(px, py - ph / 2 + 34, `${ev.icon} ${ev.title}`, {
-      fontSize: '30px', fill: ev.urgent ? '#ff9a7a' : '#ffd24d', fontStyle: 'bold',
-    }).setOrigin(0.5));
-    if (ev.urgent) {
-      const badge = this.add.text(px + pw / 2 - 24, py - ph / 2 + 22, '紧急', {
-        fontSize: '15px', fill: '#fff', backgroundColor: '#c0392b', padding: { x: 8, y: 3 },
-      }).setOrigin(1, 0.5);
-      c.add(badge);
-      this.tweens.add({ targets: badge, alpha: 0.4, duration: 500, yoyo: true, repeat: -1 });
-    }
-    c.add(this.add.text(px, py - ph / 2 + 96, ev.text, {
-      fontSize: '19px', fill: '#dfe3ea', wordWrap: { width: pw - 90, useAdvancedWrap: true },
-      align: 'center', lineSpacing: 8,
-    }).setOrigin(0.5, 0));
 
+    // 很淡的暗角聚焦（不是全屏遮罩——画面保持可见）
+    const { width, height } = this.scale;
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35).setScrollFactor(0));
+
+    const accent = ev.urgent ? 0xe8735a : 0xd4a353;
+    const bubbleY = Math.max(120, sy - 130); // NPC 头上方，不超出屏幕
+
+    // 说话气泡（NPC 头上）
+    const bw = Math.min(620, width - 80);
+    const bh = 100;
+    c.add(this.add.rectangle(sx, bubbleY, bw, bh, 0x14141f, 0.96)
+      .setStrokeStyle(2, accent).setScrollFactor(0));
+    // 气泡尾巴（指向 NPC）
+    c.add(this.add.triangle(sx, bubbleY + bh / 2, 0, 0, 16, 14, -16, 14, 0x14141f, 0.96)
+      .setStrokeStyle(2, accent).setScrollFactor(0));
+
+    // NPC 名字
+    const speakerName = npc ? npc.name : (ev.title || '同事');
+    c.add(this.add.text(sx - bw / 2 + 16, bubbleY - bh / 2 + 8,
+      `${ev.icon || ''} ${speakerName}：`, {
+        fontSize: '16px', color: ev.urgent ? '#ff9a7a' : '#ffd24d', fontStyle: 'bold',
+      }).setOrigin(0, 0).setScrollFactor(0));
+    // 事件正文
+    c.add(this.add.text(sx, bubbleY + 10, ev.text, {
+      fontSize: '17px', color: '#dfe3ea',
+      wordWrap: { width: bw - 40, useAdvancedWrap: true }, align: 'center', lineSpacing: 4,
+    }).setOrigin(0.5).setScrollFactor(0));
+
+    // 选项：NPC 旁边竖排（选完才能继续）
     const choices = ev.choices || [];
-    const startY = py + 10;
+    const choiceStartY = bubbleY + bh / 2 + 28;
+    const chW = Math.min(500, width - 120);
     choices.forEach((ch, i) => {
-      const by = startY + i * 72;
-      const btn = this.add.rectangle(px, by, pw - 90, 60, 0x232338, 0.96)
-        .setStrokeStyle(2, 0x4a4a6a).setInteractive({ useHandCursor: true });
+      const cy2 = choiceStartY + i * 54;
+      const btn = this.add.rectangle(sx, cy2, chW, 44, 0x232338, 0.96)
+        .setStrokeStyle(2, 0x4a4a6a).setInteractive({ useHandCursor: true }).setScrollFactor(0);
       btn.on('pointerover', () => btn.setFillStyle(0x33334e));
       btn.on('pointerout', () => btn.setFillStyle(0x232338));
       btn.on('pointerdown', () => this._resolveEvent(ev, ch, c));
       c.add(btn);
-      c.add(this.add.text(px, by, ch.label, {
-        fontSize: '18px', fill: '#ffffff', wordWrap: { width: pw - 130 }, align: 'center',
-      }).setOrigin(0.5));
+      c.add(this.add.text(sx, cy2, ch.label, {
+        fontSize: '16px', color: '#ffffff',
+        wordWrap: { width: chW - 30 }, align: 'center',
+      }).setOrigin(0.5).setScrollFactor(0));
     });
     this._eventUI = c;
   }
 
   _resolveEvent(ev, choice, c) {
-    // 副作用计划纯逻辑 planEventChoiceEffects；场景只负责 apply + UI
     const plan = planEventChoiceEffects(choice, ev);
     for (const [k, v] of Object.entries(plan.effects)) this.stateSystem.change(k, v);
     if (plan.projectDelta && this.projectSystem) {
@@ -2884,11 +2887,10 @@ export class WorldScene extends Phaser.Scene {
       this._updateProjectHud();
     }
     if (plan.addOrder && this.projectSystem) this.projectSystem.addUrgentOrder();
-    // 关闭事件框 → 送事件的同事回工位 → 显示结果小气泡
     if (c) c.destroy(true);
     this._eventUI = null;
-    this.dialogueActive = false;
-    this._releaseCourier(); // 送事件的同事说完就回工位
+    this.dialogueActive = false; // 解冻
+    this._releaseCourier();
     if (this.guideText) this.guideText.setVisible(true);
     if (plan.result) this._showThoughtBubble(plan.result, plan.resultColor);
     if (plan.addOrder) {

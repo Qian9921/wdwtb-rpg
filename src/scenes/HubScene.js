@@ -9,6 +9,7 @@ import {
 import { ExplorationArchive, recommendDirections, completion } from '../systems/ExplorationArchive.js';
 import { normalizeAxes, AXIS_META, AXIS_KEYS } from '../systems/PersonalityAxes.js';
 import { INSIGHT_TOTAL } from '../systems/InsightCodex.js';
+import { makeCutePanel } from '../systems/UI.js';
 
 // HubScene：职业选择大厅。玩家捏完人后选职业进入体验。
 // 职业列表暂时硬编码，以后可挪到 data/ 目录的 JSON。
@@ -195,53 +196,36 @@ export class HubScene extends Phaser.Scene {
       const hoverFill = isDeep ? 0x3c3c5e : 0x2c2c4a;
       const nameColor = isDeep ? '#ffd24d' : '#e6e6e6';
       const descColor = isDeep ? '#aaaacc' : '#9aa0a6';
+      const rad = 14;
 
-      // 卡片矩形
-      let interactiveRect;
-      if (isDeep) {
-        // 金边 + 内部填充
-        this.add.rectangle(cx, cy, cardW, cardH, 0xBFA34A);
-        interactiveRect = this.add.rectangle(cx, cy, cardW - 6, cardH - 6, baseFill);
-      } else {
-        interactiveRect = this.add.rectangle(cx, cy, cardW, cardH, baseFill);
-      }
-      interactiveRect.setInteractive({ useHandCursor: true });
-
-      // 文字（在卡片上）
-      this.add.text(cx, cy - 14, career.name, {
-        fontSize: '15px', color: nameColor,
-      }).setOrigin(0.5);
-      this.add.text(cx, cy + 14, career.desc, {
-        fontSize: '11px', color: descColor,
-      }).setOrigin(0.5);
-      // 内容量角标：程序员=完整版(任务链+细分岗位)；其余按类型标注,不让人误期待
+      // 可爱圆角卡（容器：圆角底 + 文字 + 角标 + 交互热区），hover 放大
+      const cont = this.add.container(cx, cy);
+      const g = this.add.graphics();
+      const drawCard = (fill, hover) => {
+        g.clear();
+        g.fillStyle(fill, 0.98);
+        g.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, rad);
+        g.lineStyle(isDeep ? 3 : 2, isDeep ? 0xd4a353 : (hover ? 0x6a6a8a : 0x3a3a52), 1);
+        g.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, rad);
+      };
+      drawCard(baseFill, false);
+      cont.add(g);
+      cont.add(this.add.text(0, -14, career.name, { fontSize: '15px', color: nameColor, fontStyle: 'bold' }).setOrigin(0.5));
+      cont.add(this.add.text(0, 14, career.desc, { fontSize: '11px', color: descColor }).setOrigin(0.5));
       const FULL = new Set(['programmer', 'product', 'admin', 'designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer']);
       const tag = FULL.has(career.key)
-        ? { t: (['designer','operation','teacher','doctor','civilservant','sales','lawyer'].includes(career.key)) ? '★迷你完整' : '★完整版', c: '#ffd24d' }
+        ? { t: (['designer', 'operation', 'teacher', 'doctor', 'civilservant', 'sales', 'lawyer'].includes(career.key)) ? '★迷你完整' : '★完整版', c: '#ffd24d' }
         : isDeep ? { t: '剧情版', c: '#9ab4dc' } : { t: '短篇', c: '#7a7a92' };
-      this.add.text(cx + cardW / 2 - 7, cy - cardH / 2 + 5, tag.t, {
-        fontSize: '9px', color: tag.c,
-      }).setOrigin(1, 0);
-      // 测评优先建议星标（初衷：可行动线索，非强制）
+      cont.add(this.add.text(cardW / 2 - 8, -cardH / 2 + 6, tag.t, { fontSize: '9px', color: tag.c }).setOrigin(1, 0));
       if (recKeys.has(career.key)) {
-        this.add.text(cx - cardW / 2 + 8, cy - cardH / 2 + 5, '⭐建议', {
-          fontSize: '9px', color: '#ffd24d', fontStyle: 'bold',
-        }).setOrigin(0, 0);
+        cont.add(this.add.text(-cardW / 2 + 8, -cardH / 2 + 6, '⭐建议', { fontSize: '9px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0, 0));
       }
-
-      // 交互：hover 放大 + 点击音 + 淡出进场
-      const cardParts = [interactiveRect];
-      interactiveRect.on('pointerover', () => {
-        interactiveRect.setFillStyle(hoverFill);
-        this.tweens.add({ targets: cardParts, scale: 1.04, duration: 120 });
-      });
-      interactiveRect.on('pointerout', () => {
-        interactiveRect.setFillStyle(baseFill);
-        this.tweens.add({ targets: cardParts, scale: 1, duration: 120 });
-      });
-      interactiveRect.on('pointerdown', () => {
+      const zone = this.add.zone(0, 0, cardW, cardH).setInteractive({ useHandCursor: true });
+      cont.add(zone);
+      zone.on('pointerover', () => { drawCard(hoverFill, true); this.tweens.add({ targets: cont, scale: 1.05, duration: 130, ease: 'Back.out' }); });
+      zone.on('pointerout', () => { drawCard(baseFill, false); this.tweens.add({ targets: cont, scale: 1, duration: 130 }); });
+      zone.on('pointerdown', () => {
         AudioSystem.uiClick();
-        // 有细分职业的(程序员) → 先选方向；否则直接进
         if (this.SUBROLES[career.key]) { this._showSpecModal(career); return; }
         this._enterWorld(career, null);
       });
@@ -263,25 +247,34 @@ export class HubScene extends Phaser.Scene {
 
     const els = [];
     els.push(this.add.rectangle(480, 270, 960, 540, 0x0a0a16, 0.84).setInteractive().setDepth(50));
-    els.push(this.add.rectangle(480, 270, 580, 320, 0x191930).setStrokeStyle(2, 0xd4a353).setDepth(51));
-    els.push(this.add.text(480, 158, `选择你的方向 · ${career.name}`, { fontSize: '22px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5).setDepth(52));
-    els.push(this.add.text(480, 182, '不同方向 = 不同的导师任务、对接的人、小游戏', { fontSize: '12px', color: '#9aa0a6' }).setOrigin(0.5).setDepth(52));
-    els.push(this.add.text(480, 204, '进办公室：找 ❗ 导师 → 对接 → 自己的椅子「坐下办公」→「开始工作」→ 下班', {
+    els.push(makeCutePanel(this, { x: 480, y: 270, w: 600, h: 340, radius: 22, fill: 0x191930, glow: true }).setDepth(51));
+    els.push(this.add.text(480, 152, `选择你的方向 · ${career.name}`, { fontSize: '22px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5).setDepth(52));
+    els.push(this.add.text(480, 178, '不同方向 = 不同的导师任务、对接的人、小游戏', { fontSize: '12px', color: '#9aa0a6' }).setOrigin(0.5).setDepth(52));
+    els.push(this.add.text(480, 200, '进办公室：找 ❗ 导师 → 对接 → 自己的椅子「坐下办公」→「开始工作」→ 下班', {
       fontSize: '11px', color: '#c8b070',
     }).setOrigin(0.5).setDepth(52));
 
     subs.forEach((sub, i) => {
-      const cx = 480 + (i === 0 ? -145 : 145), cy = 295;
+      const cx = 480 + (i === 0 ? -148 : 148), cy = 298, cw = 254, ch = 152;
       const isRec = sub.key === recKey;
-      const card = this.add.rectangle(cx, cy, 250, 150, isRec ? 0x2a4a3e : 0x23233a)
-        .setStrokeStyle(2, isRec ? 0xffd24d : 0x4a4a6a).setInteractive({ useHandCursor: true }).setDepth(52);
-      els.push(card);
+      const g = this.add.graphics().setDepth(52);
+      const draw = (hover) => {
+        g.clear();
+        g.fillStyle(hover ? (isRec ? 0x35604e : 0x33334e) : (isRec ? 0x2a4a3e : 0x23233a), 0.98);
+        g.fillRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 16);
+        g.lineStyle(2.5, isRec ? 0xffd24d : 0x4a4a6a, 1);
+        g.strokeRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 16);
+      };
+      draw(false);
+      els.push(g);
       els.push(this.add.text(cx, cy - 42, sub.name, { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(53));
       els.push(this.add.text(cx, cy - 6, sub.desc, { fontSize: '12px', color: '#c8c8d8', wordWrap: { width: 215 }, align: 'center' }).setOrigin(0.5).setDepth(53));
       if (isRec) els.push(this.add.text(cx, cy + 48, '⭐ 测评推荐', { fontSize: '12px', color: '#ffd24d' }).setOrigin(0.5).setDepth(53));
-      card.on('pointerover', () => card.setFillStyle(isRec ? 0x35604e : 0x33334e));
-      card.on('pointerout', () => card.setFillStyle(isRec ? 0x2a4a3e : 0x23233a));
-      card.on('pointerdown', () => { AudioSystem.uiClick(); this._enterWorld(career, sub.key); });
+      const zone = this.add.zone(cx, cy, cw, ch).setInteractive({ useHandCursor: true }).setDepth(53);
+      els.push(zone);
+      zone.on('pointerover', () => draw(true));
+      zone.on('pointerout', () => draw(false));
+      zone.on('pointerdown', () => { AudioSystem.uiClick(); this._enterWorld(career, sub.key); });
     });
 
     const close = this.add.text(748, 148, '✕', { fontSize: '20px', color: '#8a8a9e' })
@@ -303,7 +296,7 @@ export class HubScene extends Phaser.Scene {
     const els = [];
     const D = 60;
     els.push(this.add.rectangle(480, 270, 960, 540, 0x0a0a16, 0.86).setInteractive().setDepth(D));
-    els.push(this.add.rectangle(480, 270, 640, 400, 0x161628).setStrokeStyle(2, 0x7b9cd6).setDepth(D + 1));
+    els.push(makeCutePanel(this, { x: 480, y: 270, w: 660, h: 410, radius: 22, fill: 0x161628, stroke: 0x7b9cd6, glow: true }).setDepth(D + 1));
     els.push(this.add.text(480, 96, '📊 我的职业探索档案', { fontSize: '22px', color: '#bcd0f0', fontStyle: 'bold' }).setOrigin(0.5).setDepth(D + 2));
     els.push(this.add.text(480, 120, '你的选择跨职业沉淀下来的样子——方向,从对照里长出来。', { fontSize: '11px', color: '#8a90a6' }).setOrigin(0.5).setDepth(D + 2));
 

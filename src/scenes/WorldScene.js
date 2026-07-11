@@ -1280,11 +1280,17 @@ export class WorldScene extends Phaser.Scene {
 
   _updateInteraction() {
     const RANGE = 78;
-    // 统一交互框架：NPC 和交互物件用同一套 RANGE + [E] 逻辑，取最近的那个。
+    // 统一交互框架：NPC（具名+背景同事）、交互物件、椅子用同一套 RANGE + [E] 逻辑，取最近的。
     let nearest = null, nd = RANGE, nearestType = null;
     for (const npc of this.npcs) {
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.spr.x, npc.spr.y);
       if (d < nd) { nd = d; nearest = npc; nearestType = 'npc'; }
+    }
+    // 背景同事也可以交流——走近按 E 能聊两句
+    for (const w of (this.workers || [])) {
+      if (!w.spr || !w.spr.visible) continue;
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, w.spr.x, w.spr.y);
+      if (d < nd) { nd = d; nearest = w; nearestType = 'worker'; }
     }
     for (const obj of (this._interactables || [])) {
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
@@ -1297,27 +1303,38 @@ export class WorldScene extends Phaser.Scene {
       if (d < nd) { nd = d; nearest = ch; nearestType = 'chair'; }
     }
 
-    this.activeNpc = nearestType === 'npc' ? nearest : null;
-    this.activeObject = nearestType === 'object' ? nearest : null;
-    // 高亮圈跟随当前可交互的真实家具/座位（NPC 不用高亮圈,有头顶浮标）
-    if (this._objHighlight) {
-      if (nearestType === 'object') {
-        this._objHighlight.setPosition(nearest.x, nearest.y + 10).setVisible(true);
-      } else if (nearestType === 'chair') {
-        this._objHighlight.setPosition(nearest.x, nearest.y + 6).setVisible(true);
+    this.activeNpc = (nearestType === 'npc') ? nearest : null;
+    this.activeWorker = (nearestType === 'worker') ? nearest : null;
+    this.activeObject = (nearestType === 'object') ? nearest : null;
+
+    // 选定圈：NPC/同事/物件/椅子都跟随脚下（贴地椭圆，金色发光脉冲）
+    const sel = this._selRing;
+    if (sel) {
+      if (nearest && nearestType !== 'chair') {
+        const sx = nearest.spr ? nearest.spr.x : nearest.x;
+        const sy = nearest.spr ? nearest.spr.y : nearest.y;
+        sel.setPosition(sx, sy + 2).setVisible(true);
+      } else if (nearest && nearestType === 'chair') {
+        sel.setPosition(nearest.x, nearest.y + 2).setVisible(true);
       } else {
-        this._objHighlight.setVisible(false);
+        sel.setVisible(false);
       }
     }
+
+    // 聚焦效果：被选中的实体高亮，周围其他实体虚化（给选中的让路）
+    this._updateFocus(nearest, nearestType);
+
     if (nearest) {
       let label;
-      if (nearestType === 'npc') label = `与 ${nearest.name} 交谈`;
-      else if (nearestType === 'chair') label = nearest.isPlayerDesk ? '坐下办公' : '坐下';
-      else label = nearest.prompt;
-      this.ePrompt.setText(`［ E ］${label}`).setVisible(true);
+      if (nearestType === 'npc') label = `［ E ］与 ${nearest.name} 交谈`;
+      else if (nearestType === 'worker') label = `［ E ］跟 ${nearest.name || '同事'} 聊聊`;
+      else if (nearestType === 'chair') label = nearest.isPlayerDesk ? '［ E ］坐下办公' : '［ E ］坐下';
+      else label = `［ E ］${nearest.prompt}`;
+      this.ePrompt.setText(label).setVisible(true);
       if (this.touchControls) this.touchControls.setInteractVisible(true);
       if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
         if (nearestType === 'npc') this._interact(nearest);
+        else if (nearestType === 'worker') this._interactWorker(nearest);
         else if (nearestType === 'chair') this._sitOnChair(nearest);
         else this._interactObject(nearest);
       }
@@ -1325,6 +1342,41 @@ export class WorldScene extends Phaser.Scene {
       this.ePrompt.setVisible(false);
       if (this.touchControls) this.touchControls.setInteractVisible(false);
     }
+  }
+
+  // 聚焦虚化：选中 NPC/同事时，其他人物+物件半透明让路；取消选中时恢复。
+  _updateFocus(target, targetType) {
+    const DIM = 0.28;
+    const all = [...(this.npcs || []), ...(this.workers || [])];
+    if (!target || (targetType !== 'npc' && targetType !== 'worker')) {
+      // 无选中：全部恢复
+      for (const e of all) {
+        if (!e.spr) continue;
+        if (e.spr.alpha < 1) e.spr.setAlpha(1);
+        if (e.nameTag && e.nameTag.alpha < 1) e.nameTag.setAlpha(1);
+      }
+      return;
+    }
+    // 有选中：目标=1，其余=DIM
+    for (const e of all) {
+      if (!e.spr) continue;
+      const isTarget = e === target;
+      const a = isTarget ? 1 : DIM;
+      if (Math.abs(e.spr.alpha - a) > 0.01) e.spr.setAlpha(a);
+      if (e.nameTag) {
+        const ta = isTarget ? 1 : DIM * 1.5;
+        if (Math.abs(e.nameTag.alpha - ta) > 0.01) e.nameTag.setAlpha(ta);
+      }
+    }
+  }
+
+  // 跟背景同事聊两句（简单寒暄，不触发任务/好感系统）
+  _interactWorker(w) {
+    if (this.dialogueActive) return;
+    const moods = ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '这块代码我写的，有问题找我。',
+      '今天需求又变了……习惯就好。', '咖啡机右边第二格是好豆子。', '别太拼，命是自己的。'];
+    const line = moods[Math.floor(Math.random() * moods.length)];
+    this._showLine(w.name || '同事', line);
   }
 
   // 交互物件触发：执行 def.action。冷却物件每天限一次。
@@ -3006,10 +3058,16 @@ export class WorldScene extends Phaser.Scene {
       const [x, y] = def.pos;
       this._interactables.push({ ...def, x, y });
     }
-    // 高亮圈（世界坐标，跟随当前最近可交互物；平时隐藏）
-    this._objHighlight = this.add.ellipse(0, 0, 44, 22, 0xffe08a, 0.0)
-      .setStrokeStyle(2, 0xffe08a, 0.9).setDepth(2).setVisible(false);
-    if (this.uiCamera) this.uiCamera.ignore(this._objHighlight);
+    // 选定圈：贴地金色椭圆 + 脉冲发光（跟随当前选中实体脚下，平时隐藏）
+    this._selRing = this.add.ellipse(0, 0, 52, 24, 0xffe08a, 0.12)
+      .setStrokeStyle(3, 0xffe08a, 0.9).setDepth(3).setVisible(false);
+    if (this.uiCamera) this.uiCamera.ignore(this._selRing);
+    this.tweens.add({
+      targets: this._selRing, scaleX: 1.12, scaleY: 1.12,
+      duration: 600, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+    });
+    // 兼容旧引用
+    this._objHighlight = this._selRing;
   }
 
   // ==================== 剧情引擎事件（移植自 OfficeScene）====================

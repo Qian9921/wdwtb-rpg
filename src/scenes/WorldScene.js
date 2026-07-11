@@ -2176,6 +2176,15 @@ export class WorldScene extends Phaser.Scene {
     // 从 init 缓存的存档字段恢复任务进度 + 选择记忆（跨幕累积）
     if (this._savedQuests && this.questSystem) this.questSystem.restore(this._savedQuests);
     if (this._savedChoiceLog && this.choiceLog) this.choiceLog.restore(this._savedChoiceLog);
+    // 新开局(选择记忆为空)：把开场问卷派生的 4 轴基线播种进 choiceLog,作为人格起点;
+    // 之后办公室里的真实选择继续累加。存档续玩时基线已在记录里,不重复播种。
+    if (this.choiceLog && this.choiceLog.length === 0) {
+      let prof = null;
+      try { prof = JSON.parse(localStorage.getItem('wdwtb_profile') || 'null'); } catch (e) {}
+      if (prof && prof.axesBaseline) {
+        this.choiceLog.record({ nodeId: 'axes_baseline', choiceLabel: '入职问卷', axes: prof.axesBaseline });
+      }
+    }
     // 异步加载任务定义。
     // 工作日循环职业(程序员)：主线=任务链，按细分岗位(subRole)加载对应链(开发/测试)。
     // 其余职业：沿用 quests_{career}.json。

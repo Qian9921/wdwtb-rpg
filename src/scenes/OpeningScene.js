@@ -4,6 +4,7 @@ import { AudioSystem } from '../systems/AudioSystem.js';
 import { buildTryFirstAdvice } from '../systems/CareerFit.js';
 import { makeCuteChoice, makeCutePanel, THEME, TONES } from '../systems/UI.js';
 import { typeInfo, mbtiDimReadings, mbtiFromBig5 } from '../systems/MbtiTypes.js';
+import { axesFromBig5 } from '../systems/PersonalityAxes.js';
 
 // OpeningScene：开场"认识你" — 起名 + 捏人 + 7 道情境测评(RIASEC+大五双通道) + 专业 MBTI 画像。
 // 测评题库来自 data/assessment.json（专业规格：霍兰德 RIASEC + 大五人格，玩家全程不见术语）。
@@ -267,6 +268,8 @@ export class OpeningScene extends Phaser.Scene {
       avatar: { skinKey: skin.key, skinName: skin.name, gender: skin.gender, tint: tint.tint, tintName: tint.name },
       riasec: this.riasec, big5: this.big5,
       holland: hollandCode, mbti,
+      // 4 轴基线：入职问卷一次派生,进办公室后由真实选择继续累加(逻辑链:不在剧情里重复问)
+      axesBaseline: axesFromBig5(this.big5),
       answers: this.answers,
     };
     try { localStorage.setItem('wdwtb_profile', JSON.stringify(profile)); } catch (e) {}

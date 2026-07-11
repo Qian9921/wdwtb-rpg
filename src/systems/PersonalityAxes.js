@@ -133,6 +133,24 @@ export function microInsight(axes = {}) {
 }
 
 /**
+ * 由开场大五测评派生 4 轴基线（逻辑链：入职问卷只在开场做一次,不在剧情里重复问）。
+ * 映射：collab←外向E、plan←尽责C、empathy←宜人A、risk←开放O - 神经质N×0.5。
+ * 返回"原始增量"形状(供 ChoiceLog.record 的 axes 播种,再由行为累加)。
+ * @param {{O,C,E,A,N}} big5
+ * @returns {Record<string,number>}
+ */
+export function axesFromBig5(big5 = {}) {
+  const n = (v) => Number(v) || 0;
+  const k = 1.4; // 把小幅大五净值放大到有意义的基线
+  return {
+    collab: Math.round(n(big5.E) * k),
+    plan: Math.round(n(big5.C) * k),
+    empathy: Math.round(n(big5.A) * k),
+    risk: Math.round((n(big5.O) - n(big5.N) * 0.5) * k),
+  };
+}
+
+/**
  * 一站式：从 ChoiceLog 的 axisTotals → 归一向量 + 四字签 + 强项盲点。
  * @param {Record<string,number>} totals
  */

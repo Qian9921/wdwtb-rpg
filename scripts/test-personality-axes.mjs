@@ -1,6 +1,6 @@
 // PersonalityAxes 单元测试（纯 Node）。运行：node scripts/test-personality-axes.mjs
 import {
-  AXIS_KEYS, normalizeAxes, axisReading, personalitySignature, axisHighlights, buildAxesProfile, microInsight,
+  AXIS_KEYS, normalizeAxes, axisReading, personalitySignature, axisHighlights, buildAxesProfile, microInsight, axesFromBig5,
 } from '../src/systems/PersonalityAxes.js';
 
 let pass = 0, fail = 0;
@@ -56,6 +56,16 @@ console.log('\n=== PersonalityAxes 单元测试 ===\n');
   const p = buildAxesProfile({ collab: -30, plan: 20 });
   ok('含 axes/signature/strengths/blindspots', !!p.axes && !!p.signature && !!p.strengths && !!p.blindspots);
   ok('独立倾向→签首字为独', p.signature.parts[0].label === '独立', p.signature.code);
+}
+
+// axesFromBig5（开场问卷派生 4 轴基线）
+{
+  const a = axesFromBig5({ E: 3, C: 4, A: -2, O: 2, N: 1 });
+  ok('E→collab', a.collab > 0 && a.collab === Math.round(3 * 1.4));
+  ok('C→plan', a.plan === Math.round(4 * 1.4));
+  ok('A负→empathy负', a.empathy < 0);
+  ok('O-N/2→risk', a.risk === Math.round((2 - 0.5) * 1.4));
+  ok('空输入四轴齐全为0', ['collab', 'plan', 'empathy', 'risk'].every(k => axesFromBig5({})[k] === 0));
 }
 
 // microInsight

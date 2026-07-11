@@ -39,50 +39,12 @@
       "bg": "office_day",
       "action": "plant_tree",
       "effects": { "passion": 3, "san": 2 },
-      "choices": [{ "label": "(把它摆在窗台最亮的一格)", "next": "a1_survey_intro" }],
+      "choices": [{ "label": "(把它摆在窗台最亮的一格)", "next": "a1_role" }],
       "note": "★仪式一·种绿植=心理外化,跨五章回收。"
-    },
-    "a1_survey_intro": {
-      "speaker": "",
-      "text": "HR在群里发了个链接:「入职小任务——【职业体验问卷】。别有压力,凭直觉答。系统会一路悄悄看你怎么工作,离职或年度复盘时,给你出一份【职业人格报告】,帮你看清自己适合往哪走。」\n你点开第一题。",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [{ "label": "(开始答题)", "next": "a1_survey1" }],
-      "note": "★diegetic 框架:把自我探索与报告立成明线。"
-    },
-    "a1_survey1": {
-      "speaker": "",
-      "text": "第 1 题：遇到一个不会的问题,你更想——",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [
-        { "label": "先自己钻研,查文档死磕", "next": "a1_survey2", "axes": { "collab": -2 } },
-        { "label": "直接问身边的人,少走弯路", "next": "a1_survey2", "axes": { "collab": 2 } }
-      ]
-    },
-    "a1_survey2": {
-      "speaker": "",
-      "text": "第 2 题：接到一个任务,你的第一反应是——",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [
-        { "label": "先列个计划,想清楚再动手", "next": "a1_survey3", "axes": { "plan": 2 } },
-        { "label": "先上手跑起来,边做边改", "next": "a1_survey3", "axes": { "plan": -2 } }
-      ]
-    },
-    "a1_survey3": {
-      "speaker": "",
-      "text": "第 3 题：同事状态不好、影响了进度,你会——",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [
-        { "label": "先把问题解决掉,事情最要紧", "next": "a1_role", "axes": { "empathy": -2 } },
-        { "label": "先关心一下人,再谈事", "next": "a1_role", "axes": { "empathy": 2 } }
-      ]
     },
     "a1_role": {
       "speaker": "",
-      "text": "问卷答完,系统弹出你入职时选的方向。老陈瞥了一眼你的工牌:「哦,你是走这条线的。」\n他难得多说了一句:「同是写软件,两条路看世界的方式不一样。想清楚你更想当哪种人。」",
+      "text": "系统提示:你的【职业体验计划】已开启——入职时的问卷已经记下你的起点,接下来,它会一路悄悄看你怎么工作,复盘时给你出一份【职业人格报告】。\n老陈瞥了一眼你的工牌:「哦,你是走这条线的。」他难得多说了一句:「同是写软件,两条路看世界的方式不一样。想清楚你更想当哪种人。」",
       "bg": "office_day",
       "effects": {},
       "choices": [

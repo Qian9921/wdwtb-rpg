@@ -956,7 +956,14 @@ export class WorldScene extends Phaser.Scene {
         duration: 620, yoyo: true, repeat: -1, ease: 'Sine.inOut',
       });
 
-      this.npcs.push({ ...d, spr, mark, nameTag, markState: d.mark, defaultMark: d.mark, defaultMarkColor: d.markColor });
+      const anims = ensureSkinAnims(this, d.skin) || ensureSkinAnims(this, 'adam');
+      const npcObj = { ...d, spr, mark, nameTag, anims, markState: d.mark, defaultMark: d.mark, defaultMarkColor: d.markColor };
+      // 核心 NPC 也挂 NpcAgent——他们也会起身走动（茶水间/打印机/窗边），像真实办公室
+      // senior(老陈/导师)除外：他负责派活/交付，位置固定好找
+      if (d.id !== 'senior') {
+        npcObj.agent = new NpcAgent(this, npcObj);
+      }
+      this.npcs.push(npcObj);
     }
 
     // 背景同事：从 office_npcs.json 读配置，坐满剩余工位（白天像真实公司满员）。
@@ -1066,21 +1073,25 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  // 每帧驱动走动中的同事（补间移动 + 挡块/状态泡泡跟随脚下）
+  // 每帧驱动走动中的同事/核心NPC（补间移动 + 挡块/泡泡跟随脚下）
   _updateWorkers(now) {
-    if (!this.workers) return;
-    for (const w of this.workers) {
+    const all = [...(this.workers || []), ...(this.npcs || [])];
+    for (const w of all) {
       if (!w.agent || !w.spr) continue;
       const busy = w.agent.busy;
       if (w.agent.state === 'walking') {
         w.agent.update(now);
         if (w._mood) this._positionMood(w);
         this._syncBody(w); // 走动的同事挡块跟着脚下走(也挡玩家)
+        // 走动时名牌跟随
+        if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
       }
       // 出行结束回到工位 → 挡块归位到座位 + 泡泡换回普通状态
       if (w._wasBusy && !busy) {
         this._syncBody(w);
         this._setMood(w); this._positionMood(w);
+        // 名牌归位
+        if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
       }
       w._wasBusy = busy;
     }
@@ -1122,19 +1133,25 @@ export class WorldScene extends Phaser.Scene {
   }
 
   _tickNpcLife() {
-    if (this.dialogueActive || !this.workers?.length || !this._pois) return;
+    if (this.dialogueActive || !this._pois) return;
     const seg = this.timeSystem?.current;
     // 深夜/午休在岗少,走动更少
     if (seg && seg.population < 0.3 && Phaser.Math.RND.frac() > 0.3) return;
-    // 同时最多 1 人在走（真实职场不会 3-4 人同时在办公室里窜）
-    const moving = this.workers.filter(w => w.agent && w.agent.busy).length;
-    if (moving >= 1) return;
-    // 每次只有 30% 概率真的有人起身（大部分时间所有人安静坐着）
-    if (Phaser.Math.RND.frac() > 0.3) return;
-    const idle = this.workers.filter(w => w.spr?.visible && w.agent && !w.agent.busy);
+    // 候选池：核心 NPC（有 agent 的）+ 背景同事
+    const allMovers = [
+      ...(this.npcs || []).filter(n => n.agent && n.spr?.visible),
+      ...(this.workers || []).filter(w => w.agent && w.spr?.visible),
+    ];
+    if (!allMovers.length) return;
+    // 同时最多 2 人在走（核心NPC加入后稍放宽：真实办公室偶尔2人同时在动）
+    const moving = allMovers.filter(e => e.agent.busy).length;
+    if (moving >= 2) return;
+    // 每次只有 35% 概率真的有人起身（大部分时间所有人安静坐着）
+    if (Phaser.Math.RND.frac() > 0.35) return;
+    const idle = allMovers.filter(e => !e.agent.busy);
     if (!idle.length) return;
     const w = Phaser.Utils.Array.GetRandom(idle);
-    const seat = w.seat || { x: w.chair.x, y: w.chair.y };
+    const seat = w.seat || (w._seat) || { x: w.spr.x, y: w.spr.y };
     // 偏好近距离目的地（茶水/伸展/白板），减少穿越整个地图的长途行走
     const pois = Phaser.Utils.Array.Shuffle(this._pois.slice());
     for (const poi of pois) {

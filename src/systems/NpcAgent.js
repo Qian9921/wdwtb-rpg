@@ -102,9 +102,11 @@ export class NpcAgent {
     const spr = this.w.spr;
     if (!spr || !spr.scene) { this.state = 'sitting'; return; }
     spr.stop();
-    const sit = this.w.anims?.sitFrame?.(this.w.chair.dir);
+    // 兼容 worker(seat/chair.dir) 和 npc(_seat/facing) 两种结构
+    const seat = this.w.seat || this.w._seat;
+    const sitDir = this.w.chair ? this.w.chair.dir : (this.w.facing || 'down');
+    const sit = this.w.anims?.sitFrame?.(sitDir);
     if (sit != null) spr.setFrame(sit);
-    const seat = this.w.seat;
     if (seat) { spr.setPosition(seat.x, seat.y); spr.setDepth(seat.depth); }
     this.state = 'sitting';
   }

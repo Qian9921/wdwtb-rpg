@@ -6,10 +6,22 @@ import { Juice } from './JuiceKit.js';
 // 展开态：Tab 键或鼠标悬停迷你条 → 展开完整面板（标签+进度条+数值）。
 // 对话进行中自动降透明度，进一步让出画面。
 const GROUPS = [
-  { name: '生理', stats: [{ key: 'health', label: '健康' }, { key: 'energy', label: '精力' }] },
-  { name: '心理', stats: [{ key: 'san', label: '心态' }, { key: 'stress', label: '压力' }] },
-  { name: '职业', stats: [{ key: 'skill', label: '技能' }, { key: 'performance', label: '绩效' }, { key: 'money', label: '金钱' }] },
-  { name: '内在', stats: [{ key: 'passion', label: '热情' }] },
+  { name: '生理', stats: [
+    { key: 'health', label: '健康', desc: '身体本钱。熬夜加班会掉，归零会强制休息。' },
+    { key: 'energy', label: '精力', desc: '当天的干活额度。低于15做不了工作，休息回血。' },
+  ] },
+  { name: '心理', stats: [
+    { key: 'san', label: '心态', desc: '心理状态。被否定/委屈会掉，聊天、心象世界能回。' },
+    { key: 'stress', label: '压力', desc: '越高越容易出错——≥70 时工作产出打8折。' },
+  ] },
+  { name: '职业', stats: [
+    { key: 'skill', label: '技能', desc: '越练越高，缩短工作用时、提升产出质量。' },
+    { key: 'performance', label: '绩效', desc: '工作成果的评分，决定工资与结局走向。' },
+    { key: 'money', label: '金钱', desc: '工资=底薪+当日绩效，下班日报时到账。' },
+  ] },
+  { name: '内在', stats: [
+    { key: 'passion', label: '热情', desc: '你对这份工作的喜欢程度——判断"适不适合"最关键的信号。' },
+  ] },
 ];
 const ORDER = GROUPS.flatMap(g => g.stats); // 迷你条顺序 = 面板顺序
 
@@ -19,8 +31,8 @@ const MINI_BAR_W = 30, MINI_BAR_H = 8, MINI_GAP = 6;
 const MINI_PAD = 12;
 
 // —— 展开面板布局（1920 尺度）——
-const PANEL_X = 14, PANEL_Y = 14, PANEL_W = 340, PAD = 18;
-const TITLE_H = 26, ROW_H = 30, GROUP_GAP = 10;
+const PANEL_X = 14, PANEL_Y = 14, PANEL_W = 372, PAD = 18;
+const TITLE_H = 26, ROW_H = 52, GROUP_GAP = 10;
 const LABEL_X = PANEL_X + PAD;
 const BAR_X = LABEL_X + 64;
 const BAR_WIDTH = 168, BAR_HEIGHT = 14;
@@ -104,8 +116,8 @@ export class StatusBarUI {
   _buildPanel() {
     this.panel = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(9998);
     const panelH = this._measureHeight();
-    const bg = this.scene.add.rectangle(PANEL_X, PANEL_Y, PANEL_W, panelH, 0x14141f, 0.88)
-      .setOrigin(0, 0).setStrokeStyle(1, 0x3a3a4e, 0.9)
+    const bg = this.scene.add.rectangle(PANEL_X, PANEL_Y, PANEL_W, panelH, 0x14141f, 0.97)
+      .setOrigin(0, 0).setStrokeStyle(2, 0xd4a353, 0.6)
       .setInteractive();
     this.panel.add(bg);
     bg.on('pointerout', () => this._setExpanded(false)); // 移出面板自动收回
@@ -120,7 +132,7 @@ export class StatusBarUI {
       for (const s of group.stats) {
         const isPassion = s.key === 'passion';
         const value = this.state.get(s.key);
-        const barCY = y + ROW_H / 2 - 1;
+        const barCY = y + 12; // 上半行：标签+条+值
 
         this.panel.add(this.scene.add.text(LABEL_X, barCY, s.label, {
           fontSize: '20px',
@@ -137,6 +149,14 @@ export class StatusBarUI {
           fontSize: '19px', color: '#f0f0f4',
         }).setOrigin(1, 0.5).setResolution(TEXT_RES);
         this.panel.add(valText);
+
+        // 下半行：这项状态的详细说明（每项都讲清楚）
+        if (s.desc) {
+          this.panel.add(this.scene.add.text(LABEL_X, y + 28, s.desc, {
+            fontSize: '12px', color: '#7f8398',
+            wordWrap: { width: PANEL_W - PAD * 2 - (LABEL_X - PANEL_X - PAD), useAdvancedWrap: true }, lineSpacing: 2,
+          }).setOrigin(0, 0).setResolution(TEXT_RES));
+        }
 
         this.rows[s.key] = { text: valText, fill };
         y += ROW_H;

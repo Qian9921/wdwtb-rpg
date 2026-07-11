@@ -1165,9 +1165,9 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    // T=倾听内心：主动触发一次内心独白（思维内阁）
+    // T=进入心象世界（倾听内心）：随时可以进入内心探索空间
     if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.tKey)) {
-      this._triggerMonologue('auto');
+      this._enterMindscapeFree();
       return;
     }
 
@@ -2544,6 +2544,24 @@ export class WorldScene extends Phaser.Scene {
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then(data => { if (this.thoughtSystem) this.thoughtSystem.load(data); })
       .catch(() => { /* 独白不可用不阻塞游戏 */ });
+  }
+
+  /** 自由进入心象世界（T 键 / 暂停菜单触发）——随时可以回内心探索 */
+  _enterMindscapeFree() {
+    if (this.dialogueActive) return;
+    this.scene.pause();
+    this.scene.launch('MindscapeScene', {
+      stateSystem: this.stateSystem,
+      returnScene: 'WorldScene',
+      monoScene: 'auto',
+      freeEntry: true, // 标记：自由进入（非剧情触发），返回时不需要推进对话节点
+    });
+    // 自由进入返回后：不需要重新渲染对话节点（没有进行中的对话）
+    this.events.once('mindscapeReturn', () => {
+      // 仅刷新 HUD；无对话需推进
+      this._updateObjectiveHud?.();
+      this._updateNpcMarks?.();
+    });
   }
 
   // 触发一次内心独白：模板即时呈现，可选 AI 生成个性化版本覆盖。

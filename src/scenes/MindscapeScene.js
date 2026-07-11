@@ -150,7 +150,7 @@ export class MindscapeScene extends Phaser.Scene {
     });
   }
 
-  // ===== 月/日柔光辉光（ADD 混合多层同心圆）=====
+  // ===== 月/日柔光辉光（ADD 混合多层同心圆）+ 可点击反思 =====
   _renderGlowOrb() {
     const mx = this.W * 0.76, my = this.H * 0.22;
     const r = this.pal.mood === 'heal' ? 46 : 38;
@@ -160,6 +160,19 @@ export class MindscapeScene extends Phaser.Scene {
     }
     const core = this.add.circle(mx, my, r, this.pal.orb, 0.95).setDepth(2);
     this.tweens.add({ targets: core, scale: 1.06, duration: 3800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    // 可点击：点发光球 → 换一句内心独白（"凝视光源"=自我反思）
+    const orbHit = this.add.circle(mx, my, r * 2.5, 0xffffff, 0.001)
+      .setInteractive({ useHandCursor: true }).setDepth(2);
+    orbHit.on('pointerdown', () => {
+      if (this._reflecting) return;
+      this._reflecting = true;
+      AudioSystem.blip && AudioSystem.blip('凝望');
+      // 光球脉冲
+      this.tweens.add({ targets: core, scale: 1.4, duration: 300, yoyo: true });
+      // 换一句新独白
+      this._showMonologue(true);
+      this.time.delayedCall(1500, () => { this._reflecting = false; });
+    });
   }
 
   // ===== 星尘：静态星点 twinkle（ADD 辉光）+ 治愈态上升光尘 =====
@@ -254,6 +267,23 @@ export class MindscapeScene extends Phaser.Scene {
         .setBlendMode(Phaser.BlendModes.ADD).setDepth(4);
       this.tweens.add({ targets: this.plantGlow, alpha: 0.26, scale: 1.16, duration: 2400, yoyo: true, repeat: -1 });
     }
+    // 可点击：点树 → 扎根冥想（微量回复 + 树叶闪光）
+    const treeHit = this.add.zone(cx, topY, 160, 140)
+      .setInteractive({ useHandCursor: true }).setDepth(6);
+    this._treeClicks = 0;
+    treeHit.on('pointerdown', () => {
+      this._treeClicks++;
+      AudioSystem.blip && AudioSystem.blip('扎根');
+      this.leaves.forEach((lf, i) => {
+        this.tweens.add({ targets: lf, scaleX: 1.25, scaleY: 1.25, delay: i * 30, duration: 300, yoyo: true });
+      });
+      if (this.stateSystem) {
+        this.stateSystem.change('stress', -2);
+        this.stateSystem.change('san', 1);
+      }
+      const hints = ['扎根，深呼吸。', '你还在这里。', '慢慢来。', '一步就够了。'];
+      this._showFloatHint(hints[(this._treeClicks - 1) % hints.length], '#8feec8');
+    });
   }
 
   // ===== 飘浮的负面词（压力具象，低落时）=====
@@ -272,6 +302,16 @@ export class MindscapeScene extends Phaser.Scene {
         targets: t, y: y - 26, alpha: 0.08,
         duration: 3200 + i * 400, yoyo: true, repeat: -1, ease: 'Sine.inOut',
       });
+      // 可点击：点负面词 → 它消散（"放下"一个焦虑）
+      t.setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => {
+        AudioSystem.success && AudioSystem.success();
+        this.tweens.add({ targets: t, alpha: 0, y: t.y - 80, scale: 1.5, duration: 800,
+          onComplete: () => t.destroy() });
+        // 微量疗愈：放下一个焦虑 +2 san
+        if (this.stateSystem) this.stateSystem.change('san', 2);
+        this._showFloatHint('放下了。', '#7eff9a');
+      });
       this.words.push(t);
     }
   }
@@ -280,6 +320,36 @@ export class MindscapeScene extends Phaser.Scene {
     this.add.text(this.W / 2, 30, '· 心 象 ·', {
       fontSize: '20px', color: '#cfc8e0', letterSpacing: 8,
     }).setOrigin(0.5).setDepth(20).setAlpha(0.85);
+    // 心象明暗度指示条（让玩家直观看到自己的内心状态）
+    const meterW = 200, meterH = 8, mx = this.W / 2 - meterW / 2, my = 56;
+    this.add.rectangle(mx, my, meterW, meterH, 0x222238, 0.6).setOrigin(0, 0).setDepth(20);
+    const moodColor = this.mood < 40 ? 0x6a6a90 : this.mood > 65 ? 0xffd880 : 0x9a8cc0;
+    this.add.rectangle(mx, my, meterW * this.mood / 100, meterH, moodColor, 0.8).setOrigin(0, 0).setDepth(21);
+    const moodLabel = this.mood < 40 ? '低落' : this.mood > 65 ? '明亮' : '朦胧';
+    this.add.text(this.W / 2, my + 16, `内心 · ${moodLabel}`, {
+      fontSize: '12px', color: '#6a6a82',
+    }).setOrigin(0.5).setDepth(20);
+    // 底部交互提示
+    this.add.text(this.W / 2, this.H - 180,
+      '点光球反思 · 点树扎根 · 点飘浮的词放下 · ESC 离开', {
+      fontSize: '13px', color: '#4a4a5e',
+    }).setOrigin(0.5).setDepth(20);
+  }
+
+  /** 浮动提示文字（点击交互的反馈） */
+  _showFloatHint(text, color = '#ffe08a') {
+    const t = this.add.text(this.plantCX, this.H * 0.42, text, {
+      fontSize: '18px', color, fontStyle: 'italic',
+      stroke: '#0a0a14', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(42).setAlpha(0);
+    this.tweens.add({
+      targets: t, alpha: 0.9, y: this.H * 0.42 - 30, duration: 400,
+      onComplete: () => {
+        this.time.delayedCall(1200, () => {
+          this.tweens.add({ targets: t, alpha: 0, duration: 500, onComplete: () => t.destroy() });
+        });
+      },
+    });
   }
 
   // ===== AI内心独白(逐字浮现) =====
@@ -300,8 +370,7 @@ export class MindscapeScene extends Phaser.Scene {
     return Phaser.Utils.Array.GetRandom(arr);
   }
 
-  async _showMonologue() {
-    console.log('[Mind] _showMonologue enter');
+  async _showMonologue(refresh = false) {
     // AI优先(结合实时状态个性化),模板兜底
     const tpl = this._pickMonologue();
     let text = tpl;
@@ -313,7 +382,9 @@ export class MindscapeScene extends Phaser.Scene {
       ], { model: 'hy3', timeoutMs: 7000, fallbackFn: () => ({ text: tpl }) });
       if (res.text && res.text.length > 6 && res.text.length < 160) text = res.text.trim();
     } catch (e) { /* 用模板 */ }
-    console.log('[Mind] render box, text=', text.slice(0,20));
+    // 销毁旧独白框（刷新时）
+    if (this.monoBox) { this.monoBox.destroy(true); }
+    if (this.choiceBox) { this.choiceBox.destroy(true); }
     const box = this.add.container(0, 0).setDepth(30);
     const bg = this.add.rectangle(this.W / 2, this.H - 90, this.W - 120, 120, 0x000000, 0.5);
     box.add(bg);
@@ -330,8 +401,10 @@ export class MindscapeScene extends Phaser.Scene {
       delay: 55, repeat: text.length - 1,
       callback: () => { tf.setText(text.slice(0, ++i)); },
     });
-    // 独白完 → 疗愈选择
-    this.time.delayedCall(text.length * 55 + 700, () => this._showHealingChoices());
+    // 独白完 → 疗愈选择（刷新时不重复弹选择，除非首次）
+    if (!refresh) {
+      this.time.delayedCall(text.length * 55 + 700, () => this._showHealingChoices());
+    }
   }
 
   // ===== 玩家亲手点亮光(疗愈,能动性) =====
@@ -340,8 +413,10 @@ export class MindscapeScene extends Phaser.Scene {
       { label: '给自己泡杯热茶，早点睡', eff: { stress: -8, health: 4, san: 5 } },
       { label: '给爸妈回个电话，说说话', eff: { san: 6, passion: 3 } },
       { label: '写下今天唯一做成的一件小事', eff: { passion: 5, san: 4 } },
+      { label: '出去走走，吹吹风', eff: { stress: -6, health: 3, energy: 5 } },
+      { label: '什么都不想，放空五分钟', eff: { stress: -5, san: 3, energy: 4 } },
     ];
-    const startY = this.H / 2 - 150;
+    const startY = this.H / 2 - 180;
     const c = this.add.container(0, 0).setDepth(31);
     this.choiceBox = c;
     c.add(this.add.text(this.W / 2, startY - 30, '此刻，你想为自己做点什么？', {

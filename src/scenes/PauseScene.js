@@ -98,6 +98,7 @@ export class PauseScene extends Phaser.Scene {
 
     let y = 216;
     this._menuButton(y, '▶  继续游戏', () => this._close()); y += 54;
+    this._menuButton(y, '🌌  心象世界', () => this._enterMindscape()); y += 54;
     this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 54;
     this._menuButton(y, '🎒  物品', () => this._showItems()); y += 54;
     this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 54;
@@ -113,6 +114,29 @@ export class PauseScene extends Phaser.Scene {
     this.panel.add(this.add.text(this.W / 2, this.H - 24, 'ESC 继续游戏', {
       fontSize: '12px', color: '#5a5a7a',
     }).setOrigin(0.5));
+  }
+
+  // ===== 从暂停菜单进入心象世界 =====
+  _enterMindscape() {
+    // 暂停 WorldScene（如果还活跃），启动心象世界
+    const origin = this.scene.get(this.origin);
+    if (origin && origin.scene.isActive() && !origin.scene.isPaused()) {
+      origin.scene.pause();
+    }
+    this.scene.launch('MindscapeScene', {
+      stateSystem: this.stateSystem,
+      returnScene: this.origin,
+      monoScene: 'auto',
+      freeEntry: true,
+    });
+    // 心象返回后回到暂停菜单
+    origin.events.once('mindscapeReturn', () => {
+      this.scene.stop('MindscapeScene');
+      // 刷新状态（疗愈可能改了数值）
+      if (this.stateSystem) this.stats = this.stateSystem.getAll();
+      this._showMain();
+    });
+    this.scene.stop(); // 先关暂停面板，心象独占
   }
 
   // ===== 角色状态 =====

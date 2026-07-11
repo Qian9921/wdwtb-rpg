@@ -2910,42 +2910,74 @@ export class WorldScene extends Phaser.Scene {
     // 很淡的暗角聚焦（不是全屏遮罩——画面保持可见）
     c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35).setScrollFactor(0));
 
-    // 说话气泡
-    c.add(this.add.rectangle(sx, bubbleY, bw, bh, 0x14141f, 0.98)
-      .setStrokeStyle(2, accent).setScrollFactor(0));
+    // ===== 可爱说话气泡（圆角 + 弹入）=====
+    const bubbleC = this.add.container(sx, bubbleY).setScrollFactor(0);
+    const bg = this.add.graphics().setScrollFactor(0);
+    bg.fillStyle(0x1a1a28, 0.98); bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 18);
+    bg.lineStyle(3, accent, 1); bg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 18);
     // 气泡尾巴（指向 NPC，仅当 NPC 在气泡下方且在屏内时画）
     if (sy > bubbleY + bh / 2 && sy < height) {
-      c.add(this.add.triangle(sx, bubbleY + bh / 2, 0, 0, 16, 14, -16, 14, 0x14141f, 0.98)
-        .setStrokeStyle(2, accent).setScrollFactor(0));
+      bg.fillStyle(0x1a1a28, 0.98); bg.fillTriangle(-15, bh / 2 - 2, 15, bh / 2 - 2, 0, bh / 2 + 16);
+      bg.lineStyle(3, accent, 1); bg.beginPath();
+      bg.moveTo(-15, bh / 2 - 2); bg.lineTo(0, bh / 2 + 16); bg.lineTo(15, bh / 2 - 2); bg.strokePath();
     }
-
+    bubbleC.add(bg);
     // NPC 名字
     const speakerName = npc ? npc.name : (ev.title || '同事');
-    c.add(this.add.text(sx - bw / 2 + 18, bubbleY - bh / 2 + 10,
+    bubbleC.add(this.add.text(-bw / 2 + 18, -bh / 2 + 10,
       `${ev.icon || ''} ${speakerName}：`, {
         fontSize: '18px', color: ev.urgent ? '#ff9a7a' : '#ffd24d', fontStyle: 'bold',
       }).setOrigin(0, 0).setScrollFactor(0));
     // 事件正文
-    c.add(this.add.text(sx, bubbleY + 12, ev.text, {
-      fontSize: '18px', color: '#dfe3ea',
+    bubbleC.add(this.add.text(0, 12, ev.text, {
+      fontSize: '18px', color: '#eef1f6',
       wordWrap: { width: bw - 44, useAdvancedWrap: true }, align: 'center', lineSpacing: 4,
     }).setOrigin(0.5).setScrollFactor(0));
+    c.add(bubbleC);
+    // 弹入（Q 弹一下）
+    bubbleC.setScale(0.55);
+    this.tweens.add({ targets: bubbleC, scale: 1, duration: 360, ease: 'Back.out' });
 
-    // 选项：气泡下方竖排（选完才能继续）+ 数字键 1/2/3 兜底
+    // ===== 可爱选项框：圆角 + 序号徽章 + 交错弹入 + hover 放大 =====
     const choiceStartY = bubbleY + bh / 2 + 24 + chH / 2;
+    // 每个选项一种柔和色，轮流用（可爱、好区分）
+    const chColors = [0x6fb2e8, 0x7bd88f, 0xe8a86f, 0xc79ae8];
     this._eventChoiceKeys = [];
     choices.forEach((ch, i) => {
       const cy2 = choiceStartY + i * (chH + chGap);
-      const btn = this.add.rectangle(sx, cy2, chW, chH, 0x232338, 0.98)
-        .setStrokeStyle(2, 0x5a5a7a).setInteractive({ useHandCursor: true }).setScrollFactor(0);
-      btn.on('pointerover', () => btn.setFillStyle(0x33334e));
-      btn.on('pointerout', () => btn.setFillStyle(0x232338));
-      btn.on('pointerdown', () => this._resolveEvent(ev, ch, c));
-      c.add(btn);
-      c.add(this.add.text(sx, cy2, `${i + 1}. ${ch.label}`, {
-        fontSize: '17px', color: '#ffffff',
-        wordWrap: { width: chW - 40 }, align: 'center',
+      const tone = chColors[i % chColors.length];
+      const chC = this.add.container(sx, cy2).setScrollFactor(0);
+      const g = this.add.graphics().setScrollFactor(0);
+      const drawBtn = (hover) => {
+        g.clear();
+        g.fillStyle(hover ? 0x33334e : 0x232338, 0.98);
+        g.fillRoundedRect(-chW / 2, -chH / 2, chW, chH, 16);
+        g.lineStyle(3, hover ? tone : 0x5a5a7a, 1);
+        g.strokeRoundedRect(-chW / 2, -chH / 2, chW, chH, 16);
+      };
+      drawBtn(false);
+      chC.add(g);
+      // 序号徽章（彩色圆）
+      const badgeX = -chW / 2 + 28;
+      chC.add(this.add.circle(badgeX, 0, 14, tone, 1).setScrollFactor(0));
+      chC.add(this.add.text(badgeX, 0, `${i + 1}`, {
+        fontSize: '16px', color: '#16161f', fontStyle: 'bold',
       }).setOrigin(0.5).setScrollFactor(0));
+      // 选项文字
+      chC.add(this.add.text(14, 0, ch.label, {
+        fontSize: '17px', color: '#ffffff',
+        wordWrap: { width: chW - 96 }, align: 'center',
+      }).setOrigin(0.5).setScrollFactor(0));
+      // 交互热区
+      const zone = this.add.zone(0, 0, chW, chH).setScrollFactor(0).setInteractive({ useHandCursor: true });
+      chC.add(zone);
+      zone.on('pointerover', () => { drawBtn(true); this.tweens.add({ targets: chC, scale: 1.05, duration: 130, ease: 'Back.out' }); });
+      zone.on('pointerout', () => { drawBtn(false); this.tweens.add({ targets: chC, scale: 1, duration: 130 }); });
+      zone.on('pointerdown', () => this._resolveEvent(ev, ch, c));
+      c.add(chC);
+      // 交错弹入
+      chC.setScale(0);
+      this.tweens.add({ targets: chC, scale: 1, duration: 320, delay: 220 + i * 90, ease: 'Back.out' });
       // 数字键兜底：即使按钮被遮挡也能选，绝不卡死
       const keyName = `keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i] || ''}`;
       if (keyName !== 'keydown-') {

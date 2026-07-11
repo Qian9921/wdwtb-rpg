@@ -1,6 +1,6 @@
 // PersonalityAxes 单元测试（纯 Node）。运行：node scripts/test-personality-axes.mjs
 import {
-  AXIS_KEYS, normalizeAxes, axisReading, personalitySignature, axisHighlights, buildAxesProfile,
+  AXIS_KEYS, normalizeAxes, axisReading, personalitySignature, axisHighlights, buildAxesProfile, microInsight,
 } from '../src/systems/PersonalityAxes.js';
 
 let pass = 0, fail = 0;
@@ -56,6 +56,14 @@ console.log('\n=== PersonalityAxes 单元测试 ===\n');
   const p = buildAxesProfile({ collab: -30, plan: 20 });
   ok('含 axes/signature/strengths/blindspots', !!p.axes && !!p.signature && !!p.strengths && !!p.blindspots);
   ok('独立倾向→签首字为独', p.signature.parts[0].label === '独立', p.signature.code);
+}
+
+// microInsight
+{
+  ok('鲜明独立→独处洞察', microInsight(normalizeAxes({ collab: -40 })).includes('独处'));
+  ok('鲜明冒险→押注洞察', microInsight(normalizeAxes({ risk: 40 })).includes('押注'));
+  ok('都不鲜明→通用鼓励', microInsight(normalizeAxes({ collab: 2 })).includes('慢慢拼'));
+  ok('空输入不崩', typeof microInsight({}) === 'string');
 }
 
 console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);

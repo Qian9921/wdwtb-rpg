@@ -21,7 +21,7 @@ import { ProjectSystem } from '../systems/ProjectSystem.js';
 import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcons.js';
 import { Pathfinder } from '../systems/Pathfinder.js';
 import { makeCuteChoice } from '../systems/UI.js';
-import { normalizeAxes } from '../systems/PersonalityAxes.js';
+import { normalizeAxes, microInsight } from '../systems/PersonalityAxes.js';
 import { makePortrait } from '../systems/CharacterPortrait.js';
 import {
   ACT_DAYS as SP_ACT_DAYS,
@@ -3105,6 +3105,12 @@ export class WorldScene extends Phaser.Scene {
       c.add(this.add.text(px + pw / 2 - 56, ry, row.value, { fontSize: '20px', fill: row.color, fontStyle: 'bold' }).setOrigin(1, 0.5));
       ry += 40;
     }
+    // 一句人格微洞察（当日累计倾向）——让每天的选择被"看见"
+    const microLine = microInsight(normalizeAxes(this.choiceLog ? this.choiceLog.axisTotals() : {}));
+    c.add(this.add.text(px, ry + 10, `💡 ${microLine}`, {
+      fontSize: '15px', fill: '#c8b070', fontStyle: 'italic',
+      wordWrap: { width: pw - 96, useAdvancedWrap: true }, align: 'center',
+    }).setOrigin(0.5, 0));
 
     const btn = this.add.rectangle(px, py + ph / 2 - 44, 260, 52, 0x2a4a3e, 0.96)
       .setStrokeStyle(2, 0x5fbf7f).setInteractive({ useHandCursor: true });

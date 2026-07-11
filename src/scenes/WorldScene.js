@@ -22,6 +22,7 @@ import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcon
 import { Pathfinder } from '../systems/Pathfinder.js';
 import { makeCuteChoice } from '../systems/UI.js';
 import { normalizeAxes } from '../systems/PersonalityAxes.js';
+import { makePortrait } from '../systems/CharacterPortrait.js';
 import {
   ACT_DAYS as SP_ACT_DAYS,
   LIGHT_CAREERS as SP_LIGHT_CAREERS,
@@ -1426,7 +1427,7 @@ export class WorldScene extends Phaser.Scene {
     const moods = ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '这块代码我写的，有问题找我。',
       '今天需求又变了……习惯就好。', '咖啡机右边第二格是好豆子。', '别太拼，命是自己的。'];
     const line = moods[Math.floor(Math.random() * moods.length)];
-    this._showLine(w.name || '同事', line);
+    this._showLine(w.name || '同事', line, w.skin);
   }
 
   // 交互物件触发：执行 def.action。冷却物件每天限一次。
@@ -1596,7 +1597,7 @@ export class WorldScene extends Phaser.Scene {
         for (const q of this.questSystem.active()) {
           if (q.giver === npc.id && this.questSystem.isReady(q.id)) {
             this.questSystem.complete(q.id);
-            this._showLine(npc.name, `「${q.title}」完成！${q.reward ? '状态提升。' : ''}`);
+            this._showLine(npc.name, `「${q.title}」完成！${q.reward ? '状态提升。' : ''}`, npc.skin);
             this._updateNpcMarks();
             return;
           }
@@ -1607,7 +1608,7 @@ export class WorldScene extends Phaser.Scene {
         for (const q of this.questSystem.available(ctx)) {
           if (q.giver === npc.id) {
             this.questSystem.accept(q.id);
-            this._showLine(npc.name, `新任务：「${q.title}」\n${q.desc}`);
+            this._showLine(npc.name, `新任务：「${q.title}」\n${q.desc}`, npc.skin);
             this._updateNpcMarks();
             return;
           }
@@ -1632,7 +1633,7 @@ export class WorldScene extends Phaser.Scene {
       if (questLine) {
         // 任务对接也涨好感（E5）
         this._noteNpcChat(npc, { questTalk: true });
-        this._showLine(npc.name, questLine);
+        this._showLine(npc.name, questLine, npc.skin);
         return;
       }
     }
@@ -2063,9 +2064,9 @@ export class WorldScene extends Phaser.Scene {
     const say = line || npc.line;
     const summary = this._choiceSummaryShort();
     const shouldTryAI = summary && this.choiceLog.length >= 3 && Math.random() < 0.3;
-    if (!shouldTryAI) { this._showLine(npc.name, say); return; }
+    if (!shouldTryAI) { this._showLine(npc.name, say, npc.skin); return; }
     // 先显示固定寒暄（即时反馈），AI 成功后覆盖成个性化版本
-    this._showLine(npc.name, say);
+    this._showLine(npc.name, say, npc.skin);
     const sys = `你是职场 RPG 里的 NPC「${npc.name}」，一个${npc.label || '同事'}。`
       + `根据玩家最近的行为，说一句自然的、像老同事随口一提的话，体现"我注意到你最近的状态"。`
       + `1 句，口语化，中文，不说教、不评判，带点关心。`;
@@ -2084,7 +2085,7 @@ export class WorldScene extends Phaser.Scene {
 
   // 轻量单句气泡（非正式剧情）——钉屏 UI 相机，1920 尺度，点击/E/空格关闭
   // 框高按正文实测高度自适应（先量后定），根治多行文字溢出遮字
-  _showLine(name, text) {
+  _showLine(name, text, skin = null) {
     this.dialogueActive = true;
     this.ePrompt.setVisible(false);
     if (this.guideText) this.guideText.setVisible(false);
@@ -2111,8 +2112,20 @@ export class WorldScene extends Phaser.Scene {
     const by = height - 40 - boxH; // 框底距屏幕底 40
 
     c.add(this.add.rectangle(bx + bw / 2, by + boxH / 2, bw, boxH, 0x080812, 0.95).setStrokeStyle(2, 0xd4a353, 0.6));
+    // 立绘（用现成 SkyOffice 皮肤放大成半身像,坐在框左上方,自带名牌）——找不到皮肤安全降级
+    let hasPortrait = false;
+    if (skin) {
+      const portrait = makePortrait(this, { skin, name, x: bx + 96, y: by - 74, w: 150, h: 164 });
+      if (portrait) {
+        c.add(portrait);
+        portrait.setScale(0.7);
+        this.tweens.add({ targets: portrait, scale: 1, duration: 300, ease: 'Back.out' });
+        hasPortrait = true;
+      }
+    }
     let ty = by + PAD;
-    if (name) {
+    // 有立绘时名字由立绘名牌承担,框内不再重复
+    if (name && !hasPortrait) {
       c.add(this.add.text(bx + PAD, ty, name, {
         fontSize: '22px', color: '#ffd24d', fontStyle: 'bold',
       }).setOrigin(0, 0));

@@ -2485,8 +2485,7 @@ export class WorldScene extends Phaser.Scene {
       if (nextObj.kind === 'talk') {
         actionHint = `👉 先去找 ${npcName(nextObj.target)} 对接（离开工位，走过去按 E）`;
       } else if (nextObj.kind === 'minigame') {
-        actionHint = '👉 对接完成！现在开工——从下方"额外工单"选一个开工';
-        canWork = true;
+        canWork = true; // 主任务可直接开工（下方大按钮）
       }
     } else if (activeQuest && this.questSystem.isReady(activeQuest.id)) {
       actionHint = `✅ 任务完成！去找导师 ${npcName('senior')} 交付（头顶 ❓）`;
@@ -2495,9 +2494,35 @@ export class WorldScene extends Phaser.Scene {
     }
     if (actionHint) {
       c.add(this.add.text(px, mainY + 112, actionHint, {
-        fontSize: '17px', fill: canWork ? '#7eff9a' : '#ffe08a', stroke: '#0a0a14', strokeThickness: 2,
+        fontSize: '17px', fill: '#ffe08a', stroke: '#0a0a14', strokeThickness: 2,
         wordWrap: { width: pw - 120, useAdvancedWrap: true }, align: 'center',
       }).setOrigin(0.5));
+    }
+
+    // minigame 步骤：主任务卡下放大按钮「▶ 开始任务工作」——点击直接开小游戏推任务链
+    const eGateMain = energyGate(this.stateSystem.get('energy'));
+    if (canWork) {
+      const btnW = 420, btnH = 52, btnY = mainY + 116;
+      const enabled = eGateMain.canWork;
+      const btn = this.add.rectangle(px, btnY, btnW, btnH,
+        enabled ? 0x2a4a3e : 0x1a1a24, 0.98)
+        .setStrokeStyle(3, enabled ? 0x5fbf7f : 0x2a2a34);
+      const btnTxt = this.add.text(px, btnY,
+        enabled ? '▶ 开始任务工作' : '🔒 精力不足，先喝点东西恢复',
+        {
+          fontSize: '19px', fill: enabled ? '#7eff9a' : '#5a5a6a', fontStyle: 'bold',
+          stroke: '#0a0a14', strokeThickness: 2,
+        }).setOrigin(0.5);
+      c.add(btn); c.add(btnTxt);
+      if (enabled) {
+        btn.setInteractive({ useHandCursor: true })
+          .on('pointerover', () => btn.setFillStyle(0x3a5a4e))
+          .on('pointerout', () => btn.setFillStyle(0x2a4a3e))
+          .on('pointerdown', () => {
+            this._closeWorkBoard(c);
+            this._doQuestWork(activeQuest);
+          });
+      }
     }
 
     // ════════ 次要区域：额外工单（降级、明确标注"额外"）════════
@@ -2562,6 +2587,42 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // 开工做某工单 → 小游戏 → 成绩 quality 决定推进/绩效,并按工单消耗身心。
+  /**
+   * 任务链的"回工位干活"：不占用工单，直接开小游戏推进任务目标。
+   * 与工单相比：无项目产出，只推进任务链 minigame 目标 + 小幅数值。
+   */
+  _doQuestWork(quest) {
+    this._launchCoding((result) => {
+      const quality = (result && result.ratio != null)
+        ? result.ratio : (((result && result.correct) || 0) / ((result && result.total) || 1));
+      // 数值反馈：做得好加技能热情，砸了加压力
+      if (quality >= 0.99) { this.stateSystem.change('skill', 3); this.stateSystem.change('passion', 3); }
+      else if (quality >= 0.5) { this.stateSystem.change('skill', 2); }
+      else { this.stateSystem.change('stress', 3); this.stateSystem.change('skill', 1); }
+      this.stateSystem.change('energy', -8); // 干活耗精力
+      // 推进任务链目标
+      this.questSystem.progress('minigame', 'coding');
+      this.questSystem.progress('minigame', 'work');
+      this.questSystem.progress('interact', 'computer');
+      this._updateNpcMarks();
+      this._advanceTime();
+      Juice.celebrate(this, this.player.x, this.player.y - 30, 0x5fbf7f);
+      const q = quest ? this.questSystem.defs[quest.id] : null;
+      const ready = quest && this.questSystem.isReady(quest.id);
+      this._showThoughtBubble(
+        ready
+          ? `✅ 任务工作完成！去找导师交付「${(q && q.title) || '任务'}」（头顶 ❓）`
+          : '✅ 干完一轮。看看左上角还差什么。',
+        '#5fbf7f',
+      );
+      if (energyGate(this.stateSystem.get('energy')).forceOff && !this._exhaustedPrompted) {
+        this._exhaustedPrompted = true;
+        this._showThoughtBubble('（精力见底了……今天到极限了，该下班了。）', '#f0c060');
+      }
+      this._autoSave?.();
+    }, null); // 任务工作用默认难度
+  }
+
   _doWorkOrder(order) {
     this._launchCoding((result) => {
       const quality = (result && result.ratio != null)

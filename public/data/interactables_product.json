@@ -1,15 +1,14 @@
 {
   "_meta": {
     "career": "product",
-    "title": "产品经理办公室可交互物件",
-    "desc": "地图上可走近按 E 触发的物件：电脑(需求评审小游戏)、售货机(买饮料回状态)、白板(任务板)、窗户(内心独白)、绿植(浇水)、咖啡机(提神)。pos 是世界坐标（SkyOffice 地图 1280×960），与办公室共用。；含电话(phone)交互。"
+    "desc": "可交互物件——坐标对齐 SkyOffice 真实家具（售货机402,173/白板544,512/电脑1008,512/绿植208,384/沙发咖啡区656,145/顶窗），锚点=家具正面可走格。买饮料走商店面板进背包。"
   },
   "interactables": [
     {
       "id": "computer",
       "pos": [
-        880,
-        400
+        1008,
+        576
       ],
       "icon": "💻",
       "prompt": "打磨需求文档",
@@ -17,47 +16,30 @@
       "cooldown": "daily"
     },
     {
-      "id": "vending",
-      "pos": [
-        1136,
-        560
-      ],
-      "icon": "🥤",
-      "prompt": "买瓶饮料",
-      "action": "buy_drink",
-      "cost": {
-        "money": -5
-      },
-      "effect": {
-        "energy": 12,
-        "san": 3
-      }
-    },
-    {
       "id": "whiteboard",
       "pos": [
-        400,
-        300
+        544,
+        560
       ],
       "icon": "📋",
       "prompt": "看看任务板",
       "action": "quest_board"
     },
     {
-      "id": "window",
+      "id": "vending",
       "pos": [
-        240,
-        200
+        400,
+        224
       ],
-      "icon": "🪟",
-      "prompt": "望向窗外",
-      "action": "monologue:auto"
+      "icon": "🥤",
+      "prompt": "买瓶饮料",
+      "action": "buy_drink"
     },
     {
       "id": "plant",
       "pos": [
-        1008,
-        240
+        240,
+        400
       ],
       "icon": "🪴",
       "prompt": "给绿植浇水",
@@ -71,25 +53,28 @@
     {
       "id": "coffee",
       "pos": [
-        560,
-        560
+        656,
+        192
       ],
       "icon": "☕",
       "prompt": "接杯咖啡",
-      "action": "buy_drink",
-      "cost": {
-        "money": -3
-      },
-      "effect": {
-        "energy": 15,
-        "stress": -3
-      }
+      "action": "buy_drink"
+    },
+    {
+      "id": "window",
+      "pos": [
+        656,
+        112
+      ],
+      "icon": "🪟",
+      "prompt": "望向窗外",
+      "action": "monologue:auto"
     },
     {
       "id": "phone",
       "pos": [
-        720,
-        240
+        240,
+        432
       ],
       "icon": "📱",
       "prompt": "给家里打个电话",

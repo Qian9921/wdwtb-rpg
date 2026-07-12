@@ -60,7 +60,7 @@
     },
     "a2_colleague_in": {
       "speaker": "老同事",
-      "text": "李姐晃过来：哟，还真研究流程图。放宽心，做久了闭着眼都会。",
+      "text": "刘姐晃过来：哟，还真研究流程图。放宽心，做久了闭着眼都会。",
       "bg": "office_day",
       "effects": {},
       "choices": [
@@ -78,7 +78,7 @@
     },
     "a2_colleague_a": {
       "speaker": "老同事",
-      "text": "李姐笑了笑：能省早省了。这弯路不是给你走的，是给上头看的。",
+      "text": "刘姐笑了笑：能省早省了。这弯路不是给你走的，是给上头看的。",
       "bg": "office_day",
       "effects": {
         "san": -1,
@@ -281,14 +281,14 @@
           "next": "a2_wang_chat"
         },
         {
-          "text": "找李姐倒倒苦水",
+          "text": "找刘姐倒倒苦水",
           "next": "a2_colleague_philosophy"
         }
       ]
     },
     "a2_colleague_philosophy": {
       "speaker": "老同事",
-      "text": "李姐嗑了颗瓜子：退三遍算少的。诀窍就俩字——别较真。",
+      "text": "刘姐嗑了颗瓜子：退三遍算少的。诀窍就俩字——别较真。",
       "bg": "office_dusk",
       "effects": {},
       "choices": [

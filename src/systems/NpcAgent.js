@@ -68,7 +68,12 @@ export class NpcAgent {
     const step = () => {
       if (!spr.scene) { this.state = 'sitting'; return; }
       if (i >= waypoints.length) { onDone(); return; }
-      const wp = waypoints[i++];
+      const raw = waypoints[i++];
+      // 防御性:即使寻路给了坏 waypoint,也把目标钳在地图边界内,NPC 绝不跑出地图(用户反馈)
+      const bounds = this.scene.physics && this.scene.physics.world && this.scene.physics.world.bounds;
+      const wp = bounds
+        ? { x: Phaser.Math.Clamp(raw.x, 8, bounds.width - 8), y: Phaser.Math.Clamp(raw.y, 8, bounds.height - 8) }
+        : raw;
       const dx = wp.x - spr.x, dy = wp.y - spr.y;
       const dir = this._dirOf(dx, dy);
       this._lastDir = dir;

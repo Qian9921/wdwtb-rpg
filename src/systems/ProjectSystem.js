@@ -42,6 +42,22 @@ export class ProjectSystem extends Phaser.Events.EventEmitter {
   // 外部直接调整进度(如需求变更导致返工回退)
   adjustProgress(delta) { this._addProgress(delta); }
 
+  // 任务链的"回工位干活"完成(不走工单,没有 order)——同样是工作成果,该计入绩效+项目进度。
+  // 修 bug:此前任务链工作只加 skill/passion、不碰 projectSystem,导致"做了活但绩效纹丝不动、
+  // 项目进度不涨"(玩家实测:项目推进了绩效却是 0)。用基础值 × 质量给一份产出,口径与 completeOrder 一致。
+  // @param quality 0..1 小游戏成绩;@param opts.baseProgress/basePerf 基础产出(默认贴近一张普通工单)
+  creditWork(quality = 1, opts = {}) {
+    const q = Phaser.Math.Clamp(quality, 0, 1);
+    const baseProgress = opts.baseProgress != null ? opts.baseProgress : 8;
+    const basePerf = opts.basePerf != null ? opts.basePerf : 10;
+    const progressGain = Math.round(baseProgress * (0.4 + 0.6 * q) * 10) / 10;
+    const perfGain = Math.round(basePerf * (0.3 + 0.7 * q));
+    this.performance += perfGain;
+    this.todayPerformance += perfGain;
+    this._addProgress(progressGain);
+    return { progressGain, perfGain, quality: q };
+  }
+
   // 插入一张紧急工单(随机事件触发,插队的活)
   addUrgentOrder(order) {
     const o = { id: `urgent_${Date.now()}`, title: '🔥 紧急插单', difficulty: 'hard',

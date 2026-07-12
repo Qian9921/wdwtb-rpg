@@ -67,7 +67,7 @@ export class TitleScene extends Phaser.Scene {
     }
 
     // ===== 顶部小字 =====
-    this.add.text(W / 2, H * 0.07, '腾讯云黑客松 · WorkBuddy × 混元 hy3', {
+    this.add.text(W / 2, H * 0.07, '腾讯云黑客松 · CodeBuddy × 混元 hy3', {
       fontSize: '18px', color: '#3a6a9a', letterSpacing: 4,
     }).setOrigin(0.5).setAlpha(0.7);
 
@@ -201,7 +201,7 @@ export class TitleScene extends Phaser.Scene {
       if (this.scale.isFullscreen) this.scale.stopFullscreen(); else this.scale.startFullscreen();
     });
 
-    this.add.text(W - 12, H - 8, 'Built with WorkBuddy · Art: LimeZu · Kenney · AI: 腾讯混元 hy3', {
+    this.add.text(W - 12, H - 8, 'Built with CodeBuddy · Art: LimeZu · Kenney · AI: 腾讯混元 hy3', {
       fontSize: '12px', color: '#4a6a8a',
     }).setOrigin(1, 1);
   }
@@ -563,7 +563,7 @@ export class TitleScene extends Phaser.Scene {
       { t: 'OFFERED · 录用通知', c: '#ffd24d', s: '24px' },
       { t: '', c: '#888' },
       { t: 'AI 开发引擎', c: '#8fd08f', s: '20px' },
-      { t: 'WorkBuddy — 腾讯 AI 办公智能体', c: '#ffe08a', s: '18px' },
+      { t: 'CodeBuddy — 腾讯云 AI 编程助手', c: '#ffe08a', s: '18px' },
       { t: '从代码到内容，全程 AI 驱动开发', c: '#c8c8dc' },
       { t: '', c: '#888' },
       { t: 'AI 内容引擎', c: '#8fd08f', s: '18px' },
@@ -584,7 +584,7 @@ export class TitleScene extends Phaser.Scene {
       { t: '部署：腾讯云 EdgeOne Pages', c: '#8fd08f', s: '18px' },
       { t: '', c: '#888' },
       { t: '入职之后，才知道适不适合。', c: '#ffd24d', s: '20px' },
-      { t: '腾讯云黑客松 2026 · WorkBuddy 出品', c: '#6a6a82' },
+      { t: '腾讯云黑客松 2026 · CodeBuddy 出品', c: '#6a6a82' },
     ];
     const lineH = 26; // 略缩行距,容下更多行且不撞标题
     // 从面板标题(y = H/2 - 410 + 36)下方留足 56px 开始,避免居中算法把长列表顶到标题上重叠。

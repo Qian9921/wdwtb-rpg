@@ -276,7 +276,7 @@ export class EndingScene extends Phaser.Scene {
       g0.push(ct); y += ct.height + 6;
     }
     const aimark = this.add.text(width / 2, y,
-      this.aiSource === 'ai' ? '· 由 WorkBuddy × 腾讯混元 hy3 为你生成 ·' : '· 基于你的旅程生成 ·', {
+      this.aiSource === 'ai' ? '· 由 CodeBuddy × 腾讯混元 hy3 为你生成 ·' : '· 基于你的旅程生成 ·', {
       fontSize: '11px', color: '#5a6a8a',
     }).setOrigin(0.5, 0);
     g0.push(aimark); y += aimark.height + 12;

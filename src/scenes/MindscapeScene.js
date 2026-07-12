@@ -13,6 +13,8 @@ export class MindscapeScene extends Phaser.Scene {
 
   init(data) {
     this._exiting = false; // 场景重进时复位防重入标志
+    this._reflecting = false; // 光球反思冷却标志——同样要在场景重进时复位，否则若上次
+    // 退出时序(delayedCall(1500) 复位前就 _exit/stop)导致它卡在 true，下次进来光球永久点不动(P2-5)
     this.data0 = data || {};
     this.stateSystem = data?.stateSystem || null;
     this.returnScene = data?.returnScene || null; // 返回哪个场景(如WorldScene)恢复
@@ -39,6 +41,16 @@ export class MindscapeScene extends Phaser.Scene {
     this.W = W; this.H = H;
     AudioSystem.playBgm('mindscape'); // 空灵慢板，衬内心空间
 
+    // P1-2 修复：心象内部疗愈交互键盘可达性基础设施。
+    // 方案：Tab/Shift+Tab 在"光球/树/负面词"这类可点对象间循环移动焦点(_focusIndex，
+    // -1=未聚焦)，Enter/Space 激活当前聚焦对象——和鼠标 pointerdown 走同一个 activate
+    // 函数，保证键鼠行为完全一致，不会出现"键盘按了没反应"或逻辑分叉。
+    // 疗愈五选一(_showHealingChoices)另用数字键1-5(与 HomeScene 的数字键选择惯例一致)。
+    this._focusables = []; // { obj, activate, radius }
+    this._focusIndex = -1;
+    this._focusRing = null;
+    this._keyHandlers = []; // 本场景绑定的键盘 handler，shutdown 时精确解绑防泄漏
+
     this._buildPalette();  // 按 mood 定调色板（低落/迷雾/治愈，都精心和谐）
     // 溶入黑场（用调色板天空色，衔接更自然）
     this.cameras.main.fadeIn(700, (this.pal.skyTop >> 16) & 255, (this.pal.skyTop >> 8) & 255, this.pal.skyTop & 255);
@@ -62,7 +74,77 @@ export class MindscapeScene extends Phaser.Scene {
     exitBtn.on('pointerover', () => exitBtn.setColor('#fff2c0'));
     exitBtn.on('pointerout', () => exitBtn.setColor('#8a8a9e'));
     exitBtn.on('pointerdown', () => this._exit());
-    this.input.keyboard.on('keydown-ESC', () => this._exit());
+
+    this._bindKey('ESC', () => this._exit());
+    // Tab 前进 / Shift+Tab 后退——在世界内可交互对象间移动焦点
+    this._bindKey('TAB', (e) => { e.preventDefault(); this._cycleFocus(e.shiftKey ? -1 : 1); });
+    // Enter/Space 激活当前聚焦对象(未聚焦时不 no-op，不会误触发)
+    this._bindKey('ENTER', () => this._activateFocused());
+    this._bindKey('SPACE', () => this._activateFocused());
+
+    // 场景 shutdown 时解绑本场景键盘监听，防止 scene.launch 重进时闭包泄漏累积
+    this.events.once('shutdown', () => this._unbindKeys());
+  }
+
+  // 绑定一个键盘 handler 并记录引用，供 _unbindKeys 精确解绑（防泄漏）
+  _bindKey(key, handler) {
+    this.input.keyboard.on(`keydown-${key}`, handler);
+    this._keyHandlers.push({ key, handler });
+  }
+
+  // ===== 键盘可达性：焦点循环 + 激活（Tab/Shift+Tab 移动，Enter/Space 确认）=====
+  _registerFocusable(obj, activate, radius = 40) {
+    const item = { obj, activate, radius };
+    this._focusables.push(item);
+    return item;
+  }
+
+  // 对象被激活/消失后从焦点列表移除（如负面词点掉就不该再被 Tab 到）
+  _unregisterFocusable(item) {
+    const idx = this._focusables.indexOf(item);
+    if (idx < 0) return;
+    this._focusables.splice(idx, 1);
+    // 移除项在当前焦点之前(或就是当前焦点)时，后面元素整体前移了一位，
+    // 焦点下标要同步减 1，否则会指错到下一个元素或越界。
+    if (idx <= this._focusIndex) this._focusIndex -= 1;
+    if (this._focusIndex >= this._focusables.length) this._focusIndex = this._focusables.length - 1;
+    this._updateFocusRing();
+  }
+
+  _cycleFocus(dir) {
+    if (this._focusables.length === 0) return;
+    this._focusIndex = (this._focusIndex + dir + this._focusables.length) % this._focusables.length;
+    this._updateFocusRing();
+  }
+
+  _activateFocused() {
+    const item = this._focusables[this._focusIndex];
+    if (item) item.activate();
+  }
+
+  // 焦点高亮圈：跟随当前聚焦对象，未聚焦(_focusIndex=-1)时隐藏
+  _updateFocusRing() {
+    const item = this._focusables[this._focusIndex];
+    if (!item || !item.obj || !item.obj.active) {
+      if (this._focusRing) this._focusRing.setVisible(false);
+      return;
+    }
+    if (!this._focusRing) {
+      this._focusRing = this.add.circle(0, 0, 10, 0xffffff, 0)
+        .setStrokeStyle(3, 0xfff2c0, 0.95).setDepth(60);
+      this.tweens.add({
+        targets: this._focusRing, alpha: 0.5, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+    }
+    this._focusRing.setVisible(true).setAlpha(1)
+      .setPosition(item.obj.x, item.obj.y).setRadius(item.radius);
+  }
+
+  // 场景 shutdown 时解绑本场景所有键盘监听（世界元素 + 疗愈选项键都在此列）
+  _unbindKeys() {
+    const kb = this.input.keyboard;
+    for (const { key, handler } of this._keyHandlers) kb.off(`keydown-${key}`, handler);
+    this._keyHandlers = [];
   }
 
   // ===== 调色板：按 mood 分三档，每档精心和谐（参考 Gris/Journey 情绪美学）=====
@@ -160,10 +242,10 @@ export class MindscapeScene extends Phaser.Scene {
     }
     const core = this.add.circle(mx, my, r, this.pal.orb, 0.95).setDepth(2);
     this.tweens.add({ targets: core, scale: 1.06, duration: 3800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-    // 可点击：点发光球 → 换一句内心独白（"凝视光源"=自我反思）
-    const orbHit = this.add.circle(mx, my, r * 2.5, 0xffffff, 0.001)
-      .setInteractive({ useHandCursor: true }).setDepth(2);
-    orbHit.on('pointerdown', () => {
+    // 可交互：点/Tab选中+Enter 发光球 → 换一句内心独白（"凝视光源"=自我反思）
+    // activate 是鼠标(pointerdown)和键盘(Tab选中后Enter)共用的唯一入口——保证两种
+    // 输入方式行为完全一致，不会出现"键盘按了没反应"的分叉逻辑(P1-2)。
+    const activate = () => {
       if (this._reflecting) return;
       this._reflecting = true;
       AudioSystem.blip && AudioSystem.blip('凝望');
@@ -172,7 +254,11 @@ export class MindscapeScene extends Phaser.Scene {
       // 换一句新独白
       this._showMonologue(true);
       this.time.delayedCall(1500, () => { this._reflecting = false; });
-    });
+    };
+    const orbHit = this.add.circle(mx, my, r * 2.5, 0xffffff, 0.001)
+      .setInteractive({ useHandCursor: true }).setDepth(2);
+    orbHit.on('pointerdown', activate);
+    this._registerFocusable(orbHit, activate, r * 1.4);
   }
 
   // ===== 星尘：静态星点 twinkle（ADD 辉光）+ 治愈态上升光尘 =====
@@ -267,23 +353,32 @@ export class MindscapeScene extends Phaser.Scene {
         .setBlendMode(Phaser.BlendModes.ADD).setDepth(4);
       this.tweens.add({ targets: this.plantGlow, alpha: 0.26, scale: 1.16, duration: 2400, yoyo: true, repeat: -1 });
     }
-    // 可点击：点树 → 扎根冥想（微量回复 + 树叶闪光）
-    const treeHit = this.add.zone(cx, topY, 160, 140)
-      .setInteractive({ useHandCursor: true }).setDepth(6);
-    this._treeClicks = 0;
-    treeHit.on('pointerdown', () => {
+    // 可交互：点/Tab选中+Enter 树 → 扎根冥想（微量回复 + 树叶闪光）
+    // P2-2 修复：原来无限点可无限刷 -2stress/+1san，和负面词(有限个)/疗愈选择(一次性)
+    // 的"闸"设计不一致——加次数上限，用完停止回复(仍可点出提示,但不再改数值)。
+    const TREE_MAX_CLICKS = 5;
+    const activate = () => {
       this._treeClicks++;
       AudioSystem.blip && AudioSystem.blip('扎根');
       this.leaves.forEach((lf, i) => {
         this.tweens.add({ targets: lf, scaleX: 1.25, scaleY: 1.25, delay: i * 30, duration: 300, yoyo: true });
       });
-      if (this.stateSystem) {
+      const withinLimit = this._treeClicks <= TREE_MAX_CLICKS;
+      if (withinLimit && this.stateSystem) {
         this.stateSystem.change('stress', -2);
         this.stateSystem.change('san', 1);
       }
       const hints = ['扎根，深呼吸。', '你还在这里。', '慢慢来。', '一步就够了。'];
-      this._showFloatHint(hints[(this._treeClicks - 1) % hints.length], '#8feec8');
-    });
+      const hint = withinLimit
+        ? hints[(this._treeClicks - 1) % hints.length]
+        : '此刻已经够了，安静待一会儿吧。';
+      this._showFloatHint(hint, '#8feec8');
+    };
+    const treeHit = this.add.zone(cx, topY, 160, 140)
+      .setInteractive({ useHandCursor: true }).setDepth(6);
+    this._treeClicks = 0;
+    treeHit.on('pointerdown', activate);
+    this._registerFocusable(treeHit, activate, 80);
   }
 
   // ===== 飘浮的负面词（压力具象，低落时）=====
@@ -302,16 +397,23 @@ export class MindscapeScene extends Phaser.Scene {
         targets: t, y: y - 26, alpha: 0.08,
         duration: 3200 + i * 400, yoyo: true, repeat: -1, ease: 'Sine.inOut',
       });
-      // 可点击：点负面词 → 它消散（"放下"一个焦虑）
+      // 可交互：点/Tab选中+Enter 负面词 → 它消散（"放下"一个焦虑）
       t.setInteractive({ useHandCursor: true });
-      t.on('pointerdown', () => {
+      let focusItem = null;
+      let dismissed = false;
+      const activate = () => {
+        if (dismissed) return; // 防止 Tab 焦点残留时重复触发(词已在消散动画中)
+        dismissed = true;
         AudioSystem.success && AudioSystem.success();
         this.tweens.add({ targets: t, alpha: 0, y: t.y - 80, scale: 1.5, duration: 800,
           onComplete: () => t.destroy() });
         // 微量疗愈：放下一个焦虑 +2 san
         if (this.stateSystem) this.stateSystem.change('san', 2);
         this._showFloatHint('放下了。', '#7eff9a');
-      });
+        if (focusItem) this._unregisterFocusable(focusItem); // 消散后不再可被 Tab 到
+      };
+      t.on('pointerdown', activate);
+      focusItem = this._registerFocusable(t, activate, 44);
       this.words.push(t);
     }
   }
@@ -329,9 +431,9 @@ export class MindscapeScene extends Phaser.Scene {
     this.add.text(this.W / 2, my + 16, `内心 · ${moodLabel}`, {
       fontSize: '12px', color: '#6a6a82',
     }).setOrigin(0.5).setDepth(20);
-    // 底部交互提示
+    // 底部交互提示（含键盘方案：Tab 循环焦点 + Enter/Space 确认，ESC 离开）
     this.add.text(this.W / 2, this.H - 180,
-      '点光球反思 · 点树扎根 · 点飘浮的词放下 · ESC 离开', {
+      '点光球反思 · 点树扎根 · 点飘浮的词放下 · Tab 切换焦点 + Enter 确认 · ESC 离开', {
       fontSize: '13px', color: '#4a4a5e',
     }).setOrigin(0.5).setDepth(20);
   }
@@ -382,6 +484,10 @@ export class MindscapeScene extends Phaser.Scene {
       ], { model: 'hy3', timeoutMs: 7000, fallbackFn: () => ({ text: tpl }) });
       if (res.text && res.text.length > 6 && res.text.length < 160) text = res.text.trim();
     } catch (e) { /* 用模板 */ }
+    // P2-3 修复：await 期间玩家可能已经点了"离开"/ESC(_exit → scene.stop())。
+    // 场景已停后再 this.add.*/this.time.addEvent 会在已销毁的场景上建对象——不安全。
+    // _exiting 由 _exit() 置位；scene.isActive() 兜底(如场景被其它路径 stop)。
+    if (this._exiting || !this.scene.isActive()) return;
     // 销毁旧独白框（刷新时）
     if (this.monoBox) { this.monoBox.destroy(true); }
     if (this.choiceBox) { this.choiceBox.destroy(true); }
@@ -408,6 +514,9 @@ export class MindscapeScene extends Phaser.Scene {
   }
 
   // ===== 玩家亲手点亮光(疗愈,能动性) =====
+  // P1-2 修复：五选一原本只绑 pointerdown，键盘玩家完全无法完成"招牌疗愈"。
+  // 加数字键1-5直选(与 HomeScene._showSelfImprove 的数字键选择惯例一致)——
+  // 比 Tab 循环更快，五选一场景下数字键是更自然的键盘模式。
   _showHealingChoices() {
     const choices = [
       { label: '给自己泡杯热茶，早点睡', eff: { stress: -8, health: 4, san: 5 } },
@@ -419,19 +528,21 @@ export class MindscapeScene extends Phaser.Scene {
     const startY = this.H / 2 - 180;
     const c = this.add.container(0, 0).setDepth(31);
     this.choiceBox = c;
-    c.add(this.add.text(this.W / 2, startY - 30, '此刻，你想为自己做点什么？', {
+    c.add(this.add.text(this.W / 2, startY - 30, '此刻，你想为自己做点什么？（数字键1-5 或点击）', {
       fontSize: '16px', color: '#ffe08a',
     }).setOrigin(0.5));
 
+    const NUMS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
     choices.forEach((ch, idx) => {
       const by = startY + idx * 46;
       const btn = this.add.rectangle(this.W / 2, by, 420, 38, 0x2a2a3e, 0.9)
         .setStrokeStyle(1, 0x5a5a7e).setInteractive({ useHandCursor: true }).setDepth(31);
-      const label = this.add.text(this.W / 2, by, ch.label, { fontSize: '15px', color: '#e6e6ff' }).setOrigin(0.5).setDepth(32);
+      const label = this.add.text(this.W / 2, by, `${idx + 1}. ${ch.label}`, { fontSize: '15px', color: '#e6e6ff' }).setOrigin(0.5).setDepth(32);
       c.add(btn); c.add(label);
       btn.on('pointerover', () => btn.setFillStyle(0x3a3a5e));
       btn.on('pointerout', () => btn.setFillStyle(0x2a2a3e));
       btn.on('pointerdown', () => this._doHeal(ch.eff));
+      this._bindKey(NUMS[idx], () => this._doHeal(ch.eff));
     });
   }
 
@@ -478,8 +589,14 @@ export class MindscapeScene extends Phaser.Scene {
       if (this.returnScene) {
         this.scene.stop();
         this.scene.resume(this.returnScene);
-        // 通知返回场景心象结束
+        // P2-1 修复：scene.resume 只恢复场景，不恢复 BGM——心象的空灵慢板(mindscape)
+        // 会一直残留播放。按返回场景的当前时段决定该放 office 还是 office_night
+        // (逻辑与 WorldScene._onSegmentChange 一致：在岗人数≤0.25 走深夜冷调)；
+        // 拿不到 timeSystem(非 WorldScene 或字段缺失)时保底放 office。
         const rs = this.scene.get(this.returnScene);
+        const seg = rs && rs.timeSystem ? rs.timeSystem.current : null;
+        AudioSystem.playBgm(seg && seg.population <= 0.25 ? 'office_night' : 'office');
+        // 通知返回场景心象结束
         if (rs && rs.events) rs.events.emit('mindscapeReturn', { healed: this.healed });
       } else {
         this.scene.start('WorldScene');

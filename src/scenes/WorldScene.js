@@ -3803,7 +3803,10 @@ export class WorldScene extends Phaser.Scene {
             // 统一重新渲染当前节点：有选项展示选择；无选项(结束节点)走它自己的
             // advance 收尾——直接 _endDialogue 会吞掉结束节点的 action(如 act5 的
             // 'ending')，玩家会被卡在世界里进不了结局。
-            if (n) eng._showNode(eng.currentId);
+            // skipEffects:true——该节点的 effects 在玩家点击选项进入(choice.onClick →
+            // _showNode(choice.next))时已经施加过一次；这里只是心象返回后的重渲染，
+            // 不能再施加一次，否则同一节点 effects 被叠加两次，污染数值(P1-1)。
+            if (n) eng._showNode(eng.currentId, { skipEffects: true });
             else eng._endDialogue();
           });
           break;

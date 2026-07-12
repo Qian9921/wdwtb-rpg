@@ -171,7 +171,10 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     this._showNode(startAt);
   }
 
-  _showNode(nodeId) {
+  // opts.skipEffects：仅重画 UI、不再施加 effects——供 mindscapeReturn 等"重渲染同一
+  // 节点"场景使用（该节点的 effects 在玩家推进到此节点时已施加过一次，重渲染不该重复施加）。
+  _showNode(nodeId, opts = {}) {
+    const { skipEffects = false } = opts;
     this._clearUI();
     const node = this.data.nodes[nodeId];
     this.currentId = nodeId;
@@ -185,8 +188,9 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       return;
     }
 
-    // 进入节点：应用该节点的 effects（调 StateSystem.change）
-    this._applyEffects(node.effects);
+    // 进入节点：应用该节点的 effects（调 StateSystem.change）。skipEffects=true 时跳过
+    // （重渲染同一节点场景，effects 已在首次进入时施加过，不能再施一次）。
+    if (!skipEffects) this._applyEffects(node.effects);
 
     // 若节点指定背景，emit 事件让外部场景切换
     if (node.bg) this.emit('bgChange', node.bg);

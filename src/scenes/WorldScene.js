@@ -420,7 +420,16 @@ export class WorldScene extends Phaser.Scene {
       if (this._savedProject) this.projectSystem.restore(this._savedProject);
       this.projectSystem.on('milestone', (pct) => this._onProjectMilestone(pct));
       this.projectSystem.on('progress', () => this._updateProjectHud());
-      this.projectSystem.startDay(Phaser.Math.RND); // 每天抽今日工单
+      // ⚠️ 只在【新的一天】或【没有恢复到今日工单】时才重抽,否则会把 restore 恢复的
+      // 今日工单进度(含 done 标记)、todayPerformance 直接覆盖清零(修 bug:同日刷新/续档
+      // 后工单全部复位、当天工资偏低)。_incomingDay 存在=睡觉→通勤→新一天该抽;
+      // 无恢复工单(首次进场或换职业清档)也该抽。
+      const hasRestoredOrders = this._savedProject
+        && Array.isArray(this._savedProject.orders) && this._savedProject.orders.length > 0;
+      const isNewDay = this._incomingDay != null;
+      if (isNewDay || !hasRestoredOrders) {
+        this.projectSystem.startDay(Phaser.Math.RND); // 新一天/首次:抽今日工单
+      }
       // 记录今日起点(日报结算用)
       this._dayStartProgress = this.projectSystem.progress;
       this._dayStartStats = { ...this.stateSystem.getAll() };
@@ -3078,6 +3087,8 @@ export class WorldScene extends Phaser.Scene {
       else if (quality >= 0.5) { this.stateSystem.change('skill', 2); }
       else { this.stateSystem.change('stress', 3); this.stateSystem.change('skill', 1); }
       this.stateSystem.change('energy', -8); // 干活耗精力
+      // 任务链工作也喂 stateSystem.performance(绩效评分,结局读它),口径与工单一致
+      this.stateSystem.change('performance', quality >= 0.7 ? 3 : (quality >= 0.4 ? 2 : 1));
       // ⚠️ 任务链工作也是"工作成果"→ 计入绩效 + 项目进度(修 bug:此前只加 skill/passion,
       // 导致玩家做了活但绩效/项目进度纹丝不动)。口径与工单一致:压力过高产出打折 ×0.8。
       let qwork = null;
@@ -3126,6 +3137,11 @@ export class WorldScene extends Phaser.Scene {
       }
       const r = this.projectSystem.completeOrder(order.id, effQuality);
       if (order.cost) for (const [k, v] of Object.entries(order.cost)) this.stateSystem.change(k, v);
+      // ⚠️ 工作产出同步喂 stateSystem.performance(8项状态里的"绩效",结局评分与状态条读它)。
+      // 修 bug:此前 performance 只由办公室事件偶尔喂,核心工作循环完全不动→玩家一路看 HUD
+      // 项目绩效涨,结局却按停在初值50的 stateSystem.performance 打分。现按质量给绩效评分增量,
+      // 让"做得好→绩效涨→结局体现"闭环。增量温和(好+3/一般+2/差+1),一局累积到合理区间。
+      this.stateSystem.change('performance', quality >= 0.7 ? 3 : (quality >= 0.4 ? 2 : 1));
       if (quality >= 0.99) this.stateSystem.change('passion', 3);       // 做得漂亮,有成就感
       else if (quality <= 0.34) this.stateSystem.change('stress', 3);   // 搞砸了,额外焦虑
       this._updateProjectHud();

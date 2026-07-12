@@ -11,6 +11,15 @@ Phaser.GameObjects.GameObjectFactory.register('text', function (x, y, text, styl
   const st = { fontFamily: PIXEL_FONT, ...(style || {}) };
   const t = new Phaser.GameObjects.Text(this.scene, x, y, text, st);
   t.setResolution(TEXT_RESOLUTION);
+  // P4 修复：像素字体（Fusion Pixel）渲染中文时，Phaser 用拉丁测试串估出的 ascent
+  // 比实际中文字形墨迹矮一点，导致所有文字上边缘被 Canvas 裁掉一丝。
+  // 顶部叠加一点 padding 抵消——按字号比例算、限定 2~6px，视觉几乎无感：
+  // setOrigin(0.5) 的文字最多因此下移 padTop/2（≤3px），背景框也只增高这一点点，
+  // 且是叠加在已有的 style.padding 之上（不覆盖左右下三边）。
+  const fs = parseInt(st.fontSize, 10) || 16;
+  const padTop = Math.min(6, Math.max(2, Math.ceil(fs * 0.12)));
+  const p = t.padding;
+  t.setPadding(p.left, p.top + padTop, p.right, p.bottom);
   this.displayList.add(t);
   this.updateList.add(t);
   return t;

@@ -2658,13 +2658,18 @@ export class WorldScene extends Phaser.Scene {
   //  test(守护者)：写用例 TestCase → 找bug/回归 Debug → 流程 Sequence
   //  其余职业：Debug ↔ Sequence 翻转（沿用旧行为）
   _workGameRotation() {
-    if (this.career === 'programmer' && this.subRole === 'dev') {
-      return ['DebugGameScene', 'SequenceGameScene', 'CodeReviewScene'];
-    }
-    if (this.career === 'programmer' && this.subRole === 'test') {
-      return ['TestCaseScene', 'DebugGameScene', 'SequenceGameScene'];
-    }
-    return ['DebugGameScene', 'SequenceGameScene'];
+    // 每个职业用自己【可爱好玩、人人能玩、有职业味】的工作玩法(替换硬核点代码小游戏)。
+    // 靠节奏/直觉/应对,不考专业知识——迷茫的大学生也能上手。
+    const BY_CAREER = {
+      programmer: ['TypingRhythmScene'],  // 敲码节奏
+      designer: ['ColorMatchScene'],      // 配色整理
+      sales: ['SalesTalkScene'],          // 对话应对
+      doctor: ['DiagnoseScene'],          // 看诊选择
+    };
+    if (BY_CAREER[this.career]) return BY_CAREER[this.career];
+    // 其余职业(产品/行政/运营/教师/公务员/律师)暂用敲码节奏的通用节奏玩法,
+    // 后续可各自做专属玩法(产品→需求排优先级、行政→整理归档…)。
+    return ['TypingRhythmScene'];
   }
 
   // gameType → 小游戏场景的映射(让工单内容和玩法咬合,不再无脑轮换换皮)

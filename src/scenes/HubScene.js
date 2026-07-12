@@ -27,6 +27,9 @@ export class HubScene extends Phaser.Scene {
   }
 
   create() {
+    // 兜底清理:OpeningScene 的名字输入框(HTML DOM)若因转场路径异常没被 shutdown 清掉,
+    // 会残留漂到后续场景(用户实测通勤页出现"给自己起个名字"框)。进大厅时扫一次保平安。
+    try { document.querySelectorAll('#wdwtb-name-input').forEach(el => el.remove()); } catch (e) { /* */ }
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this.cameras.main.fadeIn(500, 10, 8, 20);
     // 本场景用 960×540 硬编码坐标；zoom 2 + 居中让其在 1920×1080 屏铺满且原生锐利，坐标零改。

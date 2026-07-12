@@ -103,7 +103,12 @@ export class OpeningScene extends Phaser.Scene {
   // ============ 名字输入（HTML 覆盖层，随画布缩放定位）============
   _makeNameInput() {
     if (this._nameInput) return;
+    // ⚠️ 防孤儿:HTML input 是 appendChild 到 body 的 DOM 元素,不随 Phaser 场景自动销毁。
+    // 若上一次 shutdown 清理因转场路径异常没跑,input 会残留漂在后续所有场景上(用户实测
+    // 通勤页出现"给自己起个名字"输入框)。这里创建前先清掉任何带此 id 的旧 input,全局只留一个。
+    document.querySelectorAll('#wdwtb-name-input').forEach(el => el.remove());
     const input = document.createElement('input');
+    input.id = 'wdwtb-name-input';
     input.type = 'text'; input.maxLength = 8;
     input.setAttribute('aria-label', '你的名字');
     input.placeholder = '给自己起个名字';
@@ -143,6 +148,8 @@ export class OpeningScene extends Phaser.Scene {
       this._nameResize = null;
     }
     if (this._nameInput) { this._nameInput.remove(); this._nameInput = null; }
+    // id 兜底:即使 this._nameInput 引用因异常对不上,也按 id 扫掉任何残留(防孤儿漂到别的场景)
+    document.querySelectorAll('#wdwtb-name-input').forEach(el => el.remove());
   }
 
   // ============ 阶段A：起名 + 捏人 ============

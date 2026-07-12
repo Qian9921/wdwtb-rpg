@@ -532,11 +532,23 @@ export class WorldScene extends Phaser.Scene {
       backgroundColor: '#000000aa',
       padding: { x: 14, y: 7 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999));
-    // 6 秒后缓缓淡出（玩家已经上手，不再需要常驻操作说明）
+    // B1 修复：6 秒后完整版提示不再"整个消失"，而是缩成一条低调的常驻小字——
+    // 原方案淡出后再无任何移动提示，卡住的新手无处可查。缩小版只留最关键的移动/交互两键，
+    // 半透明（alpha 0.32）钉在同一位置，不挡视野也不抢注意力，但随时低头就能看到。
+    this._movementHint = trackUI(this.add.text(SW / 2, 14, 'WASD / 方向键 移动　·　E 交互', {
+      fontSize: '15px',
+      fill: '#c8ccf0',
+      backgroundColor: '#00000066',
+      padding: { x: 10, y: 4 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9998).setAlpha(0).setVisible(false));
     this.time.delayedCall(6000, () => {
       if (this._controlHint && this._controlHint.scene) {
         this.tweens.add({ targets: this._controlHint, alpha: 0, duration: 1200, ease: 'Sine.in',
           onComplete: () => { if (this._controlHint) this._controlHint.setVisible(false); } });
+      }
+      if (this._movementHint && this._movementHint.scene) {
+        this._movementHint.setVisible(true);
+        this.tweens.add({ targets: this._movementHint, alpha: 0.32, duration: 1200, ease: 'Sine.in' });
       }
     });
 
@@ -709,17 +721,38 @@ export class WorldScene extends Phaser.Scene {
       backT.setText(idx > 0 ? '← 上一步' : '');
       Juice.pop(this, iconT, 1);
     };
+    // B2 修复：首弹引导浮层原来只绑 pointerdown（鼠标点击），键盘玩家完全无法翻页/跳过——
+    // 违反"完全键盘可玩"。补上 Enter/Space/E=下一步、ESC=跳过、← =上一步，风格与
+    // _openNpcMenu 一致：延迟 100ms 绑定（防打开这一帧的残留按键误触发），关闭时显式解绑。
+    const kb = this.input.keyboard;
+    const unbindKeys = () => {
+      kb.off('keydown-ENTER', onKeyAdvance);
+      kb.off('keydown-SPACE', onKeyAdvance);
+      kb.off('keydown-E', onKeyAdvance);
+      kb.off('keydown-ESC', onKeySkip);
+      kb.off('keydown-LEFT', onKeyBack);
+    };
     const finish = () => {
+      unbindKeys();
       try { localStorage.setItem('wdwtb_onboarded', '1'); } catch (e) {}
       c.destroy(true);
       // 恢复 HUD + 解冻
       (this._hudHiddenForOnboard || []).forEach(o => o && o.setVisible(true));
       if (this.ePrompt) this.ePrompt.setVisible(false); // ePrompt 由交互逻辑控制，默认隐藏
       this.dialogueActive = false;
+      // 同 _openNpcMenu/_showLine 的 B1 修复：E/ESC 既是关闭本浮层的键，又是世界里的
+      // 交互/菜单键——键盘事件先于 scene.update() 触发，本帧 update() 里的
+      // JustDown(eKey)/JustDown(escKey) 仍可能读到 true，导致刚关引导又对旁边 NPC
+      // 触发一次交互，或顺带弹出暂停菜单。抑制窗口挡掉这几帧，不影响之后正常按键。
+      this._suppressInteractUntil = this.time.now + 250;
       if (typeof this._syncGuideText === 'function') this._syncGuideText();
       else if (typeof this._updateObjectiveHud === 'function') this._updateObjectiveHud();
     };
     const advance = () => { idx++; if (idx >= steps.length) finish(); else render(); };
+    const goBack = () => { if (idx > 0) { idx--; render(); } };
+    const onKeyAdvance = () => advance();
+    const onKeySkip = () => finish();
+    const onKeyBack = () => goBack();
     render();
     this.time.delayedCall(100, () => {
       mask.on('pointerdown', advance);
@@ -728,7 +761,12 @@ export class WorldScene extends Phaser.Scene {
       skipT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); finish(); });
       backT.on('pointerover', () => backT.setColor('#ffd24d'));
       backT.on('pointerout', () => backT.setColor('#8a8a9e'));
-      backT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); if (idx > 0) { idx--; render(); } });
+      backT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); goBack(); });
+      kb.on('keydown-ENTER', onKeyAdvance);
+      kb.on('keydown-SPACE', onKeyAdvance);
+      kb.on('keydown-E', onKeyAdvance);
+      kb.on('keydown-ESC', onKeySkip);
+      kb.on('keydown-LEFT', onKeyBack);
     });
   }
 
@@ -1272,14 +1310,24 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  // NPC 头顶是否正亮着任务标记（❗可接 / ❓可交付 / ❗进行中 talk 目标）——只要亮着,
+  // 就是玩家此刻正被引导去找的人,不能被 _tickNpcLife 派去游荡,否则玩家按指引走到TA
+  // 工位时人已经不在,体验成"引导目标凭空消失"(A1 修复)。
+  // 判据直接复用 QuestSystem.npcMark——与头顶实际显示的标记同一信号源,不会不一致。
+  // senior 无 agent(见 NPC 建档处),本就不进 _tickNpcLife 候选池,这里无需特判它。
+  _isCurrentQuestFocus(npc) {
+    if (!this.questSystem || !npc || !npc.id) return false;
+    return !!this.questSystem.npcMark(npc.id, { act: this.act });
+  }
+
   _tickNpcLife() {
     if (this.dialogueActive || !this._pois) return;
     const seg = this.timeSystem?.current;
     // 深夜/午休在岗少,走动更少
     if (seg && seg.population < 0.3 && Phaser.Math.RND.frac() > 0.3) return;
-    // 候选池：核心 NPC（有 agent 的）+ 背景同事
+    // 候选池：核心 NPC（有 agent 的，排除当前任务引导目标）+ 背景同事
     const allMovers = [
-      ...(this.npcs || []).filter(n => n.agent && n.spr?.visible),
+      ...(this.npcs || []).filter(n => n.agent && n.spr?.visible && !this._isCurrentQuestFocus(n)),
       ...(this.workers || []).filter(w => w.agent && w.spr?.visible),
     ];
     if (!allMovers.length) return;
@@ -2737,6 +2785,11 @@ export class WorldScene extends Phaser.Scene {
     if (!this.workers) return;
     const keep = Math.round(Phaser.Math.Clamp(ratio, 0, 1) * this.workers.length);
     this.workers.forEach((w, i) => {
+      // 正在当"事件信使"送事件的人豁免于本次时段隐藏（A2 修复）：TA 可能正 goVisit 走向
+      // 玩家(busy)，若被这里 reset()+淡出，goVisit 的 onArrive 永不触发，玩家只能干等
+      // 20s 兜底、信使本人已隐身凭空消失。跳过整条处理，等 _releaseCourier 送达/超时
+      // 释放后，下一次时段切换会正常把它纳入人口调度。
+      if (w === this._eventCourier) return;
       const show = i < keep;
       // 单一可见性数据源：_hiddenByPopulation 标记"当前时段是否被下班隐藏"。
       // _updateFocus 会读这个标记并全程避让被隐藏的人，不会把它们的 alpha 拉回。

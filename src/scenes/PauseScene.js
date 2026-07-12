@@ -95,8 +95,9 @@ export class PauseScene extends Phaser.Scene {
   // ===== 主菜单 =====
   _showMain() {
     this._clear();
-    // 可爱圆角卡（衬在菜单后，包住标题+7个按钮，绝不出框）
-    const cardW = 500, cardH = 470, cx = this.W / 2, cy = 355;
+    // 可爱圆角卡（衬在菜单后，包住标题+8个按钮，绝不出框）
+    // B3 修复：新增"操作说明"入口后按钮数 7→8，卡高/卡心相应下调，否则最后一个按钮会出框。
+    const cardW = 500, cardH = 570, cx = this.W / 2, cy = 375;
     const card = this.add.graphics();
     card.fillStyle(0x1a1a2c, 0.98); card.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 26);
     card.fillStyle(0xffffff, 0.04); card.fillRoundedRect(cx - cardW / 2 + 6, cy - cardH / 2 + 6, cardW - 12, cardH * 0.24, 22);
@@ -114,6 +115,9 @@ export class PauseScene extends Phaser.Scene {
     this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 54;
     this._menuButton(y, '🎒  物品', () => this._showItems()); y += 54;
     this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 54;
+    // B3 修复：首玩引导只弹一次(localStorage 记过就永不再弹)，玩家忘了操作后无处可查。
+    // 暂停菜单是随时可达的入口，加一个纯只读的操作说明，最小改动、最自然的位置。
+    this._menuButton(y, '❔  操作说明', () => this._showControls()); y += 54;
     this._menuButton(y, '⚙  设置', () => this._showSettings()); y += 54;
     this._menuButton(y, '🚪  返回职业大厅', () => {
       this._confirm('返回职业大厅？当前进度已自动存档。', () => {
@@ -126,6 +130,37 @@ export class PauseScene extends Phaser.Scene {
     this.panel.add(this.add.text(this.W / 2, this.H - 24, 'ESC 继续游戏', {
       fontSize: '12px', color: '#5a5a7a',
     }).setOrigin(0.5));
+  }
+
+  // ===== 操作说明（B3：忘了怎么玩时随时可查）=====
+  _showControls() {
+    this._clear(); this.inSub = true;
+    this._title('操作说明'); this._backButton();
+
+    const rows = [
+      ['WASD / 方向键', '移动'],
+      ['Shift（按住）', '冲刺'],
+      ['E', '交互（对话 / 坐下 / 使用物品）'],
+      ['Tab', '展开 / 收起状态面板'],
+      ['T', '倾听内心（进入心象世界）'],
+      ['ESC', '暂停菜单 / 返回上一步'],
+    ];
+    const cx = this.W / 2, startY = 150, rowH = 40, labelX = cx - 140, valueX = cx - 20;
+    rows.forEach(([key, desc], i) => {
+      const y = startY + i * rowH;
+      this.panel.add(this.add.rectangle(cx, y, 460, 32, 0x22223a, 0.9).setStrokeStyle(1, 0x3a3a5a));
+      this.panel.add(this.add.text(labelX, y, key, {
+        fontSize: '15px', color: '#ffd68a', fontStyle: 'bold',
+      }).setOrigin(0, 0.5));
+      this.panel.add(this.add.text(valueX, y, desc, {
+        fontSize: '14px', color: '#e8e8f4',
+      }).setOrigin(0, 0.5));
+    });
+    this.panel.add(this.add.text(cx, startY + rows.length * rowH + 20,
+      '提示：接到任务后，头顶有 ❗/❓ 标记的同事就是下一步该找的人。', {
+        fontSize: '13px', color: '#8b8bb0', align: 'center',
+        wordWrap: { width: 460, useAdvancedWrap: true },
+      }).setOrigin(0.5, 0));
   }
 
   // ===== 从暂停菜单进入心象世界 =====

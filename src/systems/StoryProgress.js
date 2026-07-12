@@ -125,10 +125,18 @@ export function applyProjectMilestone(story, pct, currentAct, opts = {}) {
       toastOnly: true,
     };
   }
+  // pendingAct 记录"凭项目进度赚到的最高目标幕"。用 max 累积:一次 _addProgress 连跨
+  // 两阈值(24→51 连发 milestone25+50)时,pendingAct 取 max(2,3)=3——不被后发的低值覆盖,
+  // 也保住已赚到的最高幕。⚠️ 真正的"绝不跳幕"保护在 tryAdvanceByMilestone:它每次只把
+  // act 推进【一幕】(act+1),没到 pendingAct 就留着下次继续。这样即便一口气冲到 100%
+  // (四个里程碑一次性 emit 完、_hitMilestones 一次性标记后不再触发),也能逐幕 1→2→3→4→5
+  // 全部解锁,既不跳过中间幕、也绝不会卡死。
+  const prevPending = story?.pendingAct;
+  const target = prevPending != null ? Math.max(prevPending, actForPct) : actForPct;
   return {
-    story: { ...story, pendingAct: actForPct },
+    story: { ...story, pendingAct: target },
     unlocked: true,
-    pendingAct: actForPct,
+    pendingAct: target,
     toastOnly: false,
   };
 }
@@ -140,13 +148,17 @@ export function applyProjectMilestone(story, pct, currentAct, opts = {}) {
 export function tryAdvanceByMilestone(story, currentAct, career, deep = true) {
   const act = currentAct != null ? currentAct : (story?.act || 1);
   if (story?.pendingAct != null && story.pendingAct > act) {
-    const newAct = story.pendingAct;
+    // ⚠️ 一次只推进【一幕】(act+1),即使 pendingAct 更高也不直接跳过去——保证每一幕剧情
+    // 都被播到。若 pendingAct 仍 > 新 act(玩家一口气把项目冲到很高档),保留 pendingAct,
+    // 玩家玩完这幕、下次走近老陈时继续推进下一幕,逐幕解锁不跳不卡。
+    const newAct = act + 1;
+    const stillPending = story.pendingAct > newAct ? story.pendingAct : null;
     return {
       story: {
         ...story,
         act: newAct,
         phase: 'ready',
-        pendingAct: null,
+        pendingAct: stillPending,
       },
       act: newAct,
       advanced: true,

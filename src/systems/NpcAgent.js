@@ -39,10 +39,17 @@ export class NpcAgent {
 
   // 拜访：走到目的地后停住等待（不自动返回），由外部调 returnHome() 再回工位。
   // 用于"NPC 跑到玩家面前送事件"——到了先说话，说完再回去。
+  //
+  // ⚠️ 关键(信使一直追玩家):到达后 state 变 'visiting'(busy)。玩家走开后需重走一段
+  // 新路径继续追,此时若卡在 busy 直接 return,追踪链就断了——信使定在旧位置,事件
+  // 只能靠 20s 超时兜底弹出。因此这里【允许从 visiting 态再次发起】(等同重定向),
+  // 只拒绝"去程 walking 中/回程中"这类真正进行中的移动,避免打断补间。
   goVisit(pathTo, onArrive) {
-    if (this.busy) return false;
+    if (this.state !== 'sitting' && this.state !== 'visiting') return false;
     const spr = this.w.spr;
     if (!spr || !pathTo || !pathTo.length) return false;
+    // 重定向前若有残留补间,先停掉,避免两条 tween 抢同一 sprite。
+    if (this._tween) { this._tween.stop(); this._tween = null; }
     this.state = 'walking';
     this._tweenPath(pathTo, () => {
       this.state = 'visiting';

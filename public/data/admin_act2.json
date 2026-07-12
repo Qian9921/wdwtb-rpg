@@ -59,7 +59,7 @@
       ]
     },
     "a2_colleague_in": {
-      "speaker": "老同事",
+      "speaker": "刘姐",
       "text": "刘姐晃过来：哟，还真研究流程图。放宽心，做久了闭着眼都会。",
       "bg": "office_day",
       "effects": {},
@@ -77,7 +77,7 @@
       ]
     },
     "a2_colleague_a": {
-      "speaker": "老同事",
+      "speaker": "刘姐",
       "text": "刘姐笑了笑：能省早省了。这弯路不是给你走的，是给上头看的。",
       "bg": "office_day",
       "effects": {
@@ -287,7 +287,7 @@
       ]
     },
     "a2_colleague_philosophy": {
-      "speaker": "老同事",
+      "speaker": "刘姐",
       "text": "刘姐嗑了颗瓜子：退三遍算少的。诀窍就俩字——别较真。",
       "bg": "office_dusk",
       "effects": {},
@@ -305,7 +305,7 @@
       ]
     },
     "a2_philo_push": {
-      "speaker": "老同事",
+      "speaker": "刘姐",
       "text": "浪费？这不叫浪费，这叫流程。你觉得亏，是因为你还把它当回事。",
       "bg": "office_dusk",
       "effects": {
@@ -320,7 +320,7 @@
       ]
     },
     "a2_philo_accept": {
-      "speaker": "老同事",
+      "speaker": "刘姐",
       "text": "把格式模板存一份，照抄。事还是那些事，你不难受了，就行了。",
       "bg": "office_dusk",
       "effects": {

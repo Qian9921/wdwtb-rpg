@@ -300,8 +300,26 @@ export class WorldScene extends Phaser.Scene {
     } catch (e) {}
     // story.act 是权威幕次
     this.act = this._story.act || this.act;
-    // 进场即存档（合并写，保留未提供字段）
-    this._saveProgressToSlot();
+
+    // ⚠️ 瞬时态集中复位(根因修复)：Phaser 在 config.scene 注册的是【类】,引擎全程只
+    // 实例化一次 WorldScene,scene.start('WorldScene') 在【同一实例】上重跑 init/create。
+    // 凡"在方法里赋值、init 不重置"的字段会【跨天/跨场景残留】。历史 bug:
+    //   • _goingHome 残留 → 第2天点"下班"直接 return,永久困在办公室(P0)
+    //   • _eventCourier 残留 → _maybeTriggerEvent 被挡死,突发事件永久熄火(P1)
+    //   • _pausedNpc 残留 → 上一局暂停的 NPC 引用错乱
+    //   • _familyMsgShown 残留 → 后续幕想推家人消息被静默吞掉
+    // 每天开工都在这里把这些一次性/在途状态清干净。
+    this._goingHome = false;
+    this._eventCourier = null;
+    this._eventUI = null;
+    this._pausedNpc = null;
+    this._familyMsgShown = false;
+
+    // 进场即存档：⚠️ 此刻 stateSystem/questSystem/... 尚未 new(要到 create() 才建),
+    // 若照常写会把 stats/quests/project 等以 null 覆盖刚读出的好档(saveSlot 的
+    // {...prev,...data} 不保护显式 null)。故用 skipNull 模式:只写非空字段,绝不用
+    // null 冲掉已存进度。真正的完整 autosave 在 create() 系统就绪后自然发生。
+    this._saveProgressToSlot(null, { skipNull: true });
   }
 
   preload() {
@@ -1804,6 +1822,11 @@ export class WorldScene extends Phaser.Scene {
         // 同一帧 update() 的 JustDown(escKey) 仍可能读到 true，顺带弹出暂停菜单。
         this._suppressInteractUntil = this.time.now + 250;
         if (this.guideText) this.guideText.setVisible(true);
+        // ⚠️ 交互彻底结束(选"算了"/ESC),让之前被 _pauseNpcForTalk 停下的走动 NPC
+        // 继续做他的事;否则 NPC 的 tween 一直 pause,冻在半路(挡块也停更)。
+        // keepFrozen=true 分支是转交给 _showLine/_openGiftPanel,由它们收尾时 resume,
+        // 这里不能重复 resume。
+        this._resumePausedNpc();
       }
     };
     const onEsc = () => closeMenu(false);
@@ -1852,11 +1875,13 @@ export class WorldScene extends Phaser.Scene {
     if (!giftable.length) {
       this._showThoughtBubble('（背包里没有能送的东西。去售货机买点吧。）', '#9a9ac0');
       if (this.guideText) this.guideText.setVisible(true);
+      this._resumePausedNpc(); // 从"送礼"菜单转交进来但直接退出:让暂停的走动 NPC 继续
       return;
     }
     if (!this.items.canGiftTo(npc.id)) {
       this._showThoughtBubble('（今天已经送过TA东西了。）', '#9a9ac0');
       if (this.guideText) this.guideText.setVisible(true);
+      this._resumePausedNpc();
       return;
     }
     this.dialogueActive = true;
@@ -1868,6 +1893,8 @@ export class WorldScene extends Phaser.Scene {
       if (!keepFrozen) {
         this.dialogueActive = false;
         if (this.guideText) this.guideText.setVisible(true);
+        // 送礼取消/失败:让被暂停的走动 NPC 继续(送礼成功走 keepFrozen=true 转交 _showLine)。
+        this._resumePausedNpc();
       }
     };
     const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
@@ -2185,7 +2212,9 @@ export class WorldScene extends Phaser.Scene {
     this._saveProgressToSlot();
   }
 
-  _saveProgressToSlot(extra) {
+  // extra: 额外合并字段(如下班时 {day}); opts.skipNull: 剔除值为 null 的字段,
+  // 避免"系统尚未创建"时(进场 init)用 null 冲掉存档里已有的好值。
+  _saveProgressToSlot(extra, opts) {
     const slot = this._activeSlot || 1;
     const payload = {
       career: this.career, act: this.act,
@@ -2202,6 +2231,11 @@ export class WorldScene extends Phaser.Scene {
       items: this.items ? this.items.serialize() : null,
       ...extra,
     };
+    if (opts && opts.skipNull) {
+      for (const k of Object.keys(payload)) {
+        if (payload[k] == null) delete payload[k];
+      }
+    }
     return SaveSystem.saveSlot(slot, payload);
   }
 
@@ -3566,7 +3600,14 @@ export class WorldScene extends Phaser.Scene {
           self._showRitual('🌱 你给绿萝浇了水。它好像在灯光下轻轻颤了一下。');
           break;
         case 'write_letter':
-          self._showRitual('✉️ 你写下了给一年后自己的信,封存在抽屉最深处。');
+          // 同一 action 名在不同幕语义相反：act1(含轻量职业入职)是"写信封存"，
+          // act5 是"拆信读"（回收第1幕封存的那封）。按当前剧情数据的 act 区分横幅文案，
+          // 避免"写下并封存"和正文"拆信读"打架。
+          if (eng.currentAct === 5) {
+            self._showRitual('✉️ 你拆开了入职时写给自己的信，一年前的字迹还在。');
+          } else {
+            self._showRitual('✉️ 你写下了给一年后自己的信,封存在抽屉最深处。');
+          }
           break;
         case 'minigame:coding':
         case 'minigame:review':

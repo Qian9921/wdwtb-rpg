@@ -586,11 +586,12 @@ export class TitleScene extends Phaser.Scene {
       { t: '入职之后，才知道适不适合。', c: '#ffd24d', s: '20px' },
       { t: '腾讯云黑客松 2026 · WorkBuddy 出品', c: '#6a6a82' },
     ];
-    const lineH = 30;
-    const startY = H / 2 - (lines.length * lineH) / 2 + 20;
+    const lineH = 26; // 略缩行距,容下更多行且不撞标题
+    // 从面板标题(y = H/2 - 410 + 36)下方留足 56px 开始,避免居中算法把长列表顶到标题上重叠。
+    const startY = H / 2 - 820 / 2 + 36 + 56;
     lines.forEach((line, i) => {
       this._overlay.add(this.add.text(W / 2, startY + i * lineH, line.t, {
-        fontSize: line.s || '17px', color: line.c || '#c8c8dc', fontStyle: line.s ? 'bold' : 'normal',
+        fontSize: line.s || '16px', color: line.c || '#c8c8dc', fontStyle: line.s ? 'bold' : 'normal',
       }).setOrigin(0.5));
     });
   }

@@ -81,6 +81,23 @@
       "icon": "🪟",
       "prompt": "望向窗外",
       "action": "monologue:auto"
+    },
+    {
+      "id": "phone",
+      "pos": [
+        368,
+        432
+      ],
+      "fx": 368,
+      "fy": 400,
+      "icon": "📱",
+      "prompt": "看看手机",
+      "action": "monologue:auto",
+      "effect": {
+        "san": 4,
+        "stress": -2
+      },
+      "cooldown": "daily"
     }
   ]
 }

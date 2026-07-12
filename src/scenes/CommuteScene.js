@@ -4,6 +4,7 @@ import { Juice } from '../systems/JuiceKit.js';
 import { SceneRouter } from '../systems/SceneRouter.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { pickCommuteEvent, applyCommuteChoice, pushRecent } from '../systems/CommuteEvents.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // CommuteScene：晨间通勤——随机情境事件（无 tilemap，纯 UI）。
 // 旧版是"6 条按 day%6 写死循环、永远第二天冒雨"；现改为【随机抽取 + 种子挂钩】:
@@ -36,6 +37,7 @@ export class CommuteScene extends Phaser.Scene {
 
   create() {
     const { width: W, height: H } = this.scale;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     this.cameras.main.setBackgroundColor('#141420');
     this.cameras.main.fadeIn(500, 0, 0, 0);
     AudioSystem.playBgm('title'); // 通勤用温和的 BGM
@@ -44,9 +46,10 @@ export class CommuteScene extends Phaser.Scene {
     this.add.text(W / 2, 80, `第 ${this.day} 天 · 清晨`, {
       fontSize: '26px', color: '#8b8ba0',
     }).setOrigin(0.5);
-    this.add.text(W / 2, 130, '🚇 通勤路上', {
+    const titleText = this.add.text(W / 2, 130, '通勤路上', {
       fontSize: '40px', color: '#dfe3ff', fontStyle: 'bold',
     }).setOrigin(0.5);
+    makeIcon(this, W / 2 - titleText.width / 2 - 30, 130, ICON_KEYS.train, 0xdfe3ff, 40);
 
     this._loadEvent();
   }

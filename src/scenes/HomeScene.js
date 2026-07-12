@@ -7,6 +7,14 @@ import { PhoneMessage } from '../systems/PhoneMessage.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { SceneBackdrop } from '../systems/SceneBackdrop.js';
 import { buildNightMenu, applyActivity, finalizeNight, NIGHT_ACTION_POINTS } from '../systems/NightLife.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
+
+// tag → 图标 key 映射(NightLife 活动定义里的 tag 字段驱动图标选择)
+const TAG_ICON = {
+  study: ICON_KEYS.book, family: ICON_KEYS.phone, game: ICON_KEYS.game,
+  exercise: ICON_KEYS.run, cook: ICON_KEYS.bowl, moon: ICON_KEYS.moon,
+  heart: ICON_KEYS.heart, gift: ICON_KEYS.coin, work: ICON_KEYS.chart,
+};
 
 // HomeScene：夜晚·回家——一天的收尾（经营决策）。
 // 旧版是"无限点四个固定选项刷数值"；现改为【行动点预算】制:每晚只有 N 点,
@@ -32,6 +40,7 @@ export class HomeScene extends Phaser.Scene {
 
   create() {
     const { width: W, height: H } = this.scale;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     this.cameras.main.setBackgroundColor('#0f0f1a');
     this.cameras.main.fadeIn(500, 0, 0, 0);
     AudioSystem.playBgm('mindscape'); // 夜晚用空灵的 BGM
@@ -44,9 +53,10 @@ export class HomeScene extends Phaser.Scene {
     this.add.text(W / 2, 70, `第 ${this.day} 天 · 夜晚`, {
       fontSize: '26px', color: '#8b8ba0',
     }).setOrigin(0.5).setDepth(900);
-    this.add.text(W / 2, 118, '🏠 回到出租屋', {
+    const titleText = this.add.text(W / 2, 118, '回到出租屋', {
       fontSize: '40px', color: '#dfe3ff', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(900);
+    makeIcon(this, W / 2 - titleText.width / 2 - 30, 118, ICON_KEYS.home, 0xdfe3ff, 40).setDepth(900);
 
     // 家人消息系统
     this.familyMessages = new FamilyMessages();
@@ -106,7 +116,19 @@ export class HomeScene extends Phaser.Scene {
       const line = act.available
         ? `${n}. ${act.label}　${effLabel}`
         : `　${act.label}　（${act.reason}）`;
-      const txt = this.add.text(W / 2, by, line, { fontSize: '18px', color: textColor }).setOrigin(0.5);
+      // 按活动 tag 选像素图标(替代旧 emoji),与文字一起作为整体在按钮内居中
+      const iconKey = TAG_ICON[act.tag] || null;
+      const iconSize = 20, iconGap = 8;
+      const txt = this.add.text(0, by, line, { fontSize: '18px', color: textColor }).setOrigin(0, 0.5);
+      const contentW = txt.width + (iconKey ? iconSize + iconGap : 0);
+      const startX = W / 2 - contentW / 2;
+      let icon = null;
+      if (iconKey) {
+        icon = makeIcon(this, startX + iconSize / 2, by, iconKey, canDo ? 0xffd68a : 0x5a5a6a, iconSize);
+        txt.setX(startX + iconSize + iconGap);
+      } else {
+        txt.setX(startX);
+      }
       if (canDo) {
         btn.setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setFillStyle(0x3a3a5a));
@@ -121,6 +143,7 @@ export class HomeScene extends Phaser.Scene {
         idx++;
       }
       this.ui.add(btn); this.ui.add(txt);
+      if (icon) this.ui.add(icon);
       by += rowH;
     });
 
@@ -129,12 +152,17 @@ export class HomeScene extends Phaser.Scene {
     const sleepFill = outOfPoints ? 0x4a3a2a : 0x3a2a4a;
     const sleepBtn = this.add.rectangle(W / 2, sleepY, 420, 54, sleepFill).setStrokeStyle(2.5, 0xd4a353)
       .setInteractive({ useHandCursor: true });
-    const sleepLabel = outOfPoints ? '🌙 今晚就到这，睡吧 · 空格/回车' : '🌙 直接睡觉，迎接新的一天 · 空格/回车';
-    const sleepTxt = this.add.text(W / 2, sleepY, sleepLabel, { fontSize: '20px', color: '#ffd68a' }).setOrigin(0.5);
+    const sleepLabel = outOfPoints ? '今晚就到这，睡吧 · 空格/回车' : '直接睡觉，迎接新的一天 · 空格/回车';
+    const sleepIconSize = 22, sleepIconGap = 8;
+    const sleepTxt = this.add.text(0, sleepY, sleepLabel, { fontSize: '20px', color: '#ffd68a' }).setOrigin(0, 0.5);
+    const sleepContentW = sleepTxt.width + sleepIconSize + sleepIconGap;
+    const sleepStartX = W / 2 - sleepContentW / 2;
+    const sleepIcon = makeIcon(this, sleepStartX + sleepIconSize / 2, sleepY, ICON_KEYS.moon, 0xffd68a, sleepIconSize);
+    sleepTxt.setX(sleepStartX + sleepIconSize + sleepIconGap);
     sleepBtn.on('pointerover', () => sleepBtn.setFillStyle(0x5a4a3a));
     sleepBtn.on('pointerout', () => sleepBtn.setFillStyle(sleepFill));
     sleepBtn.on('pointerdown', () => { if (!this.phoneMessage.isShowing()) { AudioSystem.uiClick(); this._sleep(); } });
-    this.ui.add(sleepBtn); this.ui.add(sleepTxt);
+    this.ui.add(sleepBtn); this.ui.add(sleepTxt); this.ui.add(sleepIcon);
 
     const sleepHandler = () => { if (!this.phoneMessage.isShowing()) { AudioSystem.uiClick(); this._sleep(); } };
     this.input.keyboard.on('keydown-SPACE', sleepHandler);

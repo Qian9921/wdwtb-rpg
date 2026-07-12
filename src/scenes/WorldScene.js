@@ -18,7 +18,7 @@ import { DaySystem } from '../systems/DaySystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
 import { NpcAgent } from '../systems/NpcAgent.js';
 import { ProjectSystem } from '../systems/ProjectSystem.js';
-import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcons.js';
+import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON, makeIcon } from '../systems/PixelIcons.js';
 import { Pathfinder } from '../systems/Pathfinder.js';
 import { makeCuteChoice } from '../systems/UI.js';
 import { normalizeAxes, microInsight } from '../systems/PersonalityAxes.js';
@@ -694,15 +694,15 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.text(W / 2, H / 2 - PH / 2 + 30, '新手引导', { fontSize: '18px', color: '#c8b070' }).setOrigin(0.5));
     // 6 步：把核心循环讲细致、易懂
     const steps = [
-      { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一次「职业试穿」——你会真实过几天程序员的班，看看适不适合、喜不喜欢。\n移动 WASD　·　交互 E　·　冲刺 Shift　·　菜单 ESC' },
-      { icon: '🧭', title: '第一步：找导师报到', text: '头顶有 ❗ 的是你的导师「老陈」。走近他、按 E，他会给你派第一份活。\n左上角「▸ 下一步」和地上的金色箭头随时指路，不会迷路。' },
-      { icon: '🤝', title: '第二步：找同事对接', text: '接到任务后，常要先找具名同事（头顶有对话标记）对接需求——走近按 E 聊两句。\n对接完，任务会提示你回工位干活。' },
-      { icon: '💻', title: '第三步：回工位开工', text: '走到你自己的工位椅子，按 E 坐下 → 再按 E「开始工作」。\n会进入真实的写代码 / 代码评审 / 测试小游戏，做得越好，项目进度涨得越快。' },
-      { icon: '📊', title: '第四步：看状态、推进项目', text: '按 Tab 展开状态面板，每项都有说明（健康/精力/压力/热情…）。\n右上角是项目进度——推到 25 / 50 / 75 / 100% 会解锁新的剧情章节。' },
-      { icon: '🌙', title: '第五步：下班，探索自己', text: '右上「下班回家」进下一天；左下「手机」联系家人、「心象世界」调整心态。\n通关会生成一份【职业人格报告】，指引你的方向。试完这条线，还可以换个职业对照。' },
+      { iconKey: ICON_KEYS.game, title: '欢迎来到你的第一天', text: '这是一次「职业试穿」——你会真实过几天程序员的班，看看适不适合、喜不喜欢。\n移动 WASD　·　交互 E　·　冲刺 Shift　·　菜单 ESC' },
+      { iconKey: ICON_KEYS.compass, title: '第一步：找导师报到', text: '头顶有 ❗ 的是你的导师「老陈」。走近他、按 E，他会给你派第一份活。\n左上角「▸ 下一步」和地上的金色箭头随时指路，不会迷路。' },
+      { iconKey: ICON_KEYS.hands, title: '第二步：找同事对接', text: '接到任务后，常要先找具名同事（头顶有对话标记）对接需求——走近按 E 聊两句。\n对接完，任务会提示你回工位干活。' },
+      { iconKey: ICON_KEYS.list, title: '第三步：回工位开工', text: '走到你自己的工位椅子，按 E 坐下 → 再按 E「开始工作」。\n会进入真实的写代码 / 代码评审 / 测试小游戏，做得越好，项目进度涨得越快。' },
+      { iconKey: ICON_KEYS.chart, title: '第四步：看状态、推进项目', text: '按 Tab 展开状态面板，每项都有说明（健康/精力/压力/热情…）。\n右上角是项目进度——推到 25 / 50 / 75 / 100% 会解锁新的剧情章节。' },
+      { iconKey: ICON_KEYS.moon, title: '第五步：下班，探索自己', text: '右上「下班回家」进下一天；左下「手机」联系家人、「心象世界」调整心态。\n通关会生成一份【职业人格报告】，指引你的方向。试完这条线，还可以换个职业对照。' },
     ];
     let idx = 0;
-    const iconT = this.add.text(W / 2, H / 2 - 150, '', { fontSize: '60px' }).setOrigin(0.5);
+    const iconT = makeIcon(this, W / 2, H / 2 - 150, steps[0].iconKey, 0xffd68a, 60);
     const titleT = this.add.text(W / 2, H / 2 - 74, '', { fontSize: '30px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
     const bodyT = this.add.text(W / 2, H / 2 + 12, '', { fontSize: '21px', color: '#e8e8f4', align: 'center', lineSpacing: 12, wordWrap: { width: 740, useAdvancedWrap: true } }).setOrigin(0.5);
     const dotsT = this.add.text(W / 2, H / 2 + PH / 2 - 84, '', { fontSize: '18px', color: '#5a5a7a' }).setOrigin(0.5);
@@ -715,7 +715,7 @@ export class WorldScene extends Phaser.Scene {
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
     const render = () => {
       const s = steps[idx];
-      iconT.setText(s.icon); titleT.setText(s.title); bodyT.setText(s.text);
+      iconT.setTexture(s.iconKey); titleT.setText(s.title); bodyT.setText(s.text);
       dotsT.setText(steps.map((_, i) => i === idx ? '●' : '○').join(' '));
       hintT.setText(idx < steps.length - 1 ? '点击任意处继续 →' : '开始体验 ✓');
       backT.setText(idx > 0 ? '← 上一步' : '');

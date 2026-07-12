@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { Juice } from '../systems/JuiceKit.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // SalesTalkScene：销售工作小游戏「对话应对」——可爱、人人能玩、有销售味,不考专业知识。
 // 客户抛来一句话(气泡:"太贵了"/"再考虑考虑"/"别家更便宜"),给 3 个可爱的应对选项
@@ -29,9 +30,9 @@ export class SalesTalkScene extends Phaser.Scene {
 
     // 应对风格元数据:名字 / 可爱图标 / 主题色
     this._TYPES = {
-      empathy: { name: '共情', icon: '💗', color: 0xff8fb3 },
-      deal:    { name: '让利', icon: '💰', color: 0xf5b942 },
-      push:    { name: '强推', icon: '🔥', color: 0xff6f5e },
+      empathy: { name: '共情', iconKey: ICON_KEYS.heart, color: 0xff8fb3 },
+      deal:    { name: '让利', iconKey: ICON_KEYS.coin, color: 0xf5b942 },
+      push:    { name: '强推', iconKey: ICON_KEYS.fire, color: 0xff6f5e },
     };
 
     // 客户异议库。每条客户一句话 + 3 种应对(q=好/一般/糟)。
@@ -110,6 +111,7 @@ export class SalesTalkScene extends Phaser.Scene {
 
   create() {
     const W = 960, H = 540;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     this.cameras.main.setBackgroundColor('#ffe9d6'); // 暖橙色柔和店面感
     this.cameras.main.setZoom(2);
     this.cameras.main.centerOn(480, 270);
@@ -289,8 +291,10 @@ export class SalesTalkScene extends Phaser.Scene {
     badge.add(bg2);
     badge.add(this.add.text(0, 0, `${index + 1}`, { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5));
     cont.add(badge);
-    // 风格标签
-    cont.add(this.add.text(-W / 2 + 44, -H / 2 + 17, `${meta.icon} ${meta.name}`, {
+    // 风格标签：图标色 = 卡片描边色(meta.color)，与卡片边框呼应
+    const styleIcon = makeIcon(this, -W / 2 + 44 + 9, -H / 2 + 17, meta.iconKey, meta.color, 18);
+    cont.add(styleIcon);
+    cont.add(this.add.text(-W / 2 + 44 + 22, -H / 2 + 17, meta.name, {
       fontSize: '14px', color: '#7a4a3a', fontStyle: 'bold',
     }).setOrigin(0, 0.5));
     // 应对台词

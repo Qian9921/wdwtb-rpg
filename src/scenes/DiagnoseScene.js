@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { Juice } from '../systems/JuiceKit.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // DiagnoseScene：医生工作小游戏「看诊选择」——可爱、人人能玩、有医护味,不考专业医学知识。
 // 病人来了(可爱头像 + 一句主诉:"我头疼三天了"),给四个处置选项:问诊 / 检查 / 安抚 / 开药。
@@ -16,10 +17,10 @@ import { Juice } from '../systems/JuiceKit.js';
 
 // 四个处置动作(数字键 1-4 / 点击)
 const ACTIONS = [
-  { key: '问诊', emoji: '💬', label: '认真问诊', tone: 0x8ecae6 },
-  { key: '检查', emoji: '🔍', label: '仔细检查', tone: 0xa0d8b3 },
-  { key: '安抚', emoji: '🤗', label: '温柔安抚', tone: 0xffb3c6 },
-  { key: '开药', emoji: '💊', label: '对症处置', tone: 0xffd6a5 },
+  { key: '问诊', iconKey: ICON_KEYS.chat, label: '认真问诊', tone: 0x8ecae6 },
+  { key: '检查', iconKey: ICON_KEYS.lens, label: '仔细检查', tone: 0xa0d8b3 },
+  { key: '安抚', iconKey: ICON_KEYS.hug, label: '温柔安抚', tone: 0xffb3c6 },
+  { key: '开药', iconKey: ICON_KEYS.pill, label: '对症处置', tone: 0xffd6a5 },
 ];
 
 // 病人:主诉 + 肢体语言提示(暗示"当下最该做的一步",靠常识与同理心去读)+ 理想处置顺序。
@@ -74,6 +75,7 @@ export class DiagnoseScene extends Phaser.Scene {
 
   create() {
     const W = 960, H = 540;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     this.cameras.main.setBackgroundColor('#eaf4f4');
     this.cameras.main.setZoom(2);
     this.cameras.main.centerOn(480, 270);
@@ -125,9 +127,9 @@ export class DiagnoseScene extends Phaser.Scene {
     // 数字徽章
     g.fillStyle(action.tone, 1); g.fillCircle(-w / 2 + 26, 0, 15);
     const badge = this.add.text(-w / 2 + 26, 0, String(num), { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
-    const emoji = this.add.text(-w / 2 + 62, 0, action.emoji, { fontSize: '24px' }).setOrigin(0.5);
+    const icon = makeIcon(this, -w / 2 + 62, 0, action.iconKey, action.tone, 24);
     const label = this.add.text(-w / 2 + 88, 0, action.label, { fontSize: '17px', color: '#2b4a4a', fontStyle: 'bold' }).setOrigin(0, 0.5);
-    const cont = this.add.container(cx, cy, [g, badge, emoji, label]).setDepth(10);
+    const cont = this.add.container(cx, cy, [g, badge, icon, label]).setDepth(10);
     cont.setSize(w, h).setInteractive({ useHandCursor: true });
     cont.on('pointerover', () => { if (!this._locked) this.tweens.add({ targets: cont, scale: 1.06, duration: 120 }); });
     cont.on('pointerout', () => this.tweens.add({ targets: cont, scale: 1, duration: 120 }));

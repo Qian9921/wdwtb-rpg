@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { buildPauseInsight, CAREER_NAMES as FIT_NAMES } from '../systems/CareerFit.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // PauseScene — 暂停菜单覆盖场景（完整像素 RPG 标配）
 // 由 WorldScene 通过 scene.launch('PauseScene', { origin, stateSystem, career, act }) 唤起，
@@ -37,6 +38,7 @@ export class PauseScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.W = W; this.H = H;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     AudioSystem.duck(true); // 菜单打开压低 BGM
     // 半透明遮罩（吃掉底层点击）
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a12, 0.82).setInteractive();
@@ -62,10 +64,21 @@ export class PauseScene extends Phaser.Scene {
     }).setOrigin(0.5));
   }
 
-  _menuButton(y, label, cb, w = 340, color = 0x2a2a44) {
+  // iconKey：像素图标 ICON_KEYS.xxx（替代 emoji），传了就画在文字左侧、随文字一起水平居中。
+  _menuButton(y, label, cb, w = 340, color = 0x2a2a44, iconKey = null) {
     // 可爱圆角按钮：先量文字再定框（绝不挡字），圆角+金边+hover 弹性
-    const txt = this.add.text(this.W / 2, y, label, { fontSize: '20px', color: '#eef1ff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2);
-    const bw = Math.max(w, Math.ceil(txt.width) + 56);
+    const iconSize = 20, iconGap = 8;
+    const txt = this.add.text(0, y, label, { fontSize: '20px', color: '#eef1ff', fontStyle: 'bold' }).setOrigin(0, 0.5).setDepth(2);
+    const contentW = txt.width + (iconKey ? iconSize + iconGap : 0);
+    const startX = this.W / 2 - contentW / 2;
+    let icon = null;
+    if (iconKey) {
+      icon = makeIcon(this, startX + iconSize / 2, y, iconKey, 0xeef1ff, iconSize).setDepth(2);
+      txt.setX(startX + iconSize + iconGap);
+    } else {
+      txt.setX(startX);
+    }
+    const bw = Math.max(w, Math.ceil(contentW) + 56);
     const bh = Math.ceil(txt.height) + 24;
     const r = Math.min(16, bh / 2);
     const g = this.add.graphics();
@@ -76,11 +89,13 @@ export class PauseScene extends Phaser.Scene {
     };
     draw(false);
     const zone = this.add.zone(this.W / 2, y, bw, bh).setInteractive({ useHandCursor: true });
-    zone.on('pointerover', () => { draw(true); this.tweens.add({ targets: txt, scale: 1.04, duration: 100, ease: 'Back.out' }); });
-    zone.on('pointerout', () => { draw(false); this.tweens.add({ targets: txt, scale: 1, duration: 100 }); });
+    const hoverTargets = icon ? [txt, icon] : [txt];
+    zone.on('pointerover', () => { draw(true); this.tweens.add({ targets: hoverTargets, scale: 1.04, duration: 100, ease: 'Back.out' }); });
+    zone.on('pointerout', () => { draw(false); this.tweens.add({ targets: hoverTargets, scale: 1, duration: 100 }); });
     zone.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
     this.panel.add(g); this.panel.add(txt); this.panel.add(zone);
-    return { label: txt, g, zone };
+    if (icon) this.panel.add(icon);
+    return { label: txt, icon, g, zone };
   }
 
   _backButton() {
@@ -111,21 +126,21 @@ export class PauseScene extends Phaser.Scene {
 
     let y = 216;
     this._menuButton(y, '▶  继续游戏', () => this._close()); y += 54;
-    this._menuButton(y, '🌌  心象世界', () => this._enterMindscape()); y += 54;
-    this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 54;
-    this._menuButton(y, '🎒  物品', () => this._showItems()); y += 54;
-    this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 54;
+    this._menuButton(y, '心象世界', () => this._enterMindscape(), 340, 0x2a2a44, ICON_KEYS.nebula); y += 54;
+    this._menuButton(y, '角色状态', () => this._showStatus(), 340, 0x2a2a44, ICON_KEYS.person); y += 54;
+    this._menuButton(y, '物品', () => this._showItems(), 340, 0x2a2a44, ICON_KEYS.bag); y += 54;
+    this._menuButton(y, '任务日志', () => this._showQuests(), 340, 0x2a2a44, ICON_KEYS.list); y += 54;
     // B3 修复：首玩引导只弹一次(localStorage 记过就永不再弹)，玩家忘了操作后无处可查。
     // 暂停菜单是随时可达的入口，加一个纯只读的操作说明，最小改动、最自然的位置。
-    this._menuButton(y, '❔  操作说明', () => this._showControls()); y += 54;
+    this._menuButton(y, '操作说明', () => this._showControls(), 340, 0x2a2a44, ICON_KEYS.help); y += 54;
     this._menuButton(y, '⚙  设置', () => this._showSettings()); y += 54;
-    this._menuButton(y, '🚪  返回职业大厅', () => {
+    this._menuButton(y, '返回职业大厅', () => {
       this._confirm('返回职业大厅？当前进度已自动存档。', () => {
         this.scene.stop(this.origin);
         this.scene.stop();
         this.scene.start('HubScene');
       });
-    }, 320, 0x3a3222); y += 54;
+    }, 320, 0x3a3222, ICON_KEYS.door); y += 54;
 
     this.panel.add(this.add.text(this.W / 2, this.H - 24, 'ESC 继续游戏', {
       fontSize: '12px', color: '#5a5a7a',

@@ -16,7 +16,7 @@ ok('每晚行动点预算=2', NIGHT_ACTION_POINTS === 2);
 {
   const full = { health: 80, energy: 80, san: 60, stress: 30, money: 50, skill: 40, performance: 40, passion: 50 };
   const menu = buildNightMenu(full);
-  ok('常驻活动数量=7', menu.activities.filter(a => NIGHT_ACTIVITIES.some(n => n.id === a.id)).length === NIGHT_ACTIVITIES.length);
+  ok(`常驻活动全部出现(${NIGHT_ACTIVITIES.length}个)`, menu.activities.filter(a => NIGHT_ACTIVITIES.some(n => n.id === a.id)).length === NIGHT_ACTIVITIES.length);
   ok('满状态下无特殊活动解锁', menu.activities.length === NIGHT_ACTIVITIES.length, `实际 ${menu.activities.length}`);
   ok('满状态下 study 可用', menu.activities.find(a => a.id === 'study').available === true);
   ok('满状态下 exercise 可用', menu.activities.find(a => a.id === 'exercise').available === true);
@@ -223,6 +223,22 @@ ok('每晚行动点预算=2', NIGHT_ACTION_POINTS === 2);
   const stats = { energy: 40, stress: 30 };
   finalizeNight(stats, ['burnout']);
   ok('finalizeNight 不改动原 stats', stats.energy === 40 && stats.stress === 30);
+}
+
+// 💰 金钱出口活动:gig换钱(拿命换) / remit寄钱 / course报课(大额→成长)
+{
+  const gig = NIGHT_ACTIVITIES.find(a => a.id === 'gig');
+  ok('gig私单存在且换钱(money+,health/passion-)', gig && gig.effect.money > 0 && gig.effect.health < 0 && gig.effect.passion < 0);
+  ok('gig精力不足被gate拦', gig.gate({ energy: 20 }).ok === false);
+  const remit = NIGHT_ACTIVITIES.find(a => a.id === 'remit');
+  ok('remit寄钱存在(money-,san+,family)', remit && remit.effect.money < 0 && remit.effect.san > 0 && remit.family === true);
+  ok('remit钱不够被gate拦', remit.gate({ money: 100 }).ok === false && remit.gate({ money: 250 }).ok === true);
+  const course = SPECIAL_ACTIVITIES.find(a => a.id === 'course');
+  ok('course报课存在(大额-400换skill)', course && course.effect.money === -400 && course.effect.skill > 0);
+  ok('course需攒够400才解锁', course.unlock({ money: 300 }) === false && course.unlock({ money: 400 }) === true);
+  // 报课在富裕状态下才出现在菜单
+  const richMenu = buildNightMenu({ money: 500, energy: 80, health: 80, san: 60, stress: 30, skill: 40, performance: 40, passion: 50 });
+  ok('富裕(money500)时course进菜单', richMenu.activities.some(a => a.id === 'course'));
 }
 
 console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);

@@ -67,6 +67,24 @@ export const NIGHT_ACTIVITIES = [
     gate: () => ({ ok: true }),
     seed: 'rested',
   },
+  {
+    // 💰 私单换钱(接主旨的关键):明确"用 health/passion 换 money"的显性对冲。
+    // 反复接私单的玩家 money 高但 passion/health 塌,正好喂 CareerFit 的"拿命换钱"信号。
+    // 与 overtime(用 stress/health 换 performance)形成"换钱 vs 换绩效"两条透支路径。
+    id: 'gig', tag: 'work', label: '接个私单赚外快', cost: 1,
+    desc: '接私活能多挣一笔，但是拿身体和热情换的',
+    effect: { money: 150, health: -6, passion: -5, stress: 8, energy: -12 },
+    gate: (s) => s.energy >= 25 ? { ok: true } : { ok: false, reason: '太累了，接了也做砸' },
+    seed: 'burnout',
+  },
+  {
+    // 给家里寄钱:制造"钱少但心安"的取舍。挂 family 触发家人消息。
+    id: 'remit', tag: 'family', label: '给家里寄点钱', cost: 1,
+    desc: '往家里打一笔，爸妈嘴上说不用，心里高兴',
+    effect: { money: -200, san: 8, passion: 4, stress: -4 },
+    gate: (s) => (s.money || 0) >= 200 ? { ok: true } : { ok: false, reason: '这个月手头紧，下次吧' },
+    seed: 'warm', family: true,
+  },
 ];
 
 // 特殊活动：仅在特定白天状态下才【解锁出现】(不是常驻),制造"今晚状态特殊"的感觉。
@@ -88,6 +106,16 @@ export const SPECIAL_ACTIVITIES = [
     unlock: (s) => (s.money || 0) >= 80,
     gate: () => ({ ok: true }),
     seed: 'treated',
+  },
+  {
+    // 📚 报课充电:大额金钱→成长出口。给钱一个"投资自己"的去处,把技能成长从夜晚 study
+    // 独占里分流,让"月光 vs 存钱充电"成为真实选择(需攒够 400,配合房租才有取舍)。
+    id: 'course', tag: 'study', label: '报个技能班充电', cost: 1,
+    desc: '花笔钱系统学一学，值不值看你怎么想',
+    effect: { money: -400, skill: 8, passion: 5, energy: -8 },
+    unlock: (s) => (s.money || 0) >= 400,
+    gate: () => ({ ok: true }),
+    seed: 'studied',
   },
 ];
 

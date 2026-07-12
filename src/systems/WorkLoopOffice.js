@@ -440,6 +440,7 @@ export function buildDailyReportRows({
   statsNow = {},
   statsStart = {},
   salary = null,
+  rent = null,
 } = {}) {
   const progGain = Math.max(0, Math.round((Number(progressNow) - Number(dayStartProgress || 0)) * 10) / 10);
   const rows = [
@@ -449,6 +450,10 @@ export function buildDailyReportRows({
   ];
   if (salary != null) {
     rows.push({ key: 'salary', label: '💰 今日工资', value: `+${Number(salary) || 0}`, color: '#f0c060' });
+  }
+  // 房租·生活费(每幕末结算一次):让工资不再是纯盈余,制造现金流压力,逼出"为钱多干 vs 保身心"取舍
+  if (rent != null && Number(rent) > 0) {
+    rows.push({ key: 'rent', label: '🏠 房租·生活费', value: `-${Number(rent)}`, color: '#ff7a7a' });
   }
   if (daysLeft != null) {
     rows.push({

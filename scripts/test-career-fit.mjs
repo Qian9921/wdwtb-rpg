@@ -168,5 +168,19 @@ ok('pause.relationSummary', pauseRel.relationSummary && pauseRel.relationSummary
 const pauseNoRel = buildPauseInsight({ career: 'lawyer', act: 1 });
 ok('pause 无关系不崩', pauseNoRel.body.length > 4 && pauseNoRel.relationSummary == null);
 
+// 💰 金钱信号(死字段复活):money 参与"适不适合"判断,能说出职业取舍
+{
+  const richTired = bodySignalsFromStats({ money: 900, passion: 30, health: 80, stress: 40 });
+  ok('钱多但热情低→"拿热情/健康换钱"信号', richTired.signals.some(s => s.includes('划不划算') || s.includes('换来')));
+  const brokeStress = bodySignalsFromStats({ money: -50, passion: 50, health: 60 });
+  ok('入不敷出→"钱变成压力源"信号', brokeStress.signals.some(s => s.includes('入不敷出') || s.includes('压力源')));
+  const poorButLove = bodySignalsFromStats({ money: 120, passion: 75, stress: 40, health: 70 });
+  ok('钱少但热情高→"喜欢更纯粹"信号', poorButLove.signals.some(s => s.includes('更纯粹') || s.includes('没被它绑')));
+  const balanced = bodySignalsFromStats({ money: 600, passion: 65, stress: 40, health: 70 });
+  ok('钱够热情在→"没逼你二选一"信号', balanced.signals.some(s => s.includes('二选一') || s.includes('钱够花')));
+  const midMoney = bodySignalsFromStats({ money: 300, passion: 50, stress: 40, health: 70 });
+  ok('中性钱不误触发金钱信号', !midMoney.signals.some(s => s.includes('划不划算') || s.includes('入不敷出') || s.includes('更纯粹')));
+}
+
 console.log(`\n${fail === 0 ? '✅ ALL PASSED' : '❌ ' + fail + ' FAILED'} (${pass} passed, ${fail} failed)\n`);
 process.exit(fail === 0 ? 0 : 1);

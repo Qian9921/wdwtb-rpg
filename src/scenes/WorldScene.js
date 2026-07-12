@@ -3579,6 +3579,18 @@ export class WorldScene extends Phaser.Scene {
     // 今日工资 = 底薪 + 今日绩效，进钱包（在 _doGoHome 存档前落账）
     const salary = dailySalary(this.projectSystem.todayPerformance);
     this.stateSystem.change('money', salary);
+    // 房租·生活费:每幕最后一天下班时扣一笔(act1-4 各 -300,共 -1200;act5 终局不扣)。
+    // 让工资不再纯盈余——摸鱼者现金流吃紧,逼出"为钱多干活 vs 保住身心"的取舍(接主旨)。
+    let rent = null;
+    if (this.daySystem) {
+      const actNow = this._story ? (this._story.act || this.act) : this.act;
+      const needDays = (this.daySystem.actDayMap && this.daySystem.actDayMap[actNow]) || 999;
+      const isLastDayOfAct = (this.daySystem.dayInAct || 1) >= needDays;
+      if (isLastDayOfAct && actNow < 5) {
+        rent = 300;
+        this.stateSystem.change('money', -rent);
+      }
+    }
     const nowStats = this.stateSystem.getAll();
     const start = this._dayStartStats || nowStats;
     const report = buildDailyReportRows({
@@ -3591,6 +3603,7 @@ export class WorldScene extends Phaser.Scene {
       statsNow: nowStats,
       statsStart: start,
       salary,
+      rent,
     });
     let ry = py - 150;
     for (const row of report.rows) {

@@ -14,7 +14,10 @@ export class StateSystem extends Phaser.Events.EventEmitter {
       stress: 20,
       skill: 10,
       performance: 50,
-      money: 0,
+      // 起始金 100(小启动金):修早期"假性贫穷"——首笔工资要等第1天下班才到账,而做饭
+      // (money≥20)/犒劳自己(≥80)/售货机都 money 门控,开局会连撞"钱不够"的挫败错觉。
+      // 100 让第一晚就有得选,又不破坏后续稀缺(18天总进账~2600,房租-1200)。
+      money: 100,
       passion: 70,
     };
 

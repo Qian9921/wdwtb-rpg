@@ -170,6 +170,16 @@ export function bodySignalsFromStats(stats = {}) {
   if (s.passion <= 35) signals.push('热情明显冷却，要问是职业不对还是阶段太难');
   if (s.performance >= 70 && s.san <= 40) signals.push('成绩好看但心态在掉——「适合」不等于「无代价」');
   if (s.skill >= 60 && s.passion >= 55) signals.push('越干越会，且还想继续——成长感与喜欢叠在一起');
+  // 💰 金钱信号(死字段复活):让"钱"终于参与"适不适合"的判断,能说出"钱多但累/钱少但喜欢"
+  // 这类职业取舍——这正是主旨要的。纯 signals 追加,不动评分权重,零回归风险。
+  if (s.money >= 800 && (s.passion <= 40 || s.health <= 40))
+    signals.push('账户有余钱，但这行的钱是拿热情/健康换来的——问自己这笔交易划不划算');
+  if (s.money < 0)
+    signals.push('入不敷出，钱正在变成新的压力源——这行此刻的付出与回报没对上');
+  if (s.money >= 500 && s.passion >= 60)
+    signals.push('钱够花、热情也还在——这条线暂时没逼你在「钱」和「喜欢」之间二选一');
+  if (s.money < 200 && s.passion >= 65)
+    signals.push('钱不算多，但你没被它绑住，这条线的「喜欢」更纯粹');
   if (signals.length === 0) signals.push('状态整体平稳，适合再对比另一条职业线的体感差');
   return { stats: s, signals };
 }

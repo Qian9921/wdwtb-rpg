@@ -1288,14 +1288,15 @@ export class WorldScene extends Phaser.Scene {
   _startNpcLife() {
     // 目的地 POI：选走廊/茶水间等【开阔无家具区】的中心——NPC 不会贴着桌角走。
     // 坐标都是验证过的可走格中心，远离桌椅碰撞体。
+    // face: 到达后面向的方向(NPC 做那件事时真的面对设施)。'up'=面向上方墙/设施等。
     const raw = [
-      { id: 'coffee',  label: '去茶水间',     x: 400, y: 304, dwell: 3600 },
-      { id: 'water',   label: '去接杯水',     x: 464, y: 432, dwell: 2200 },
-      { id: 'meeting', label: '去会议室',     x: 368, y: 624, dwell: 6000 },
-      { id: 'board',   label: '去看白板',     x: 560, y: 480, dwell: 2600 },
-      { id: 'printer', label: '去打印文件',   x: 912, y: 800, dwell: 2400 },
-      { id: 'stroll',  label: '起来走两步',   x: 720, y: 432, dwell: 2600 },
-      { id: 'chat',    label: '找同事聊两句', x: 1056, y: 656, dwell: 3000 },
+      { id: 'coffee',  label: '去茶水间',     x: 400, y: 304, dwell: 3600, face: 'up' },   // 咖啡机在上方墙边
+      { id: 'water',   label: '去接杯水',     x: 464, y: 432, dwell: 2200, face: 'left' },  // 饮水机在左
+      { id: 'meeting', label: '去会议室',     x: 368, y: 624, dwell: 6000, face: 'down' },
+      { id: 'board',   label: '去看白板',     x: 560, y: 480, dwell: 2600, face: 'up' },    // 白板在墙上
+      { id: 'printer', label: '去打印文件',   x: 912, y: 800, dwell: 2400, face: 'up' },    // 打印机靠墙
+      { id: 'stroll',  label: '起来走两步',   x: 720, y: 432, dwell: 2600 },                // 溜达无需固定朝向
+      { id: 'chat',    label: '找同事聊两句', x: 1056, y: 656, dwell: 3000, face: 'left' },  // 面向邻座同事
     ];
     this._pois = [];
     for (const poi of raw) {
@@ -1349,7 +1350,7 @@ export class WorldScene extends Phaser.Scene {
       if (!pathBack || pathBack.length < 1) continue;
       // 让回程终点精确回到座位
       pathBack[pathBack.length - 1] = { x: seat.x, y: seat.y };
-      if (w.agent.goTrip(pathTo, pathBack, poi.dwell)) {
+      if (w.agent.goTrip(pathTo, pathBack, poi.dwell, poi.face || null)) {
         if (w._mood) { w._mood.setText(poi.label); this._positionMood(w); } // 泡泡显示"去干嘛"
       }
       return;
@@ -3285,7 +3286,7 @@ export class WorldScene extends Phaser.Scene {
         if (pathTo && pathTo.length) {
           this._eventCourier = courierNpc;
           if (courierNpc._mood) { courierNpc._mood.setText('有事找你'); this._positionMood(courierNpc); }
-          courierNpc.agent.goVisit(pathTo, () => this._courierArrive(courierNpc, ev)); // 到达后追踪玩家
+          courierNpc.agent.goVisit(pathTo, () => this._courierArrive(courierNpc, ev), { x: this.player.x, y: this.player.y }); // 到达追踪+面向玩家
           this.time.delayedCall(20000, () => {
             if (this._eventCourier === courierNpc && !this._eventUI) {
               this._releaseCourier(); this._showOfficeEvent(ev, courierNpc);
@@ -3313,7 +3314,7 @@ export class WorldScene extends Phaser.Scene {
     if (!pathTo || !pathTo.length) return false;
     this._eventCourier = w;
     if (w._mood) { w._mood.setText('有事找你'); this._positionMood(w); }
-    w.agent.goVisit(pathTo, () => this._courierArrive(w, ev)); // 到达后追踪玩家
+    w.agent.goVisit(pathTo, () => this._courierArrive(w, ev), { x: this.player.x, y: this.player.y }); // 到达追踪+面向玩家
     this.time.delayedCall(20000, () => {
       if (this._eventCourier === w && !this._eventUI) {
         this._releaseCourier(); this._showOfficeEvent(ev);
@@ -3329,12 +3330,25 @@ export class WorldScene extends Phaser.Scene {
    * @param ev 事件
    * @param hops 已追踪次数(防死循环上限)
    */
+  // 信使面向玩家(来找我就面对我)
+  _faceCourierToPlayer(courier) {
+    if (courier && courier.agent && this.player) courier.agent.faceTo(this.player.x, this.player.y);
+  }
+
   _courierArrive(courier, ev, hops = 0) {
     // 已被别的流程接管/事件已弹/信使被释放 → 不再追
     if (this._eventCourier !== courier || this._eventUI || !this.player || !courier.spr) return;
     const dist = Phaser.Math.Distance.Between(courier.spr.x, courier.spr.y, this.player.x, this.player.y);
     // 追到身边(≤90px)或追太多次(6次兜底,防玩家一直跑) → 弹事件
     if (dist <= 90 || hops >= 6) {
+      // ⚠️ 玩家正在对话/交互中(和别人聊天/开面板)→ 信使【站在旁边、面向玩家等待】,
+      // 不打断当前交互(用户反馈:紧急事件不该在我和别人对话时触发)。轮询等交互结束再弹。
+      if (this.dialogueActive || this._workBoardUI || this._shopUI || this._eventUI) {
+        this._faceCourierToPlayer(courier); // 信使面向玩家等你
+        if (courier._mood) { courier._mood.setText('等你一下…'); this._positionMood(courier); }
+        this.time.delayedCall(600, () => this._courierArrive(courier, ev, hops)); // hops 不加,原地等
+        return;
+      }
       this._showOfficeEvent(ev, courier);
       return;
     }
@@ -3346,7 +3360,7 @@ export class WorldScene extends Phaser.Scene {
     const pathTo = this._findPath(courier.spr.x, courier.spr.y, snap.x, snap.y);
     if (!pathTo || !pathTo.length) { this._showOfficeEvent(ev, courier); return; }
     if (courier._mood) { courier._mood.setText('等等，找你！'); this._positionMood(courier); }
-    courier.agent.goVisit(pathTo, () => this._courierArrive(courier, ev, hops + 1));
+    courier.agent.goVisit(pathTo, () => this._courierArrive(courier, ev, hops + 1), { x: this.player.x, y: this.player.y });
   }
 
   /** 事件送达后：courier 回工位 */

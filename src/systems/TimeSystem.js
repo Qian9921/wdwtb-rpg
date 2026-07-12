@@ -18,13 +18,16 @@ import Phaser from 'phaser';
 //
 // 事件：
 //   'segmentChange'(segment, index) —— 进入新时段（驱动灯光 + NPC 人数/日程）
+// population: 各时段在岗背景同事比例。⚠️ 低谷时段别降太狠——用户反馈"做完一件事一抬头
+// 人少了大半、像NPC消失了"。午休 0.35→0.7(午休也有不少人在工位吃/加班)、深夜 0.15→0.4
+// (加班的人还在),让办公室始终有人气,时段变化平缓不突兀,而不是骤然空场。
 export const SEGMENTS = [
   { id: 'morning_meeting', label: '早会',  clock: '09:00', icon: '☀', ambient: 'office_day',     population: 1.0 },
   { id: 'forenoon',        label: '上午',  clock: '10:30', icon: '☀', ambient: 'office_day',     population: 1.0 },
-  { id: 'noon',            label: '午休',  clock: '12:00', icon: '🌤', ambient: 'office_day',     population: 0.35 },
+  { id: 'noon',            label: '午休',  clock: '12:00', icon: '🌤', ambient: 'office_day',     population: 0.7 },
   { id: 'afternoon',       label: '下午',  clock: '14:00', icon: '☀', ambient: 'office_day',     population: 1.0 },
-  { id: 'overtime',        label: '加班',  clock: '18:30', icon: '🌆', ambient: 'office_evening', population: 0.55 },
-  { id: 'deep_night',      label: '深夜',  clock: '21:30', icon: '🌙', ambient: 'office_night',   population: 0.15 },
+  { id: 'overtime',        label: '加班',  clock: '18:30', icon: '🌆', ambient: 'office_evening', population: 0.65 },
+  { id: 'deep_night',      label: '深夜',  clock: '21:30', icon: '🌙', ambient: 'office_night',   population: 0.4 },
 ];
 
 export class TimeSystem extends Phaser.Events.EventEmitter {

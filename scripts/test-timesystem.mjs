@@ -43,7 +43,7 @@ console.log('\n=== TimeSystem 单元测试 ===\n');
   ok('推进到最后 index=末段', t.index === SEGMENTS.length - 1);
   ok('末段 id=deep_night', t.current.id === 'deep_night');
   ok('isLast=true', t.isLast === true);
-  ok('深夜人数=0.15', t.current.population === 0.15);
+  ok('深夜人数=0.4(调高,避免办公室骤然空场)', t.current.population === 0.4);
   ok('末段 advance 返回 null', t.advance() === null);
   ok('末段 advance 不越界', t.index === SEGMENTS.length - 1);
 }

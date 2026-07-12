@@ -26,12 +26,15 @@ export class NpcAgent {
   }
 
   // 一次出行：pathTo/pathBack=去/回程路点数组, dwellMs=到目的地停留。任一为空则不出行。
-  goTrip(pathTo, pathBack, dwellMs = 2500) {
+  // faceDir: 到达后面向的方向('up'/'down'/'left'/'right'),让 NPC 做事时真的面对设施
+  // (去接咖啡面向咖啡机、去打印面向打印机)。不传则沿用移动的最后方向。
+  goTrip(pathTo, pathBack, dwellMs = 2500, faceDir = null) {
     if (this.busy) return false;
     const spr = this.w.spr;
     if (!spr || !pathTo || !pathTo.length || !pathBack || !pathBack.length) return false;
     this._pathBack = pathBack;
     this._dwellMs = dwellMs;
+    this._faceDir = faceDir; // _arriveDest 到达后转向它
     this.state = 'walking';
     this._tweenPath(pathTo, () => this._arriveDest());
     return true;
@@ -44,7 +47,8 @@ export class NpcAgent {
   // 新路径继续追,此时若卡在 busy 直接 return,追踪链就断了——信使定在旧位置,事件
   // 只能靠 20s 超时兜底弹出。因此这里【允许从 visiting 态再次发起】(等同重定向),
   // 只拒绝"去程 walking 中/回程中"这类真正进行中的移动,避免打断补间。
-  goVisit(pathTo, onArrive) {
+  // facePos {x,y}: 到达后面向的目标(如玩家)。给了就转向它,而非沿用移动的最后方向。
+  goVisit(pathTo, onArrive, facePos = null) {
     if (this.state !== 'sitting' && this.state !== 'visiting') return false;
     const spr = this.w.spr;
     if (!spr || !pathTo || !pathTo.length) return false;
@@ -54,11 +58,24 @@ export class NpcAgent {
     this._tweenPath(pathTo, () => {
       this.state = 'visiting';
       spr.stop();
-      const idle = this.w.anims?.idleFrame?.(this._lastDir);
-      if (idle != null) spr.setFrame(idle);
+      if (facePos) this.faceTo(facePos.x, facePos.y); // 面向目标(信使面向玩家)
+      else { const idle = this.w.anims?.idleFrame?.(this._lastDir); if (idle != null) spr.setFrame(idle); }
       if (onArrive) onArrive();
     });
     return true;
+  }
+
+  // 面向一个目标坐标(x,y):到达目的地后主动转向要面对的东西——信使面向玩家、
+  // 去接咖啡的人面向咖啡机、去打印的人面向打印机。用户反馈:NPC 做那个动作时要
+  // 真的面对那个地方,来找我就要面对我。修根因:此前到达只用 _lastDir(移动的最后方向),
+  // 不是"面向目标"的方向。
+  faceTo(tx, ty) {
+    const spr = this.w.spr;
+    if (!spr) return;
+    const dir = this._dirOf(tx - spr.x, ty - spr.y);
+    this._lastDir = dir;
+    const idle = this.w.anims?.idleFrame?.(dir);
+    if (idle != null) spr.setFrame(idle);
   }
 
   // 拜访结束：沿 pathBack 走回工位坐下。
@@ -100,7 +117,10 @@ export class NpcAgent {
     const spr = this.w.spr;
     this.state = 'dwelling';
     spr.stop();
-    const idle = this.w.anims?.idleFrame?.(this._lastDir);
+    // 面向设施(咖啡机/打印机/白板…)做事,而非沿用移动的最后方向
+    const dir = this._faceDir || this._lastDir;
+    this._lastDir = dir;
+    const idle = this.w.anims?.idleFrame?.(dir);
     if (idle != null) spr.setFrame(idle);
     this.scene.time.delayedCall(this._dwellMs, () => {
       if (!spr.scene) { this.state = 'sitting'; return; }

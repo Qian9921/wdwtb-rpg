@@ -137,7 +137,7 @@ ok('产品/律师办公室事件不全同', pev.slice(0, 120) !== lev.slice(0, 1
 {
   const ws = readFileSync(join(DATA, '../../src/scenes/WorldScene.js'), 'utf8');
   ok('WS 交付 celebrate', ws.includes("Juice.celebrate") && ws.includes('✓ 交付'));
-  ok('WS 接任务 floatText 新任务', ws.includes('📋 新任务'));
+  ok('WS 接任务 floatText 新任务', ws.includes('新任务接取'));
   ok('WS 里程碑 floatText', ws.includes('📊 ${pct}%') || ws.includes('📊'));
   ok('WS 一天结束 flash/float', ws.includes('一天结束'));
   // impact 必须是 intensity 签名，不能把坐标当第二参

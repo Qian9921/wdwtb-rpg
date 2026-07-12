@@ -5,17 +5,161 @@
     "desc": "每天从这里抽 3 张【今日工单】。玩家在工位电脑上选一张 → 玩 Debug 小游戏 → 成绩决定推进多少项目进度、拿多少绩效。difficulty=难度, progress=基础推进值(%), performance=基础绩效, cost=做完的身心消耗。"
   },
   "orders": [
-    { "id": "wo_login_bug",   "title": "修复登录页偶发白屏",       "difficulty": "easy", "est": 2, "progress": 7,  "performance": 8,  "cost": { "energy": -10, "stress": 3 } },
-    { "id": "wo_list_lag",    "title": "优化列表页卡顿",           "difficulty": "mid",  "est": 3, "progress": 9,  "performance": 12, "cost": { "energy": -14, "stress": 5 } },
-    { "id": "wo_api_500",     "title": "排查订单接口 500 报错",     "difficulty": "mid",  "est": 3, "progress": 10, "performance": 12, "cost": { "energy": -14, "stress": 6 } },
-    { "id": "wo_null_crash",  "title": "定位空指针崩溃",           "difficulty": "hard", "est": 4, "progress": 13, "performance": 16, "cost": { "energy": -18, "stress": 8 } },
-    { "id": "wo_race_cond",   "title": "解决并发数据错乱",         "difficulty": "hard", "est": 4, "progress": 14, "performance": 18, "cost": { "energy": -20, "stress": 9 } },
-    { "id": "wo_review_pr",   "title": "评审同事的合并请求",       "difficulty": "easy", "est": 2, "progress": 6,  "performance": 9,  "cost": { "energy": -8,  "stress": 2 } },
-    { "id": "wo_new_feature", "title": "开发筛选新功能",           "difficulty": "mid",  "est": 3, "progress": 11, "performance": 13, "cost": { "energy": -15, "stress": 5 } },
-    { "id": "wo_memory_leak", "title": "修复内存泄漏",             "difficulty": "hard", "est": 4, "progress": 13, "performance": 17, "cost": { "energy": -19, "stress": 8 } },
-    { "id": "wo_write_test",  "title": "给核心模块补单元测试",     "difficulty": "easy", "est": 2, "progress": 6,  "performance": 8,  "cost": { "energy": -9,  "stress": 2 } },
-    { "id": "wo_refactor",    "title": "重构一坨祖传屎山代码",     "difficulty": "hard", "est": 5, "progress": 15, "performance": 18, "cost": { "energy": -22, "stress": 10 } },
-    { "id": "wo_data_sync",   "title": "对接第三方数据同步",       "difficulty": "mid",  "est": 3, "progress": 10, "performance": 12, "cost": { "energy": -15, "stress": 6 } },
-    { "id": "wo_ui_align",    "title": "还原设计稿像素级对齐",     "difficulty": "easy", "est": 2, "progress": 6,  "performance": 7,  "cost": { "energy": -8,  "stress": 3 } }
+    {
+      "id": "wo_login_bug",
+      "title": "修复登录页偶发白屏",
+      "difficulty": "easy",
+      "est": 2,
+      "progress": 7,
+      "performance": 8,
+      "cost": {
+        "energy": -10,
+        "stress": 3
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_list_lag",
+      "title": "优化列表页卡顿",
+      "difficulty": "mid",
+      "est": 3,
+      "progress": 9,
+      "performance": 12,
+      "cost": {
+        "energy": -14,
+        "stress": 5
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_api_500",
+      "title": "排查订单接口 500 报错",
+      "difficulty": "mid",
+      "est": 3,
+      "progress": 10,
+      "performance": 12,
+      "cost": {
+        "energy": -14,
+        "stress": 6
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_null_crash",
+      "title": "定位空指针崩溃",
+      "difficulty": "hard",
+      "est": 4,
+      "progress": 13,
+      "performance": 16,
+      "cost": {
+        "energy": -18,
+        "stress": 8
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_race_cond",
+      "title": "解决并发数据错乱",
+      "difficulty": "hard",
+      "est": 4,
+      "progress": 14,
+      "performance": 18,
+      "cost": {
+        "energy": -20,
+        "stress": 9
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_review_pr",
+      "title": "评审同事的合并请求",
+      "difficulty": "easy",
+      "est": 2,
+      "progress": 6,
+      "performance": 9,
+      "cost": {
+        "energy": -8,
+        "stress": 2
+      },
+      "gameType": "review"
+    },
+    {
+      "id": "wo_new_feature",
+      "title": "开发筛选新功能",
+      "difficulty": "mid",
+      "est": 3,
+      "progress": 11,
+      "performance": 13,
+      "cost": {
+        "energy": -15,
+        "stress": 5
+      },
+      "gameType": "sequence"
+    },
+    {
+      "id": "wo_memory_leak",
+      "title": "修复内存泄漏",
+      "difficulty": "hard",
+      "est": 4,
+      "progress": 13,
+      "performance": 17,
+      "cost": {
+        "energy": -19,
+        "stress": 8
+      },
+      "gameType": "debug"
+    },
+    {
+      "id": "wo_write_test",
+      "title": "给核心模块补单元测试",
+      "difficulty": "easy",
+      "est": 2,
+      "progress": 6,
+      "performance": 8,
+      "cost": {
+        "energy": -9,
+        "stress": 2
+      },
+      "gameType": "testcase"
+    },
+    {
+      "id": "wo_refactor",
+      "title": "重构一坨祖传屎山代码",
+      "difficulty": "hard",
+      "est": 5,
+      "progress": 15,
+      "performance": 18,
+      "cost": {
+        "energy": -22,
+        "stress": 10
+      },
+      "gameType": "review"
+    },
+    {
+      "id": "wo_data_sync",
+      "title": "对接第三方数据同步",
+      "difficulty": "mid",
+      "est": 3,
+      "progress": 10,
+      "performance": 12,
+      "cost": {
+        "energy": -15,
+        "stress": 6
+      },
+      "gameType": "sequence"
+    },
+    {
+      "id": "wo_ui_align",
+      "title": "还原设计稿像素级对齐",
+      "difficulty": "easy",
+      "est": 2,
+      "progress": 6,
+      "performance": 7,
+      "cost": {
+        "energy": -8,
+        "stress": 3
+      },
+      "gameType": "review"
+    }
   ]
 }

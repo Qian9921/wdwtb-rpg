@@ -86,6 +86,7 @@ export class EndingScene extends Phaser.Scene {
     const tagCounts = {};
     for (const e of entries0) { if (e && e.tag) tagCounts[e.tag] = (tagCounts[e.tag] || 0) + 1; }
     this._insights = unlockedInsights(tagCounts).map(getInsight).filter(Boolean);
+    this._keyHandlers = []; // 键盘 handler 记录，每次重渲染前解绑防泄漏
   }
 
   // 无 WorkValues 时的占位折算（P6 接线后由真实累积替代）
@@ -118,6 +119,7 @@ export class EndingScene extends Phaser.Scene {
       this._renderLoading();
       this._generateWithAI();
     }
+    this.events.once('shutdown', () => this._unbindKeys()); // 场景切换时解绑键盘，防泄漏
   }
 
   // 把本局结果并入跨职业档案（人格轴累加、职业/子职业/契合度记录）
@@ -226,6 +228,7 @@ export class EndingScene extends Phaser.Scene {
   // 全程「先量文字实际高度、再定位」——根治遮字。卡片高度由内容反推，不写死。
   _render(p) {
     const { width, height } = this.scale;
+    this._unbindKeys(); // 上一视图（结局报告/其它）的键盘绑定先清，防重复触发
     if (this.uiContainer) this.uiContainer.destroy(true);
     const ui = this.add.container(0, 0);
     this.uiContainer = ui;
@@ -272,18 +275,19 @@ export class EndingScene extends Phaser.Scene {
       }).setOrigin(0.5, 0);
       g0.push(ct); y += ct.height + 6;
     }
-    const aimark = this.add.text(width / 2, y, this.aiSource === 'ai' ? '· 由腾讯混元 hy3 为你生成 ·' : '· 基于你的旅程生成 ·', {
+    const aimark = this.add.text(width / 2, y,
+      this.aiSource === 'ai' ? '· 由 WorkBuddy × 腾讯混元 hy3 为你生成 ·' : '· 基于你的旅程生成 ·', {
       fontSize: '11px', color: '#5a6a8a',
     }).setOrigin(0.5, 0);
     g0.push(aimark); y += aimark.height + 12;
 
     y = this._divider(ui, width / 2, y, cardW - 120);
-    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '🟡 你的驱动力', p.driveText, '#d4a353');
-    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '🔴 你的消耗源', p.drainText, '#e8735a');
-    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '💙 你与压力的关系', p.stressStyle, '#7b9cd6');
+    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '你的驱动力', p.driveText, '#d4a353');
+    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '你的消耗源', p.drainText, '#e8735a');
+    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '你与压力的关系', p.stressStyle, '#7b9cd6');
     // 隐藏模式段：带高亮底框（框尺寸由该段实测高度决定，包住整段不遮字）
-    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '✨ 你没察觉的模式 ✨', p.hiddenPattern, '#f0c060', true);
-    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '🟢 职业契合度', p.fitText, '#6aaa6a');
+    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '你没察觉的模式', p.hiddenPattern, '#f0c060', true);
+    y = this._revealSection(ui, revealGroups, innerL, y, innerW, '职业契合度', p.fitText, '#6aaa6a');
 
     y = this._divider(ui, width / 2, y, cardW - 200);
     const statsGroup = addGroup();
@@ -303,10 +307,19 @@ export class EndingScene extends Phaser.Scene {
     // 按钮区
     const btnY = y + 30;
     const btnGroup = addGroup();
-    const b1 = this._button(ui, width / 2 - 220, btnY, 190, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
-    const b2 = this._button(ui, width / 2, btnY, 190, 36, '保存画像 📷', 0x3a3a2a, () => this._sharePortrait());
-    const b3 = this._button(ui, width / 2 + 220, btnY, 190, 36, '返回标题', 0x33283a, () => this.scene.start('TitleScene'));
+    const b1 = this._button(ui, width / 2 - 220, btnY, 190, 36, '1. 再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
+    const b2 = this._button(ui, width / 2, btnY, 190, 36, '2. 保存画像', 0x3a3a2a, () => this._sharePortrait());
+    const b3 = this._button(ui, width / 2 + 220, btnY, 190, 36, '3. 返回标题 · ESC', 0x33283a, () => this.scene.start('TitleScene'));
     btnGroup.push(b1.bg, b1.txt, b2.bg, b2.txt, b3.bg, b3.txt);
+
+    // 键盘：左右方向键/Tab 切页签，数字键1-3对应按钮，ESC=返回标题
+    this._bindKey('LEFT', () => this._toggleView());
+    this._bindKey('RIGHT', () => this._toggleView());
+    this._bindKey('TAB', (e) => { if (e) e.preventDefault(); this._toggleView(); }); // Tab 默认会切浏览器焦点，禁掉
+    this._bindKey('ONE', () => this.scene.start('HubScene'));
+    this._bindKey('TWO', () => this._sharePortrait());
+    this._bindKey('THREE', () => this.scene.start('TitleScene'));
+    this._bindKey('ESC', () => this.scene.start('TitleScene'));
 
     // 卡片底板：由内容最终高度反推（不写死 500），画完后沉到最底作"舞台"
     const contentBottom = btnY + 40;
@@ -373,6 +386,18 @@ export class EndingScene extends Phaser.Scene {
     });
   }
 
+  // ===== 键盘 handler 记录/解绑（每次重渲染 _render/_renderReport 前调用，防跨渲染泄漏）=====
+  _unbindKeys() {
+    const kb = this.input.keyboard;
+    for (const { key, handler } of this._keyHandlers) kb.off(`keydown-${key}`, handler);
+    this._keyHandlers = [];
+  }
+
+  _bindKey(key, handler) {
+    this.input.keyboard.on(`keydown-${key}`, handler);
+    this._keyHandlers.push({ key, handler });
+  }
+
   _divider(parent, cx, y, w) {
     parent.add(this.add.rectangle(cx, y + 6, w, 1, 0x2a2a40));
     return y + 14;
@@ -386,24 +411,48 @@ export class EndingScene extends Phaser.Scene {
   // origin(x,0) 顶对齐，y 前进 = label高 + 间距 + 正文实测高 + 段间距。根治遮字。
   _revealSection(parent, revealGroups, x, y, w, label, text, accent, highlight) {
     const g = []; revealGroups.push(g);
-    const labelEl = this.add.text(x, y, label, { fontSize: '13px', color: accent, fontStyle: 'bold' }).setOrigin(0, 0);
+    // 可爱化:标题左侧一个 accent 色的圆角"色条"做视觉锚点(替代旧的 🟡🔴💙 emoji 色点),
+    // 全局统一,像素风一致。文字缩进给色条让位。
+    const ac = accent || '#d4a353';
+    const acColor = Phaser.Display.Color.HexStringToColor(ac).color;
+    const tagX = x, tagW = 5, labelIndent = 14;
+    const labelEl = this.add.text(x + labelIndent, y, label, { fontSize: '13px', color: ac, fontStyle: 'bold' }).setOrigin(0, 0);
     const labelH = labelEl.height;
+    const bar = this.add.graphics();
+    bar.fillStyle(acColor, 1);
+    bar.fillRoundedRect(tagX, y + 1, tagW, labelH - 2, 2.5);
     const textY = y + labelH + 5;
-    const textEl = this.add.text(x, textY, text || '', {
+    const textEl = this.add.text(x + labelIndent, textY, text || '', {
       fontSize: '13px', color: '#c4c4d4',
-      wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 4,
+      wordWrap: { width: w - labelIndent, useAdvancedWrap: true }, lineSpacing: 4,
     }).setOrigin(0, 0);
     const textH = textEl.height;
     const sectionH = labelH + 5 + textH;
-    // 高亮框先加（在文字下层），尺寸包住整段
+    // 高亮框先加（在文字下层），尺寸包住整段——可爱化:圆角卡替代直角矩形
     if (highlight) {
-      const hlBg = this.add.rectangle(x + w / 2, y + sectionH / 2, w + 16, sectionH + 16, 0x2a2a18, 0.7);
+      const hlBg = this.add.graphics();
+      hlBg.fillStyle(0x2a2a18, 0.7);
+      hlBg.fillRoundedRect(x - 10, y - 8, w + 20, sectionH + 16, 12);
+      hlBg.lineStyle(1.5, 0xd4a353, 0.5);
+      hlBg.strokeRoundedRect(x - 10, y - 8, w + 20, sectionH + 16, 12);
       parent.add(hlBg);
       g.push(hlBg);
     }
-    parent.add(labelEl); parent.add(textEl);
-    g.push(labelEl, textEl);
+    parent.add(bar); parent.add(labelEl); parent.add(textEl);
+    g.push(bar, labelEl, textEl);
     return y + sectionH + 16; // 段间距 16
+  }
+  // 报告页分段标题:色条锚点 + 文字(替代 🟢🟠🧭🗂 emoji,与心之画像页 _revealSection 统一)。
+  // 返回标题下方 y(供后续内容接着排)。
+  _sectionLabel(parent, x, y, text, accent) {
+    const ac = accent || '#d4a353';
+    const acColor = Phaser.Display.Color.HexStringToColor(ac).color;
+    const labelEl = this.add.text(x + 14, y, text, { fontSize: '13px', color: ac, fontStyle: 'bold' }).setOrigin(0, 0);
+    const bar = this.add.graphics();
+    bar.fillStyle(acColor, 1);
+    bar.fillRoundedRect(x, y + 1, 5, labelEl.height - 2, 2.5);
+    parent.add(bar); parent.add(labelEl);
+    return y + labelEl.height + 4;
   }
   _statsBar(parent, x, y, w, group) {
     const items = [
@@ -463,9 +512,15 @@ export class EndingScene extends Phaser.Scene {
     else this._render(this._portrait || DEFAULT_PORTRAIT);
   }
 
+  // 左右方向键/Tab：在两个页签间来回切换（不管当前在哪个视图）
+  _toggleView() {
+    this._switchView(this._view === 'report' ? 'portrait' : 'report');
+  }
+
   // ===== 职业人格报告视图（雷达 + 4轴 + 胜任力 + 证据强项 + 3方向 + 置信度）=====
   _renderReport() {
     const { width, height } = this.scale;
+    this._unbindKeys(); // 上一视图的键盘绑定先清，防重复触发
     if (this.uiContainer) this.uiContainer.destroy(true);
     const ui = this.add.container(0, 0);
     this.uiContainer = ui;
@@ -507,7 +562,7 @@ export class EndingScene extends Phaser.Scene {
     y = this._divider(ui, width / 2, y, cardW - 120);
 
     // 胜任力条
-    ui.add(this.add.text(innerL, y, '职场胜任力', { fontSize: '13px', color: '#d4a353', fontStyle: 'bold' })); y += 22;
+    y = this._sectionLabel(ui, innerL, y, '职场胜任力', '#d4a353') + 6;
     const cw = (innerW - 24) / 5;
     r.competencies.forEach((c, i) => {
       const cx = innerL + i * (cw + 6);
@@ -520,24 +575,24 @@ export class EndingScene extends Phaser.Scene {
 
     // 强项（带证据）
     if (r.strengths.length) {
-      ui.add(this.add.text(innerL, y, '🟢 你的强项（来自行为）', { fontSize: '13px', color: '#6aaa6a', fontStyle: 'bold' })); y += 20;
+      y = this._sectionLabel(ui, innerL, y, '你的强项（来自行为）', '#6aaa6a') + 4;
       for (const s of r.strengths) {
-        const t = this.add.text(innerL, y, `· ${s.text}\n  ${s.evidence}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 3 });
+        const t = this.add.text(innerL + 14, y, `· ${s.text}\n  ${s.evidence}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW - 14, useAdvancedWrap: true }, lineSpacing: 3 });
         ui.add(t); y += t.height + 8;
       }
     }
     // 盲点
     if (r.blindspots.length) {
-      ui.add(this.add.text(innerL, y, '🟠 值得留意', { fontSize: '13px', color: '#e0a060', fontStyle: 'bold' })); y += 20;
+      y = this._sectionLabel(ui, innerL, y, '值得留意', '#e0a060') + 4;
       for (const b of r.blindspots) {
-        const t = this.add.text(innerL, y, `· ${b.text}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 3 });
+        const t = this.add.text(innerL + 14, y, `· ${b.text}`, { fontSize: '12px', color: '#c4c4d4', wordWrap: { width: innerW - 14, useAdvancedWrap: true }, lineSpacing: 3 });
         ui.add(t); y += t.height + 6;
       }
     }
     y = this._divider(ui, width / 2, y, cardW - 120);
 
     // 3 条探索方向
-    ui.add(this.add.text(innerL, y, '🧭 接下来,可以去探索这三个方向', { fontSize: '13px', color: '#7b9cd6', fontStyle: 'bold' })); y += 22;
+    y = this._sectionLabel(ui, innerL, y, '接下来，可以去探索这三个方向', '#7b9cd6') + 6;
     r.directions.forEach((d, i) => {
       const doLine = (d.doThree && d.doThree.length) ? `　去做：${d.doThree[0]}` : '';
       const skillLine = d.skill ? `　补：${d.skill}` : '';
@@ -550,9 +605,7 @@ export class EndingScene extends Phaser.Scene {
     // 职业感悟图鉴（本局解锁）
     if (this._insights && this._insights.length) {
       y = this._divider(ui, width / 2, y, cardW - 120);
-      ui.add(this.add.text(innerL, y, `🗂 你悟到的（本局解锁 ${this._insights.length} / 图鉴共 ${INSIGHT_TOTAL}）`, {
-        fontSize: '13px', color: '#c79ae8', fontStyle: 'bold',
-      })); y += 22;
+      y = this._sectionLabel(ui, innerL, y, `你悟到的（本局解锁 ${this._insights.length} / 图鉴共 ${INSIGHT_TOTAL}）`, '#c79ae8') + 6;
       for (const ins of this._insights.slice(0, 6)) {
         const t = this.add.text(innerL, y, `「${ins.title}」　${ins.text}`, {
           fontSize: '11px', color: '#bdb4d0', wordWrap: { width: innerW, useAdvancedWrap: true }, lineSpacing: 2,
@@ -563,9 +616,18 @@ export class EndingScene extends Phaser.Scene {
 
     // 按钮
     const btnY = y + 24;
-    this._button(ui, width / 2 - 220, btnY, 190, 36, '再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
-    this._button(ui, width / 2, btnY, 190, 36, '保存报告 📷', 0x3a3a2a, () => this._sharePortrait());
-    this._button(ui, width / 2 + 220, btnY, 190, 36, '返回标题', 0x33283a, () => this.scene.start('TitleScene'));
+    this._button(ui, width / 2 - 220, btnY, 190, 36, '1. 再玩一次', 0x2a2a4a, () => this.scene.start('HubScene'));
+    this._button(ui, width / 2, btnY, 190, 36, '2. 保存报告', 0x3a3a2a, () => this._sharePortrait());
+    this._button(ui, width / 2 + 220, btnY, 190, 36, '3. 返回标题 · ESC', 0x33283a, () => this.scene.start('TitleScene'));
+
+    // 键盘：左右方向键/Tab 切页签，数字键1-3对应按钮，ESC=返回标题
+    this._bindKey('LEFT', () => this._toggleView());
+    this._bindKey('RIGHT', () => this._toggleView());
+    this._bindKey('TAB', (e) => { if (e) e.preventDefault(); this._toggleView(); }); // Tab 默认会切浏览器焦点，禁掉
+    this._bindKey('ONE', () => this.scene.start('HubScene'));
+    this._bindKey('TWO', () => this._sharePortrait());
+    this._bindKey('THREE', () => this.scene.start('TitleScene'));
+    this._bindKey('ESC', () => this.scene.start('TitleScene'));
 
     // 卡片底板（自适应高度 + 垂直居中，防溢出）
     const contentBottom = btnY + 40;

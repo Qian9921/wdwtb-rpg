@@ -171,7 +171,10 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     this._showNode(startAt);
   }
 
-  _showNode(nodeId) {
+  // opts.skipEffects：仅重画 UI、不再施加 effects——供 mindscapeReturn 等"重渲染同一
+  // 节点"场景使用（该节点的 effects 在玩家推进到此节点时已施加过一次，重渲染不该重复施加）。
+  _showNode(nodeId, opts = {}) {
+    const { skipEffects = false } = opts;
     this._clearUI();
     const node = this.data.nodes[nodeId];
     this.currentId = nodeId;
@@ -185,8 +188,9 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
       return;
     }
 
-    // 进入节点：应用该节点的 effects（调 StateSystem.change）
-    this._applyEffects(node.effects);
+    // 进入节点：应用该节点的 effects（调 StateSystem.change）。skipEffects=true 时跳过
+    // （重渲染同一节点场景，effects 已在首次进入时施加过，不能再施一次）。
+    if (!skipEffects) this._applyEffects(node.effects);
 
     // 若节点指定背景，emit 事件让外部场景切换
     if (node.bg) this.emit('bgChange', node.bg);
@@ -219,8 +223,9 @@ export class DialogueEngine extends Phaser.Events.EventEmitter {
     container.setScrollFactor(0).setDepth(10000); // 钉屏:对话UI固定在镜头上,不随世界滚动
     if (typeof this.scene.attachToUICamera === 'function') this.scene.attachToUICamera(container);
 
-    // 全屏透明输入层：命中区=整个屏幕，点任何位置都能推进（根治"点击框错位"）。
-    const catcher = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.001)
+    // 全屏输入层 + 轻度压暗：命中区=整个屏幕(点任何位置都能推进)，同时把背景办公室
+    // 压暗，剧情对话时玩家聚焦在文字上，不被满屏NPC/气泡/工位抢注意力(剧情沉浸感)。
+    const catcher = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x0a0a14, 0.5)
       .setScrollFactor(0).setInteractive();
     container.add(catcher);
 

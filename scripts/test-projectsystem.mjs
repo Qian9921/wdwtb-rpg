@@ -47,6 +47,22 @@ console.log('\n=== ProjectSystem 单元测试 ===\n');
   ok('重复完成返回 null', ps.completeOrder(id, 1) === null);
 }
 
+// creditWork:任务链工作(无工单)也计入绩效+进度(修 bug:此前任务链工作绩效纹丝不动)
+{
+  const ps = new ProjectSystem({ pool: POOL, dailyCount: 3 });
+  const r = ps.creditWork(1); // 满分,默认基础值 baseProgress=8 basePerf=10
+  ok('creditWork 满分进度=8', r.progressGain === 8, String(r.progressGain));
+  ok('creditWork 满分绩效=10', r.perfGain === 10, String(r.perfGain));
+  ok('creditWork 累计 performance', ps.performance === 10, String(ps.performance));
+  ok('creditWork 累计 todayPerformance', ps.todayPerformance === 10);
+  ok('creditWork 推进 progress', ps.progress === 8);
+  // 低质量仍有基础产出(不为 0),绩效>0——核心:做了活绩效一定会动
+  const r2 = ps.creditWork(0);
+  ok('creditWork 零分仍有绩效', r2.perfGain > 0, String(r2.perfGain));
+  ok('creditWork 零分仍推进进度', r2.progressGain > 0, String(r2.progressGain));
+  ok('creditWork 绩效持续累加', ps.performance > 10, String(ps.performance));
+}
+
 // 低质量仍有基础产出
 {
   const ps = new ProjectSystem({ pool: POOL, dailyCount: 3 });

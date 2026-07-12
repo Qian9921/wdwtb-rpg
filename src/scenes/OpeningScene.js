@@ -14,6 +14,7 @@ export class OpeningScene extends Phaser.Scene {
   init(data) {
     this._newGameSlot = (data && data.newGameSlot) || null;
     this._nameValue = '';
+    this._keyHandlers = []; // 本阶段键盘 handler，_clearUI 时精确解绑，防止跨阶段泄漏
   }
 
   preload() {
@@ -45,8 +46,8 @@ export class OpeningScene extends Phaser.Scene {
     this.riasec = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
     this.big5 = { O: 0, C: 0, E: 0, A: 0, N: 0 };
     this.ui = null;
-    this.events.once('shutdown', () => this._removeNameInput());
-    this.events.once('destroy', () => this._removeNameInput());
+    this.events.once('shutdown', () => { this._removeNameInput(); this._unbindKeys(); });
+    this.events.once('destroy', () => { this._removeNameInput(); this._unbindKeys(); });
     this._buildCustomize();
   }
 
@@ -64,7 +65,21 @@ export class OpeningScene extends Phaser.Scene {
     }
   }
 
-  _clearUI() { if (this.ui) { this.ui.destroy(true); this.ui = null; } }
+  _clearUI() {
+    this._unbindKeys(); // 每个阶段切换前解绑上一阶段的键盘 handler，防泄漏
+    if (this.ui) { this.ui.destroy(true); this.ui = null; }
+  }
+
+  _unbindKeys() {
+    const kb = this.input.keyboard;
+    for (const { key, handler } of this._keyHandlers) kb.off(`keydown-${key}`, handler);
+    this._keyHandlers = [];
+  }
+
+  _bindKey(key, handler) {
+    this.input.keyboard.on(`keydown-${key}`, handler);
+    this._keyHandlers.push({ key, handler });
+  }
 
   // 可爱圆角按钮（本场景通用）
   _button(x, y, w, h, label, cb, color = THEME.panelSoft, fontSize = '15px') {
@@ -88,7 +103,12 @@ export class OpeningScene extends Phaser.Scene {
   // ============ 名字输入（HTML 覆盖层，随画布缩放定位）============
   _makeNameInput() {
     if (this._nameInput) return;
+    // ⚠️ 防孤儿:HTML input 是 appendChild 到 body 的 DOM 元素,不随 Phaser 场景自动销毁。
+    // 若上一次 shutdown 清理因转场路径异常没跑,input 会残留漂在后续所有场景上(用户实测
+    // 通勤页出现"给自己起个名字"输入框)。这里创建前先清掉任何带此 id 的旧 input,全局只留一个。
+    document.querySelectorAll('#wdwtb-name-input').forEach(el => el.remove());
     const input = document.createElement('input');
+    input.id = 'wdwtb-name-input';
     input.type = 'text'; input.maxLength = 8;
     input.setAttribute('aria-label', '你的名字');
     input.placeholder = '给自己起个名字';
@@ -128,6 +148,8 @@ export class OpeningScene extends Phaser.Scene {
       this._nameResize = null;
     }
     if (this._nameInput) { this._nameInput.remove(); this._nameInput = null; }
+    // id 兜底:即使 this._nameInput 引用因异常对不上,也按 id 扫掉任何残留(防孤儿漂到别的场景)
+    document.querySelectorAll('#wdwtb-name-input').forEach(el => el.remove());
   }
 
   // ============ 阶段A：起名 + 捏人 ============
@@ -138,15 +160,29 @@ export class OpeningScene extends Phaser.Scene {
     this.ui.add(this.add.text(480, 62, '给自己起个名字，选一个即将走进职场的你', { fontSize: '13px', color: THEME.textMuted }).setOrigin(0.5));
     this._makeNameInput();
 
-    const cx = 480, baseline = 262;
-    this.ui.add(this.add.ellipse(cx, baseline + 4, 120, 30, 0x2a2a44, 0.9));
+    // C7 修复：原 baseline=262 时，阴影外圈底部(281)与描述文字(y=288，top=280)、
+    // 以及描述文字底部(296)与下方缩略图顶部(292)均重叠/几乎贴死，导致"干练寸头 · 男"读不清。
+    // 现将立绘+阴影整体上移（baseline 262→236，头顶上方仍有充足留白，不撞标题/起名框），
+    // 描述文字改为用"阴影底部下方安全间距"与"缩略图顶部上方安全间距"之间的可用带、
+    // 结合文字实测高度居中定位，确保任意皮肤名不与阴影/缩略图重叠。
+    const cx = 480, baseline = 236;
+    const shadowOuterRy = 15;
+    this.ui.add(this.add.ellipse(cx, baseline + 4, 120, shadowOuterRy * 2, 0x2a2a44, 0.9));
     this.ui.add(this.add.ellipse(cx, baseline, 92, 22, 0x3a3a5e, 0.9));
+    const shadowBottom = baseline + 4 + shadowOuterRy; // 阴影最低点(=255)
     const first = this.charSkins[0];
     this.previewSpr = this.add.sprite(cx, baseline + 8, first.key, first.idle).setOrigin(0.5, 1);
     this._showSkinOn(this.previewSpr, first);
     this.previewSpr.setScale(first.pv);
     this.ui.add(this.previewSpr);
-    this.skinNameLabel = this.add.text(cx, baseline + 26, first.name, { fontSize: '15px', color: THEME.text, fontStyle: 'bold', letterSpacing: 1 }).setOrigin(0.5);
+
+    const thumbTop = 330 - 38; // 见下方缩略图行 y0=330 的卡片顶边(=292)
+    const labelSafeTop = shadowBottom + 12; // 阴影下方安全间距
+    const labelSafeBottom = thumbTop - 8;   // 缩略图上方安全间距
+    this.skinNameLabel = this.add.text(cx, labelSafeTop, first.name, { fontSize: '15px', color: THEME.text, fontStyle: 'bold', letterSpacing: 1 }).setOrigin(0.5, 0);
+    // 用实测文字高度在可用带内居中，任何一行皮肤名都不会撞到阴影或缩略图
+    const labelBandH = Math.max(0, labelSafeBottom - labelSafeTop);
+    this.skinNameLabel.setY(labelSafeTop + Math.max(0, (labelBandH - this.skinNameLabel.height) / 2));
     this.ui.add(this.skinNameLabel);
 
     this.thumbFrames = [];
@@ -177,7 +213,23 @@ export class OpeningScene extends Phaser.Scene {
       this.tintDots.push(dot);
     });
 
-    this._button(480, 512, 210, 40, '下一步 →', () => { this.qIdx = 0; this._showQuestion(); }, 0x2a4a3e);
+    // 下一步:名字必填校验(空名不能继续)+ 支持回车键。鼠标点按钮或按回车都走同一校验。
+    const goNext = () => {
+      const nm = (this._nameValue || '').trim();
+      if (!nm) {
+        if (this._nameHint) this._nameHint.destroy();
+        this._nameHint = this.add.text(480, 90, '先给自己起个名字吧', {
+          fontSize: '13px', color: '#ff9a6a', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(60);
+        this.ui.add(this._nameHint);
+        if (this._nameInput) { this._nameInput.style.borderColor = '#ff6b3d'; this._nameInput.focus(); }
+        this.tweens.add({ targets: this._nameHint, alpha: { from: 1, to: 0.3 }, duration: 500, yoyo: true, repeat: 2 });
+        return;
+      }
+      this.qIdx = 0; this._showQuestion();
+    };
+    this._button(480, 512, 210, 40, '下一步 → · 回车', goNext, 0x2a4a3e);
+    this._bindKey('ENTER', goNext); // 回车也推进(同样走必填校验)
   }
 
   _ensureWalkAnim(s) {
@@ -233,20 +285,23 @@ export class OpeningScene extends Phaser.Scene {
     this.ui.add(this.add.text(480, 128, q.text, { fontSize: '17px', color: THEME.text, wordWrap: { width: 720, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
     this.ui.add(this.add.text(480, 162, '没有标准答案 · 凭直觉选 · 只影响推荐方向', { fontSize: '12px', color: THEME.textDim }).setOrigin(0.5));
 
+    const NUMS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
     q.options.forEach((op, i) => {
       const cardH = 52;
       const cy = 208 + i * (cardH + 10);
+      const pick = () => {
+        for (const [k, v] of Object.entries(op.riasec || {})) this.riasec[k] += v;
+        for (const [k, v] of Object.entries(op.big5 || {})) this.big5[k] += v;
+        this.answers.push({ q: q.id, pick: i, label: op.label });
+        this.qIdx++;
+        this._showQuestion();
+      };
+      if (i < NUMS.length) this._bindKey(NUMS[i], () => { AudioSystem.uiClick && AudioSystem.uiClick(); pick(); });
       const choice = makeCuteChoice(this, {
         x: 480, y: cy, w: 660, h: cardH, label: op.label, index: i, scrollFactor: 1,
         tone: TONES[i % TONES.length], fontSize: 15, popDelay: i * 60,
         sound: () => AudioSystem.uiClick && AudioSystem.uiClick(),
-        onClick: () => {
-          for (const [k, v] of Object.entries(op.riasec || {})) this.riasec[k] += v;
-          for (const [k, v] of Object.entries(op.big5 || {})) this.big5[k] += v;
-          this.answers.push({ q: q.id, pick: i, label: op.label });
-          this.qIdx++;
-          this._showQuestion();
-        },
+        onClick: pick,
       });
       this.ui.add(choice);
     });
@@ -332,9 +387,9 @@ export class OpeningScene extends Phaser.Scene {
 
     this.ui.add(this.add.text(480, dy, source === 'ai' ? '· 由腾讯混元为你撰写 · 灵感：MBTI / 霍兰德 / 大五 ·' : '· 来自你的选择 · 灵感：MBTI / 霍兰德 / 大五 ·', { fontSize: '10px', color: THEME.textDim }).setOrigin(0.5, 0));
 
-    this._button(480, 494, 300, 44, `带着画像去试职业 →`, () => {
-      this.scene.start('HubScene', { newGameSlot: this._newGameSlot });
-    }, 0x2a4a3e, '16px');
+    const goHub = () => { this.scene.start('HubScene', { newGameSlot: this._newGameSlot }); };
+    this._button(480, 494, 300, 44, `带着画像去试职业 → · 回车`, goHub, 0x2a4a3e, '16px');
+    this._bindKey('ENTER', goHub);
   }
 
   // 一条 MBTI 维度滑条：左标 — 轨道(中点+彩点) — 右标

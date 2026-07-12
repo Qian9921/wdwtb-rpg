@@ -18,7 +18,7 @@ import { DaySystem } from '../systems/DaySystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
 import { NpcAgent } from '../systems/NpcAgent.js';
 import { ProjectSystem } from '../systems/ProjectSystem.js';
-import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON } from '../systems/PixelIcons.js';
+import { ensurePixelIcons, ICON_KEYS, EMOJI_TO_ICON, makeIcon } from '../systems/PixelIcons.js';
 import { Pathfinder } from '../systems/Pathfinder.js';
 import { makeCuteChoice } from '../systems/UI.js';
 import { normalizeAxes, microInsight } from '../systems/PersonalityAxes.js';
@@ -97,15 +97,16 @@ const SIT_SHIFT = {
   right: { dx: 0, dy: -8, depth: 10 },
 };
 const CHAR_HALF_H = 24; // 32×48 scale1 → 半身高，用于脚底锚点↔中心锚点换算
-// NPC 头顶状态泡泡：随时段变化的"一句话状态"（工作中/摸鱼/上厕所/赶ddl…）——
-// 让同事像真人一样"有当下的状态、有情绪",真实职场感。每条=一句短文 + emoji。
+// NPC 头顶状态泡泡：随时段变化的"一句话状态"（工作中/摸鱼/赶进度…）——
+// 让同事像真人一样"有当下的状态、有情绪",真实职场感。纯文字、不带emoji（像素风统一），
+// 且职业中性——所有10职业共用同一套办公室场景，文案不绑定具体行当（不写"改bug/写代码"这类程序员黑话）。
 const MOODS_POOL = {
-  morning_meeting: ['刚到工位 ☕', '开早会 📋', '列今日计划 ✍️', '还没睡醒 😪', '刷会新闻 📰', '回消息 💬', '打卡签到 ✅'],
-  forenoon:        ['写代码 💻', '跑测试 🧪', '查文档 📖', '对需求 🗣️', '改bug 🐛', '喝口水 🥤', '有点卡壳 🤔', '摸鱼一下 🐟'],
-  noon:            ['去吃饭 🍜', '午休片刻 😴', '刷手机 📱', '约饭 💬', '买杯咖啡 ☕', '楼下散步 🚶', '追个剧 📺'],
-  afternoon:       ['赶进度 💻', '开评审会 📋', '发会呆 😶', '困成狗 🥱', '需求又变了 🔄', '摸鱼 🐟', '敲键盘 ⌨️', '接电话 📞'],
-  overtime:        ['还在改bug 🐛', '赶deadline 😱', '等编译 ⏳', '想下班了 🏃', '再撑一会 😮‍💨', '点了外卖 🍔', '血压上来了 🤯', '和产品吵架 💢'],
-  deep_night:      ['熬夜中 🌙', '困到不行 😵', '就差一点 😭', '等发版 🚀', '咖啡续命 ☕', '好想回家 🏠', '已经麻了 🫠', '在改最后一个 🐛'],
+  morning_meeting: ['刚到工位', '开早会', '列今日计划', '还没睡醒', '刷会新闻', '回消息', '打卡签到'],
+  forenoon:        ['忙手头的事', '查资料', '对需求', '推进任务', '喝口水', '有点卡壳', '摸鱼一下'],
+  noon:            ['去吃饭', '午休片刻', '刷手机', '约饭', '买杯咖啡', '楼下散步', '追个剧'],
+  afternoon:       ['赶进度', '开评审会', '发会呆', '困成狗', '安排又变了', '摸鱼', '忙碌中', '接电话'],
+  overtime:        ['还在忙', '赶deadline', '等结果', '想下班了', '再撑一会', '点了外卖', '血压上来了', '和同事对线'],
+  deep_night:      ['熬夜中', '困到不行', '就差一点', '等结果', '咖啡续命', '好想回家', '已经麻了', '在收最后的尾'],
 };
 // 背景群演（让办公室有"活人"氛围）：坐/站在开放区的路人同事，纯装饰不可交互。
 const EXTRA_WORKERS = [
@@ -256,6 +257,10 @@ export class WorldScene extends Phaser.Scene {
     this.act = (data && data.act) || 1;
     this.dialogueActive = false;
     this.activeNpc = null;
+    // B1 修复：对话/菜单被玩家按键(E/SPACE/ESC)关闭那一刻，同一帧 update() 里的
+    // JustDown(eKey)/JustDown(escKey) 仍可能读到 true（Phaser 键盘事件先于 update 触发），
+    // 导致"刚关闭又立刻重新触发"。此时间戳标记"本帧刚关闭，抑制窗口内不触发新交互"。
+    this._suppressInteractUntil = 0;
     this._activeSlot = (data && (data.slot || data.newGameSlot)) || 1;
     // 多天循环：从 CommuteScene 传入的 day + stats 快照（有则用，无则从存档/默认）
     this._incomingDay = (data && data.day) || null;
@@ -295,8 +300,27 @@ export class WorldScene extends Phaser.Scene {
     } catch (e) {}
     // story.act 是权威幕次
     this.act = this._story.act || this.act;
-    // 进场即存档（合并写，保留未提供字段）
-    this._saveProgressToSlot();
+
+    // ⚠️ 瞬时态集中复位(根因修复)：Phaser 在 config.scene 注册的是【类】,引擎全程只
+    // 实例化一次 WorldScene,scene.start('WorldScene') 在【同一实例】上重跑 init/create。
+    // 凡"在方法里赋值、init 不重置"的字段会【跨天/跨场景残留】。历史 bug:
+    //   • _goingHome 残留 → 第2天点"下班"直接 return,永久困在办公室(P0)
+    //   • _eventCourier 残留 → _maybeTriggerEvent 被挡死,突发事件永久熄火(P1)
+    //   • _pausedNpc 残留 → 上一局暂停的 NPC 引用错乱
+    //   • _familyMsgShown 残留 → 后续幕想推家人消息被静默吞掉
+    // 每天开工都在这里把这些一次性/在途状态清干净。
+    this._goingHome = false;
+    this._eventCourier = null;
+    this._eventUI = null;
+    this._pausedNpc = null;
+    this._familyMsgShown = false;
+    this._pendingAcceptCard = null; // 交付后待弹的"下一环接取"卡,跨天不残留
+
+    // 进场即存档：⚠️ 此刻 stateSystem/questSystem/... 尚未 new(要到 create() 才建),
+    // 若照常写会把 stats/quests/project 等以 null 覆盖刚读出的好档(saveSlot 的
+    // {...prev,...data} 不保护显式 null)。故用 skipNull 模式:只写非空字段,绝不用
+    // null 冲掉已存进度。真正的完整 autosave 在 create() 系统就绪后自然发生。
+    this._saveProgressToSlot(null, { skipNull: true });
   }
 
   preload() {
@@ -367,6 +391,16 @@ export class WorldScene extends Phaser.Scene {
     // 状态恢复优先级：通勤场景传入的快照 > 存档 > 默认（保证跨场景数值连续）
     if (this._incomingStats) this.stateSystem.restore(this._incomingStats);
     else if (this._savedStats) this.stateSystem.restore(this._savedStats);
+    // B3 修复：真实的精力门槛用 stateSystem.get('energy')（energyGate，见 ItemSystem.js），
+    // 不是下面的 daySystem.energyBudget（那套已是死代码，没有任何门槛逻辑读它）。
+    // _incomingStats 只在"睡觉→通勤→上班"这条日循环链路上被传入（HomeScene._sleep() →
+    // CommuteScene._goWork() → 这里）；HomeScene 夜晚"早点睡"最多恢复 energy+15，
+    // 连续多天工作会让开局 energy 越攒越低，直到跌破 15 把主任务小游戏按钮锁死。
+    // 这里在"新的一天开工"时把 energy 回满，符合"睡一觉满血"的玩家直觉。
+    // 防作弊边界：同一天内续档/浏览器刷新走的是 TitleScene._doResume/_showLoadPanel
+    // → buildWorldResumeData()（Resume.js）——该函数不带 stats 字段，所以刷新只会
+    // 命中上面的 _savedStats 分支，不会经过这里，不能靠刷新"骗"出满血。
+    if (this._incomingStats) this.stateSystem.set('energy', 100);
     // 多天循环系统（day 从通勤场景传入或存档恢复）
     this.daySystem = new DaySystem();
     if (this._savedDay) this.daySystem.restore(this._savedDay);
@@ -386,13 +420,27 @@ export class WorldScene extends Phaser.Scene {
       if (this._savedProject) this.projectSystem.restore(this._savedProject);
       this.projectSystem.on('milestone', (pct) => this._onProjectMilestone(pct));
       this.projectSystem.on('progress', () => this._updateProjectHud());
-      this.projectSystem.startDay(Phaser.Math.RND); // 每天抽今日工单
+      // ⚠️ 只在【新的一天】或【没有恢复到今日工单】时才重抽,否则会把 restore 恢复的
+      // 今日工单进度(含 done 标记)、todayPerformance 直接覆盖清零(修 bug:同日刷新/续档
+      // 后工单全部复位、当天工资偏低)。_incomingDay 存在=睡觉→通勤→新一天该抽;
+      // 无恢复工单(首次进场或换职业清档)也该抽。
+      const hasRestoredOrders = this._savedProject
+        && Array.isArray(this._savedProject.orders) && this._savedProject.orders.length > 0;
+      const isNewDay = this._incomingDay != null;
+      if (isNewDay || !hasRestoredOrders) {
+        this.projectSystem.startDay(Phaser.Math.RND); // 新一天/首次:抽今日工单
+      }
       // 记录今日起点(日报结算用)
       this._dayStartProgress = this.projectSystem.progress;
       this._dayStartStats = { ...this.stateSystem.getAll() };
       this._reportShown = false;
     }
     this.statusUI = new StatusBarUI(this, this.stateSystem);
+    // Q2:Tab 展开的大状态面板会盖住左上任务指引(objectiveHud),展开时让它避让。
+    // ⚠️ 单一数据源:objectiveHud 可见性有三个写入方(展开态/每帧dialogue同步/标签变化),
+    // 旧代码只在 onExpandChange 当帧隐藏,下一帧 _updateObjectiveHud 又按 !dialogueActive
+    // 把它打开→Q2 修复只维持一帧、每帧重叠回归。现全部收敛到 _syncObjectiveHudVisibility()。
+    this.statusUI.onExpandChange = () => this._syncObjectiveHudVisibility();
     this.dialogueEngine = new DialogueEngine(this, this.stateSystem);
     this._setupDialogueEvents();
     // 家人消息：数据层（异步加载）+ UI 层（仿微信弹窗）
@@ -477,13 +525,32 @@ export class WorldScene extends Phaser.Scene {
     // 程序化场景背景：剧情演到通勤/大堂/家/医院等非办公室场景时，盖对应场景画面
     this.sceneBackdrop = new SceneBackdrop(this);
 
-    // 操作提示（屏幕顶部居中）
-    trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · Shift 冲刺 · E 交互 · T 倾听内心 · ESC 菜单', {
+    // 操作提示（屏幕顶部居中）——新手看几秒即淡出，不常驻挡视野（进游戏后画面更清爽）
+    this._controlHint = trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · Shift 冲刺 · E 交互 · T 倾听内心 · ESC 菜单', {
       fontSize: '22px',
       fill: '#dfe3ff',
       backgroundColor: '#000000aa',
       padding: { x: 14, y: 7 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999));
+    // B1 修复：6 秒后完整版提示不再"整个消失"，而是缩成一条低调的常驻小字——
+    // 原方案淡出后再无任何移动提示，卡住的新手无处可查。缩小版只留最关键的移动/交互两键，
+    // 半透明（alpha 0.32）钉在同一位置，不挡视野也不抢注意力，但随时低头就能看到。
+    this._movementHint = trackUI(this.add.text(SW / 2, 14, 'WASD / 方向键 移动　·　E 交互', {
+      fontSize: '15px',
+      fill: '#c8ccf0',
+      backgroundColor: '#00000066',
+      padding: { x: 10, y: 4 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9998).setAlpha(0).setVisible(false));
+    this.time.delayedCall(6000, () => {
+      if (this._controlHint && this._controlHint.scene) {
+        this.tweens.add({ targets: this._controlHint, alpha: 0, duration: 1200, ease: 'Sine.in',
+          onComplete: () => { if (this._controlHint) this._controlHint.setVisible(false); } });
+      }
+      if (this._movementHint && this._movementHint.scene) {
+        this._movementHint.setVisible(true);
+        this.tweens.add({ targets: this._movementHint, alpha: 0.32, duration: 1200, ease: 'Sine.in' });
+      }
+    });
 
     // 天数/时段 HUD（屏幕右上角）
     this.dayText = trackUI(this.add.text(SW - 20, 16, '', {
@@ -495,13 +562,13 @@ export class WorldScene extends Phaser.Scene {
     if (this.workLoopEnabled) this._startOfficeEvents(); // 随机办公室事件
 
     // "下班回家"按钮（屏幕右上角，天数下方）——可爱圆角
-    this.offWorkBtn = cuteBtn(SW - 92, 84, '🏠 下班回家', () => this._goHome(), 0x3a3a5a);
+    this.offWorkBtn = cuteBtn(SW - 92, 84, '下班回家', () => this._goHome(), 0x3a3a5a);
 
     // 项目进度 HUD（右上角，下班按钮下方）——工作日循环的核心可见产出
     if (this.workLoopEnabled) {
       const px = SW - 20, py = 128, pw = 236, ph = 22;
       this._projW = pw;
-      trackUI(this.add.text(px, py - 4, '📊 项目进度', { fontSize: '17px', fill: '#bfeecf' })
+      trackUI(this.add.text(px, py - 4, '项目进度', { fontSize: '17px', fill: '#bfeecf' })
         .setOrigin(1, 1).setScrollFactor(0).setDepth(9999));
       trackUI(this.add.rectangle(px, py, pw, ph, 0x1c1c2c, 0.92)
         .setOrigin(1, 0).setStrokeStyle(1, 0x4a6a52).setScrollFactor(0).setDepth(9999));
@@ -517,13 +584,13 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // 功能栏 HUD（左下角一排可爱圆角按钮）：手机 + 心象世界,常驻功能排整齐、风格统一
-    this._phoneBtn = cuteBtn(92, SH - 46, '📱 手机', () => this._usePhone());
-    this._mindBtn = cuteBtn(232, SH - 46, '🌌 心象世界', () => this._enterMindscapeFree());
+    this._phoneBtn = cuteBtn(92, SH - 46, '手机', () => this._usePhone());
+    this._mindBtn = cuteBtn(232, SH - 46, '心象世界', () => this._enterMindscapeFree());
 
     // 引导语（屏幕底部）——按职业主题生成"找谁报到"
     const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
     const [gName, gTitle] = gTheme.npcs.senior;
-    this.guideText = trackUI(this.add.text(SW / 2, SH - 90, `📋 新人报到:去找${gTitle}「${gName}」(头顶有 ❗),走近按 E`, {
+    this.guideText = trackUI(this.add.text(SW / 2, SH - 90, `新人报到:去找${gTitle}「${gName}」(头顶有感叹号标记),走近按 E`, {
       fontSize: '22px',
       fill: '#ffe08a',
       backgroundColor: '#00000099',
@@ -570,7 +637,16 @@ export class WorldScene extends Phaser.Scene {
     this.touchControls = new TouchControls(this);
     this.touchControls.onInteract(() => {
       if (this.dialogueActive) return;
+      // 坐着时:E=在自己工位开工作台 / 普通座位起身(复用键盘坐着分支)
+      if (this._sitting) {
+        if (this._sitting.isPlayerDesk) this._openWorkBoard();
+        else this._standUp();
+        return;
+      }
+      // 未坐:按 nearest 分派(与键盘E一致:npc/worker/chair/object)
       if (this.activeNpc) this._interact(this.activeNpc);
+      else if (this.activeWorker) this._interactWorker(this.activeWorker);
+      else if (this.activeChair) this._sitOnChair(this.activeChair);
       else if (this.activeObject) this._interactObject(this.activeObject);
     });
     this.touchControls.onMenu(() => {
@@ -618,15 +694,15 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.text(W / 2, H / 2 - PH / 2 + 30, '新手引导', { fontSize: '18px', color: '#c8b070' }).setOrigin(0.5));
     // 6 步：把核心循环讲细致、易懂
     const steps = [
-      { icon: '🎮', title: '欢迎来到你的第一天', text: '这是一次「职业试穿」——你会真实过几天程序员的班，看看适不适合、喜不喜欢。\n移动 WASD　·　交互 E　·　冲刺 Shift　·　菜单 ESC' },
-      { icon: '🧭', title: '第一步：找导师报到', text: '头顶有 ❗ 的是你的导师「老陈」。走近他、按 E，他会给你派第一份活。\n左上角「▸ 下一步」和地上的金色箭头随时指路，不会迷路。' },
-      { icon: '🤝', title: '第二步：找同事对接', text: '接到任务后，常要先找具名同事（头顶 💬）对接需求——走近按 E 聊两句。\n对接完，任务会提示你回工位干活。' },
-      { icon: '💻', title: '第三步：回工位开工', text: '走到你自己的工位椅子，按 E 坐下 → 再按 E「开始工作」。\n会进入真实的写代码 / 代码评审 / 测试小游戏，做得越好，项目进度涨得越快。' },
-      { icon: '📊', title: '第四步：看状态、推进项目', text: '按 Tab 展开状态面板，每项都有说明（健康/精力/压力/热情…）。\n右上角是项目进度——推到 25 / 50 / 75 / 100% 会解锁新的剧情章节。' },
-      { icon: '🌙', title: '第五步：下班，探索自己', text: '右上「🏠 下班回家」进下一天；左下「📱 手机」联系家人、「🌌 心象世界」调整心态。\n通关会生成一份【职业人格报告】，指引你的方向。试完这条线，还可以换个职业对照。' },
+      { iconKey: ICON_KEYS.game, title: '欢迎来到你的第一天', text: '这是一次「职业试穿」——你会真实过几天程序员的班，看看适不适合、喜不喜欢。\n移动 WASD　·　交互 E　·　冲刺 Shift　·　菜单 ESC' },
+      { iconKey: ICON_KEYS.compass, title: '第一步：找导师报到', text: '头顶有 ❗ 的是你的导师「老陈」。走近他、按 E，他会给你派第一份活。\n左上角「▸ 下一步」和地上的金色箭头随时指路，不会迷路。' },
+      { iconKey: ICON_KEYS.hands, title: '第二步：找同事对接', text: '接到任务后，常要先找具名同事（头顶有对话标记）对接需求——走近按 E 聊两句。\n对接完，任务会提示你回工位干活。' },
+      { iconKey: ICON_KEYS.list, title: '第三步：回工位开工', text: '走到你自己的工位椅子，按 E 坐下 → 再按 E「开始工作」。\n会进入真实的写代码 / 代码评审 / 测试小游戏，做得越好，项目进度涨得越快。' },
+      { iconKey: ICON_KEYS.chart, title: '第四步：看状态、推进项目', text: '按 Tab 展开状态面板，每项都有说明（健康/精力/压力/热情…）。\n右上角是项目进度——推到 25 / 50 / 75 / 100% 会解锁新的剧情章节。' },
+      { iconKey: ICON_KEYS.moon, title: '第五步：下班，探索自己', text: '右上「下班回家」进下一天；左下「手机」联系家人、「心象世界」调整心态。\n通关会生成一份【职业人格报告】，指引你的方向。试完这条线，还可以换个职业对照。' },
     ];
     let idx = 0;
-    const iconT = this.add.text(W / 2, H / 2 - 150, '', { fontSize: '60px' }).setOrigin(0.5);
+    const iconT = makeIcon(this, W / 2, H / 2 - 150, steps[0].iconKey, 0xffd68a, 60);
     const titleT = this.add.text(W / 2, H / 2 - 74, '', { fontSize: '30px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5);
     const bodyT = this.add.text(W / 2, H / 2 + 12, '', { fontSize: '21px', color: '#e8e8f4', align: 'center', lineSpacing: 12, wordWrap: { width: 740, useAdvancedWrap: true } }).setOrigin(0.5);
     const dotsT = this.add.text(W / 2, H / 2 + PH / 2 - 84, '', { fontSize: '18px', color: '#5a5a7a' }).setOrigin(0.5);
@@ -639,23 +715,44 @@ export class WorldScene extends Phaser.Scene {
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
     const render = () => {
       const s = steps[idx];
-      iconT.setText(s.icon); titleT.setText(s.title); bodyT.setText(s.text);
+      iconT.setTexture(s.iconKey); titleT.setText(s.title); bodyT.setText(s.text);
       dotsT.setText(steps.map((_, i) => i === idx ? '●' : '○').join(' '));
       hintT.setText(idx < steps.length - 1 ? '点击任意处继续 →' : '开始体验 ✓');
       backT.setText(idx > 0 ? '← 上一步' : '');
       Juice.pop(this, iconT, 1);
     };
+    // B2 修复：首弹引导浮层原来只绑 pointerdown（鼠标点击），键盘玩家完全无法翻页/跳过——
+    // 违反"完全键盘可玩"。补上 Enter/Space/E=下一步、ESC=跳过、← =上一步，风格与
+    // _openNpcMenu 一致：延迟 100ms 绑定（防打开这一帧的残留按键误触发），关闭时显式解绑。
+    const kb = this.input.keyboard;
+    const unbindKeys = () => {
+      kb.off('keydown-ENTER', onKeyAdvance);
+      kb.off('keydown-SPACE', onKeyAdvance);
+      kb.off('keydown-E', onKeyAdvance);
+      kb.off('keydown-ESC', onKeySkip);
+      kb.off('keydown-LEFT', onKeyBack);
+    };
     const finish = () => {
+      unbindKeys();
       try { localStorage.setItem('wdwtb_onboarded', '1'); } catch (e) {}
       c.destroy(true);
       // 恢复 HUD + 解冻
       (this._hudHiddenForOnboard || []).forEach(o => o && o.setVisible(true));
       if (this.ePrompt) this.ePrompt.setVisible(false); // ePrompt 由交互逻辑控制，默认隐藏
       this.dialogueActive = false;
+      // 同 _openNpcMenu/_showLine 的 B1 修复：E/ESC 既是关闭本浮层的键，又是世界里的
+      // 交互/菜单键——键盘事件先于 scene.update() 触发，本帧 update() 里的
+      // JustDown(eKey)/JustDown(escKey) 仍可能读到 true，导致刚关引导又对旁边 NPC
+      // 触发一次交互，或顺带弹出暂停菜单。抑制窗口挡掉这几帧，不影响之后正常按键。
+      this._suppressInteractUntil = this.time.now + 250;
       if (typeof this._syncGuideText === 'function') this._syncGuideText();
       else if (typeof this._updateObjectiveHud === 'function') this._updateObjectiveHud();
     };
     const advance = () => { idx++; if (idx >= steps.length) finish(); else render(); };
+    const goBack = () => { if (idx > 0) { idx--; render(); } };
+    const onKeyAdvance = () => advance();
+    const onKeySkip = () => finish();
+    const onKeyBack = () => goBack();
     render();
     this.time.delayedCall(100, () => {
       mask.on('pointerdown', advance);
@@ -664,7 +761,12 @@ export class WorldScene extends Phaser.Scene {
       skipT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); finish(); });
       backT.on('pointerover', () => backT.setColor('#ffd24d'));
       backT.on('pointerout', () => backT.setColor('#8a8a9e'));
-      backT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); if (idx > 0) { idx--; render(); } });
+      backT.on('pointerdown', (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); goBack(); });
+      kb.on('keydown-ENTER', onKeyAdvance);
+      kb.on('keydown-SPACE', onKeyAdvance);
+      kb.on('keydown-E', onKeyAdvance);
+      kb.on('keydown-ESC', onKeySkip);
+      kb.on('keydown-LEFT', onKeyBack);
     });
   }
 
@@ -891,6 +993,28 @@ export class WorldScene extends Phaser.Scene {
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT); // 按住冲刺
     this.facing = 'down';
+
+    // 玩家名牌(头顶显示捏人时起的名字)——金色区分于 NPC 的白名牌,跟随玩家移动。
+    let pname = '我';
+    try {
+      const prof = JSON.parse(localStorage.getItem('wdwtb_profile') || '{}');
+      if (prof && prof.name) pname = String(prof.name).slice(0, 8);
+    } catch (e) {}
+    // 名牌放在【头顶上方】(角色精灵 origin 居中、SCALE2 约 64px 高,头顶约 y-32,
+    // 名牌底边贴 y-40),origin(0.5,1) 让名牌底边对齐头顶上方——不再显示在脚下(那样很怪)。
+    this.playerNameTag = this.add.text(this.player.x, this.player.y - 40, pname, {
+      fontSize: '13px', color: '#ffe08a', fontStyle: 'bold',
+      stroke: '#0a0a14', strokeThickness: 3,
+      backgroundColor: '#00000066', padding: { x: 5, y: 1 },
+    }).setOrigin(0.5, 1).setDepth(99999);
+  }
+
+  // 每帧同步玩家名牌到头顶上方(在 update 里调用)
+  _updatePlayerNameTag() {
+    if (this.playerNameTag && this.player) {
+      this.playerNameTag.setPosition(this.player.x, this.player.y - 40);
+      this.playerNameTag.setDepth(99999);
+    }
   }
 
   // ==================== NPC ====================
@@ -972,7 +1096,9 @@ export class WorldScene extends Phaser.Scene {
       if (chair) spr.setDepth(d._seat.depth); // 正确陷进椅子
 
       // NPC 名牌（脚下小字：名字 + 角色，让"谁是谁"一目了然）
-      const tagText = d.role ? `${d.name}·${d.role}` : d.name;
+      // role 超过 6 字截断加省略号，避免长角色名（如"老油条前辈"）撑宽名牌、被左上 HUD 盖住。
+      const roleText = d.role && d.role.length > 6 ? `${d.role.slice(0, 6)}…` : d.role;
+      const tagText = roleText ? `${d.name}·${roleText}` : d.name;
       const nameTag = this.add.text(d.x, d.y + 8, tagText, {
         fontSize: '15px', color: '#ffffff',
         backgroundColor: '#00000099', padding: { x: 5, y: 2 },
@@ -1040,19 +1166,23 @@ export class WorldScene extends Phaser.Scene {
     [...this.npcs, ...this.workers].forEach(e => { e._mood = this._makeMoodBubble(e.spr); });
     this._refreshAllMoods();
     if (this._moodTimer) this._moodTimer.remove();
+    // 气泡更勤地变化,办公室的"活人感"更强(用户反馈活人感缺失)
     this._moodTimer = this.time.addEvent({
-      delay: 18000, loop: true, callback: () => this._shuffleSomeMoods(),
+      delay: 10000, loop: true, callback: () => this._shuffleSomeMoods(),
     });
 
     this._startNpcLife();
   }
 
   // ==================== NPC 头顶状态泡泡（一句话状态）====================
-  // 小气泡=深色圆角底 + 白字,显示同事当下在干嘛("写代码💻""要上厕所🚽""赶deadline😱")。
+  // 小气泡=深色圆角底 + 白字,显示同事当下在干嘛("忙手头的事""赶进度""赶deadline")。纯文字,不带emoji。
   _makeMoodBubble(spr) {
+    // C6 务实改善：右侧工位区人物密集，气泡容易重叠——缩小字号/内边距降低占地面积，
+    // 背景不透明度调高（e0→f2）让重叠时上层气泡仍清晰可读。结构性改动（限制同屏气泡
+    // 数量/按距离淡出）风险较大、影响 NpcAgent 状态展示逻辑，本轮保守跳过。
     const t = this.add.text(spr.x, spr.y - 52, '', {
-      fontSize: '14px', color: '#f4f4ff', backgroundColor: '#242436e0',
-      padding: { x: 7, y: 4 }, align: 'center',
+      fontSize: '12px', color: '#f4f4ff', backgroundColor: '#242436f2',
+      padding: { x: 5, y: 3 }, align: 'center',
     }).setOrigin(0.5, 1).setDepth(9000);
     if (this.uiCamera) this.uiCamera.ignore(t);
     return t;
@@ -1071,20 +1201,26 @@ export class WorldScene extends Phaser.Scene {
     if (!e || !e._mood || !e.spr) return;
     e._mood.setText(Phaser.Utils.Array.GetRandom(this._moodPool()));
     this._positionMood(e);
-    e._mood.setVisible(e.spr.visible);
+    // ⚠️ 心情气泡认【_hiddenByPopulation 权威源】,不认滞后的 spr.visible。
+    // 根因(玩家实测"做完任务后人不见了,'约饭'/'午休片刻'浮标残留空座位"):spr.visible
+    // 由 _setPopulation 的 500ms 淡出 tween 在 onComplete 才置 false,而 _refreshAllMoods 在
+    // 淡出在途时(spr.visible 仍 true)就把气泡重新点亮→sprite 淡没、气泡却悬在空座位。
+    // 与 _updateFocus 一样把 _hiddenByPopulation 当唯一数据源,气泡与 sprite 显隐同步。
+    e._mood.setVisible(e.spr.visible && !e._hiddenByPopulation);
   }
 
   _refreshAllMoods() {
-    // 出行中的同事保留其"目的"文字,不被时段刷新打断(根治"去厕所走一半突然变打卡")
+    // 出行中的同事保留其"目的"文字,不被时段刷新打断(根治"去厕所走一半突然变打卡");
+    // 被时段人口隐藏的同事也不刷新(_setMood 内已按 _hiddenByPopulation 关气泡,双保险)
     [...(this.npcs || []), ...(this.workers || [])]
-      .filter(e => !(e.agent && e.agent.busy))
+      .filter(e => !(e.agent && e.agent.busy) && !e._hiddenByPopulation)
       .forEach(e => this._setMood(e));
   }
 
   // 每隔几秒随机给几个同事换一句状态（让泡泡"活"起来）。出行中的人保留其"目的"文字,不打断。
   _shuffleSomeMoods() {
     const all = [...(this.npcs || []), ...(this.workers || [])]
-      .filter(e => e.spr && e.spr.visible && !(e.agent && e.agent.busy));
+      .filter(e => e.spr && e.spr.visible && !e._hiddenByPopulation && !(e.agent && e.agent.busy));
     if (!all.length) return;
     const n = Math.min(2, all.length);
     for (let i = 0; i < n; i++) this._setMood(Phaser.Utils.Array.GetRandom(all));
@@ -1117,6 +1253,15 @@ export class WorldScene extends Phaser.Scene {
         this._syncBody(w); // 走动的同事挡块跟着脚下走(也挡玩家)
         // 走动时名牌跟随
         if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
+        // B2 修复：头顶交互浮标(❗/💬 等)跟随走动同步——此前只同步了 nameTag/_mood，
+        // 漏了 mark，导致核心 NPC 走开后浮标留在空椅子上，玩家追着❗扑空。
+        // mark 有一个上下 yoyo 的 tween(创建时 targets: mark, y: markY-6)，但 Phaser
+        // 的 UPDATE 事件（驱动 TweenManager）先于 scene.update()（这里）触发——见
+        // Scenes.Systems#step: PRE_UPDATE → UPDATE(tween) → sceneUpdate。
+        // 所以本帧渲染前，我们的 setPosition 总是在 tween 计算之后执行、最终生效，
+        // 不会产生"每帧被拉回"的抖动；代价是走动期间 tween 的上下飘动视觉被覆盖，
+        // 浮标变成静止跟随（回到座位后 tween 重新接管，恢复飘动）——可接受的取舍。
+        if (w.mark) w.mark.setPosition(w.spr.x, w.spr.y - 78);
       }
       // 出行结束回到工位 → 挡块归位到座位 + 泡泡换回普通状态
       if (w._wasBusy && !busy) {
@@ -1124,6 +1269,8 @@ export class WorldScene extends Phaser.Scene {
         this._setMood(w); this._positionMood(w);
         // 名牌归位
         if (w.nameTag) w.nameTag.setPosition(w.spr.x, w.spr.y + 8);
+        // 浮标归位：回工位后 x/y 复位到座位正上方,交还给 tween 继续飘动
+        if (w.mark) w.mark.setPosition(w.spr.x, w.spr.y - 78);
       }
       w._wasBusy = busy;
     }
@@ -1157,10 +1304,20 @@ export class WorldScene extends Phaser.Scene {
     }
     if (this._npcLifeTimer) this._npcLifeTimer.remove();
     // 真实职场：大部分人一直在工位工作，偶尔有人起身（茶水/打印/伸展）。
-    // tick 间隔 15 秒（不是 4 秒），且每次只有 ~30% 概率真的有人动，同时最多 1 人在走。
+    // 办公室要有"活人感"(用户反馈):tick 间隔 8 秒,多人可同时走动,让办公室活起来。
     this._npcLifeTimer = this.time.addEvent({
-      delay: 15000, loop: true, callback: () => this._tickNpcLife(),
+      delay: 8000, loop: true, callback: () => this._tickNpcLife(),
     });
+  }
+
+  // NPC 头顶是否正亮着任务标记（❗可接 / ❓可交付 / ❗进行中 talk 目标）——只要亮着,
+  // 就是玩家此刻正被引导去找的人,不能被 _tickNpcLife 派去游荡,否则玩家按指引走到TA
+  // 工位时人已经不在,体验成"引导目标凭空消失"(A1 修复)。
+  // 判据直接复用 QuestSystem.npcMark——与头顶实际显示的标记同一信号源,不会不一致。
+  // senior 无 agent(见 NPC 建档处),本就不进 _tickNpcLife 候选池,这里无需特判它。
+  _isCurrentQuestFocus(npc) {
+    if (!this.questSystem || !npc || !npc.id) return false;
+    return !!this.questSystem.npcMark(npc.id, { act: this.act });
   }
 
   _tickNpcLife() {
@@ -1168,17 +1325,17 @@ export class WorldScene extends Phaser.Scene {
     const seg = this.timeSystem?.current;
     // 深夜/午休在岗少,走动更少
     if (seg && seg.population < 0.3 && Phaser.Math.RND.frac() > 0.3) return;
-    // 候选池：核心 NPC（有 agent 的）+ 背景同事
+    // 候选池：核心 NPC（有 agent 的，排除当前任务引导目标）+ 背景同事
     const allMovers = [
-      ...(this.npcs || []).filter(n => n.agent && n.spr?.visible),
+      ...(this.npcs || []).filter(n => n.agent && n.spr?.visible && !this._isCurrentQuestFocus(n)),
       ...(this.workers || []).filter(w => w.agent && w.spr?.visible),
     ];
     if (!allMovers.length) return;
-    // 同时最多 2 人在走（核心NPC加入后稍放宽：真实办公室偶尔2人同时在动）
+    // 同时最多 4 人在走（真实办公室经常好几个人同时在动——茶水间/打印/走动/开会）
     const moving = allMovers.filter(e => e.agent.busy).length;
-    if (moving >= 2) return;
-    // 每次只有 35% 概率真的有人起身（大部分时间所有人安静坐着）
-    if (Phaser.Math.RND.frac() > 0.35) return;
+    if (moving >= 4) return;
+    // 55% 概率有人起身（办公室要"活",经常有人走动,不是死坐着）
+    if (Phaser.Math.RND.frac() > 0.55) return;
     const idle = allMovers.filter(e => !e.agent.busy);
     if (!idle.length) return;
     const w = Phaser.Utils.Array.GetRandom(idle);
@@ -1227,7 +1384,14 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // ESC 唤起暂停菜单（对话进行中不触发，交给对话自己的 ESC）
-    if (!this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.escKey)) {
+    // B1 修复：抑制窗口内跳过——防止"按 ESC 关对话"的同一帧，这里的 JustDown(escKey)
+    // 又读到 true，把暂停菜单也顺带弹出来（对话关闭键被"复用"成了菜单唤起键）。
+    // 注意：JustDown() 每帧都要调用来消费 _justDown 内部标记——如果抑制期内整句跳过不调用，
+    // 标记会一直挂着，抑制窗口一过反而"延迟触发"同一次按键，只是把 bug 推后而非修好。
+    // 所以调用 JustDown() 照常执行（消费标记），只是不在抑制期内对结果采取行动。
+    const interactSuppressed = this._suppressInteractUntil && this.time.now < this._suppressInteractUntil;
+    const escJustDown = Phaser.Input.Keyboard.JustDown(this.escKey);
+    if (!this.dialogueActive && !interactSuppressed && escJustDown) {
       this.scene.pause();
       this.scene.launch('PauseScene', this._pausePayload());
       return;
@@ -1305,6 +1469,7 @@ export class WorldScene extends Phaser.Scene {
     if (vx !== 0 && vy !== 0) { vx *= 0.7071; vy *= 0.7071; }
     this.player.setVelocity(vx, vy);
     this.player.setDepth(this.player.y);
+    this._updatePlayerNameTag(); // 玩家名牌跟随脚下
 
     if (vx === 0 && vy === 0) {
       // 停步：停动画并回到该朝向的 idle 帧（不再定格在走路中间帧）
@@ -1378,6 +1543,7 @@ export class WorldScene extends Phaser.Scene {
     this.activeNpc = (nearestType === 'npc') ? nearest : null;
     this.activeWorker = (nearestType === 'worker') ? nearest : null;
     this.activeObject = (nearestType === 'object') ? nearest : null;
+    this.activeChair = (nearestType === 'chair') ? nearest : null;
 
     // 选定圈：物件用家具位置(fx/fy)，NPC/同事用脚底，椅子用椅子位置
     const sel = this._selRing;
@@ -1407,7 +1573,13 @@ export class WorldScene extends Phaser.Scene {
       else label = `［ E ］${nearest.prompt}`;
       this.ePrompt.setText(label).setVisible(true);
       if (this.touchControls) this.touchControls.setInteractVisible(true);
-      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      // B1 修复：只抑制"触发"，不抑制"显示提示"——ePrompt 正常显示，只是本帧
+      // 刚关闭对话/菜单的抑制窗口内，JustDown(eKey) 不会重新分派交互。
+      // JustDown() 必须照常调用以消费 _justDown 标记（见上面 ESC 分支同款注释），
+      // 否则抑制期内积压的按键会在窗口结束后延迟触发。
+      const eSuppressed = this._suppressInteractUntil && this.time.now < this._suppressInteractUntil;
+      const eJustDown = Phaser.Input.Keyboard.JustDown(this.eKey);
+      if (!eSuppressed && eJustDown) {
         if (nearestType === 'npc') this._interact(nearest);
         else if (nearestType === 'worker') this._interactWorker(nearest);
         else if (nearestType === 'chair') this._sitOnChair(nearest);
@@ -1420,37 +1592,66 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // 聚焦虚化：选中 NPC/同事时，其他人物+物件半透明让路；取消选中时恢复。
+  // _hiddenByPopulation 是唯一的"下班隐藏"数据源（见 _setPopulation）——本函数对
+  // 被标记的人一律 continue 跳过，绝不碰它们的 alpha，避免和 _setPopulation 的
+  // tween(alpha:0 + setVisible(false)) 打架，造成 visible=false 但 alpha=1 的闪烁矛盾态。
   _updateFocus(target, targetType) {
-    const DIM = 0.28;
+    const DIM = 0.55; // 从 0.28 调温和：半透明但仍清晰可见，避免"走近1人其余全隐形"
     const all = [...(this.npcs || []), ...(this.workers || [])];
     if (!target || (targetType !== 'npc' && targetType !== 'worker')) {
-      // 无选中：全部恢复
+      // 无选中：全部恢复（跳过被时段隐藏的人，交给 _setPopulation 全权管理）
       for (const e of all) {
-        if (!e.spr) continue;
+        if (!e.spr || e._hiddenByPopulation) continue;
         if (e.spr.alpha < 1) e.spr.setAlpha(1);
         if (e.nameTag && e.nameTag.alpha < 1) e.nameTag.setAlpha(1);
       }
       return;
     }
-    // 有选中：目标=1，其余=DIM
+    // 有选中：目标=1，其余=DIM（同样跳过被时段隐藏的人）
     for (const e of all) {
-      if (!e.spr) continue;
+      if (!e.spr || e._hiddenByPopulation) continue;
       const isTarget = e === target;
       const a = isTarget ? 1 : DIM;
       if (Math.abs(e.spr.alpha - a) > 0.01) e.spr.setAlpha(a);
       if (e.nameTag) {
-        const ta = isTarget ? 1 : DIM * 1.5;
+        const ta = isTarget ? 1 : Math.min(1, DIM * 1.5);
         if (Math.abs(e.nameTag.alpha - ta) > 0.01) e.nameTag.setAlpha(ta);
       }
     }
   }
 
   // 跟背景同事聊两句（简单寒暄，不触发任务/好感系统）
+  // 走动中的 NPC 被玩家交互时:停下来面对玩家。记住是哪个,交互结束后 _resumePausedNpc 让它继续。
+  _pauseNpcForTalk(npc) {
+    if (!npc || !npc.agent || !npc.agent.busy) return; // 只有在走动/忙碌的才需要停
+    // 面向玩家的方向(玩家在 NPC 的哪一侧)
+    let faceDir = 'down';
+    if (npc.spr && this.player) {
+      const dx = this.player.x - npc.spr.x, dy = this.player.y - npc.spr.y;
+      faceDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    }
+    npc.agent.pauseForInteract(faceDir);
+    this._pausedNpc = npc;
+  }
+
+  // 交互结束:让之前停下的走动 NPC 继续做他原来的事(走到目的地/回工位)。
+  _resumePausedNpc() {
+    if (this._pausedNpc && this._pausedNpc.agent) {
+      this._pausedNpc.agent.resumeAfterInteract();
+    }
+    this._pausedNpc = null;
+  }
+
   _interactWorker(w) {
     if (this.dialogueActive) return;
-    const moods = ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '这块代码我写的，有问题找我。',
-      '今天需求又变了……习惯就好。', '咖啡机右边第二格是好豆子。', '别太拼，命是自己的。'];
-    const line = moods[Math.floor(Math.random() * moods.length)];
+    this._pauseNpcForTalk(w); // 走动中的同事被搭话→停下面对你
+    // 背景同事寒暄:按【当前职业】取,让不同职业的办公室有各自的味道
+    // (不再全职业都说程序员的话)。数据在 office_npcs.json 的 bantersByCareer。
+    const cfg = this.cache.json.get('office_npcs');
+    const byCareer = cfg && cfg.bantersByCareer;
+    const pool = (byCareer && byCareer[this.career])
+      || ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '慢慢熟，别急。'];
+    const line = pool[Math.floor(Math.random() * pool.length)];
     this._showLine(w.name || '同事', line, w.skin);
   }
 
@@ -1538,12 +1739,20 @@ export class WorldScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10002);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const kb = this.input.keyboard;
+    const buyKeyHandlers = []; // {name, handler} —— 数字键选购，随面板生命周期绑定/解绑
     const close = () => {
+      kb.off('keydown-ESC', onEsc);
+      buyKeyHandlers.forEach(({ name, handler }) => kb.off(`keydown-${name}`, handler));
       c.destroy(true);
       this.dialogueActive = false;
+      // ESC 关闭本面板的这一帧，update() 里的 JustDown(escKey) 仍可能读到 true，
+      // 顺带弹出暂停菜单（同款 B1 修复，见 _openNpcMenu/_showLine）。
+      this._suppressInteractUntil = this.time.now + 250;
       if (this.guideText) this.guideText.setVisible(true);
       this._afterInteract(obj);
     };
+    const onEsc = () => close();
     const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
       .setScrollFactor(0).setInteractive();
     c.add(mask);
@@ -1558,6 +1767,7 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
     c.add(moneyLabel);
 
+    const DIGIT_NAMES = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
     goods.forEach((g, i) => {
       const gy = py - ph / 2 + 100 + i * 84;
       c.add(this.add.rectangle(px, gy, pw - 56, 72, 0x232338, 0.96).setStrokeStyle(1, 0x4a4a6a));
@@ -1574,7 +1784,7 @@ export class WorldScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x5fbf7f).setInteractive({ useHandCursor: true });
       buyBtn.on('pointerover', () => buyBtn.setFillStyle(0x35604e));
       buyBtn.on('pointerout', () => buyBtn.setFillStyle(0x2a4a3e));
-      buyBtn.on('pointerdown', () => {
+      const doBuy = () => {
         const money = this.stateSystem.get('money');
         if (money < g.price) {
           this._showThoughtBubble('（钱不太够……下次吧。）', '#e8735a');
@@ -1590,9 +1800,22 @@ export class WorldScene extends Phaser.Scene {
         AudioSystem.uiClick();
         Juice.floatText(this, this.scale.width / 2, this.scale.height / 2 - 160,
           `${g.icon} ${g.name} 已放进背包`, '#7eff9a');
-      });
+      };
+      buyBtn.on('pointerdown', doBuy);
       c.add(buyBtn);
       c.add(this.add.text(px + pw / 2 - 84, gy, '购买', { fontSize: '17px', fill: '#eafff0', fontStyle: 'bold' }).setOrigin(0.5));
+      // 数字键 1/2/3...选购——键盘玩家不用鼠标也能买
+      const keyName = DIGIT_NAMES[i];
+      if (keyName) {
+        c.add(this.add.text(px - pw / 2 + 20, gy, `${i + 1}`, {
+          fontSize: '16px', fill: '#6fb2e8', fontStyle: 'bold',
+        }).setOrigin(0.5));
+        buyKeyHandlers.push({ name: keyName, handler: doBuy });
+      }
+    });
+    this.time.delayedCall(120, () => {
+      kb.on('keydown-ESC', onEsc);
+      buyKeyHandlers.forEach(({ name, handler }) => kb.on(`keydown-${name}`, handler));
     });
 
     const closeBtn = this.add.text(px + pw / 2 - 16, py - ph / 2 + 12, '✕', { fontSize: '24px', fill: '#8a8a9e' })
@@ -1605,6 +1828,7 @@ export class WorldScene extends Phaser.Scene {
 
   _interact(npc) {
     if (this.dialogueActive) return;
+    this._pauseNpcForTalk(npc); // 走动中的 NPC 被交互→停下面对你(交互完继续做他的事)
 
     // 导师(senior) → 剧情状态机（剧情=里程碑，经营期=日常，交替推进）
     if (npc.id === 'senior' || npc.act) {
@@ -1681,7 +1905,15 @@ export class WorldScene extends Phaser.Scene {
       c.destroy(true);
       if (!keepFrozen) {
         this.dialogueActive = false;
+        // B1 修复：closeMenu(false) 可能由玩家按 ESC 触发（见下面 onEsc）——
+        // 同一帧 update() 的 JustDown(escKey) 仍可能读到 true，顺带弹出暂停菜单。
+        this._suppressInteractUntil = this.time.now + 250;
         if (this.guideText) this.guideText.setVisible(true);
+        // ⚠️ 交互彻底结束(选"算了"/ESC),让之前被 _pauseNpcForTalk 停下的走动 NPC
+        // 继续做他的事;否则 NPC 的 tween 一直 pause,冻在半路(挡块也停更)。
+        // keepFrozen=true 分支是转交给 _showLine/_openGiftPanel,由它们收尾时 resume,
+        // 这里不能重复 resume。
+        this._resumePausedNpc();
       }
     };
     const onEsc = () => closeMenu(false);
@@ -1730,24 +1962,37 @@ export class WorldScene extends Phaser.Scene {
     if (!giftable.length) {
       this._showThoughtBubble('（背包里没有能送的东西。去售货机买点吧。）', '#9a9ac0');
       if (this.guideText) this.guideText.setVisible(true);
+      this._resumePausedNpc(); // 从"送礼"菜单转交进来但直接退出:让暂停的走动 NPC 继续
       return;
     }
     if (!this.items.canGiftTo(npc.id)) {
       this._showThoughtBubble('（今天已经送过TA东西了。）', '#9a9ac0');
       if (this.guideText) this.guideText.setVisible(true);
+      this._resumePausedNpc();
       return;
     }
     this.dialogueActive = true;
     const { width, height } = this.scale;
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10002);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
+    const kb = this.input.keyboard;
+    const giftKeyHandlers = []; // {name, handler} —— 数字键选礼物，随面板生命周期绑定/解绑
     const closePanel = (keepFrozen = false) => {
+      kb.off('keydown-ESC', onEsc);
+      giftKeyHandlers.forEach(({ name, handler }) => kb.off(`keydown-${name}`, handler));
       c.destroy(true);
       if (!keepFrozen) {
         this.dialogueActive = false;
+        // ESC 关闭本面板的这一帧，update() 里的 JustDown(escKey) 仍可能读到 true，
+        // 顺带弹出暂停菜单（同款 B1 修复，见 _openNpcMenu/_showLine）。
+        this._suppressInteractUntil = this.time.now + 250;
         if (this.guideText) this.guideText.setVisible(true);
+        // 送礼取消/失败:让被暂停的走动 NPC 继续(送礼成功走 keepFrozen=true 转交 _showLine)。
+        this._resumePausedNpc();
       }
     };
+    // ESC 走和 ✕/遮罩相同的 closePanel(false) 路径，别绕过——里面已经补了 _resumePausedNpc。
+    const onEsc = () => closePanel(false);
     const mask = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
       .setScrollFactor(0).setInteractive();
     c.add(mask);
@@ -1757,13 +2002,14 @@ export class WorldScene extends Phaser.Scene {
       fontSize: '24px', fill: '#ffb0d8', fontStyle: 'bold',
     }).setOrigin(0.5));
 
+    const GIFT_DIGIT_NAMES = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
     giftable.forEach((it, i) => {
       const gy = py - ph / 2 + 90 + i * 68;
       const row = this.add.rectangle(px, gy, pw - 48, 58, 0x232338, 0.96)
         .setStrokeStyle(1, 0x4a4a6a).setInteractive({ useHandCursor: true });
       row.on('pointerover', () => row.setFillStyle(0x33334e));
       row.on('pointerout', () => row.setFillStyle(0x232338));
-      row.on('pointerdown', () => {
+      const doGift = () => {
         const plan = planGift({ items: this.items, npc, itemId: it.id });
         if (!plan.ok) { closePanel(false); return; }
         this.items.removeOne(it.id);
@@ -1778,7 +2024,8 @@ export class WorldScene extends Phaser.Scene {
           ? `「${it.name}！你怎么知道我就好这口？谢了！」`
           : '「哟，谢啦。改天请你喝东西。」';
         this._showLine(npc.name, thanks);
-      });
+      };
+      row.on('pointerdown', doGift);
       c.add(row);
       c.add(this.add.text(px - pw / 2 + 46, gy, `${it.icon} ${it.name} ×${it.count}`, {
         fontSize: '18px', fill: '#ffffff',
@@ -1786,6 +2033,18 @@ export class WorldScene extends Phaser.Scene {
       c.add(this.add.text(px + pw / 2 - 46, gy, `好感+${it.giftAffinity}`, {
         fontSize: '14px', fill: '#ffb0d8',
       }).setOrigin(1, 0.5));
+      // 数字键 1/2/3...选礼物——键盘玩家不用鼠标也能送
+      const keyName = GIFT_DIGIT_NAMES[i];
+      if (keyName) {
+        c.add(this.add.text(px - pw / 2 + 20, gy, `${i + 1}`, {
+          fontSize: '15px', fill: '#6fb2e8', fontStyle: 'bold',
+        }).setOrigin(0.5));
+        giftKeyHandlers.push({ name: keyName, handler: doGift });
+      }
+    });
+    this.time.delayedCall(120, () => {
+      kb.on('keydown-ESC', onEsc);
+      giftKeyHandlers.forEach(({ name, handler }) => kb.on(`keydown-${name}`, handler));
     });
 
     const closeBtn = this.add.text(px + pw / 2 - 16, py - ph / 2 + 12, '✕', { fontSize: '24px', fill: '#8a8a9e' })
@@ -1850,11 +2109,13 @@ export class WorldScene extends Phaser.Scene {
     }
     const c = this.add.container(W / 2, 180).setScrollFactor(0).setDepth(12001).setAlpha(0);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
-    c.add(this.add.rectangle(W / 2, 0, 520, 120, 0x141422, 0.96).setStrokeStyle(2, 0xffd24d, 0.7).setOrigin(0.5));
-    c.add(this.add.text(W / 2, -36, '📋 新任务接取', { fontSize: '16px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, -8, q.title || fallbackTitle || '新任务', { fontSize: '22px', color: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0.5));
-    if (q.desc) c.add(this.add.text(W / 2, 18, q.desc, { fontSize: '16px', color: '#9a9ab0', wordWrap: { width: 480, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
-    if (stepHint) c.add(this.add.text(W / 2, 40, stepHint, { fontSize: '15px', color: '#7eff9a', stroke: '#0a0a14', strokeThickness: 2 }).setOrigin(0.5));
+    // 子元素用【相对容器中心】的坐标(x=0)——容器已在 W/2,子元素再用 W/2 会双重偏移
+    // 到屏幕右外溢出(修复P3:任务卡片溢出屏幕的大忌)。
+    c.add(this.add.rectangle(0, 0, 520, 120, 0x141422, 0.96).setStrokeStyle(2, 0xffd24d, 0.7).setOrigin(0.5));
+    c.add(this.add.text(0, -36, '新任务接取', { fontSize: '16px', color: '#ffd24d', fontStyle: 'bold' }).setOrigin(0.5));
+    c.add(this.add.text(0, -8, q.title || fallbackTitle || '新任务', { fontSize: '22px', color: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0.5));
+    if (q.desc) c.add(this.add.text(0, 18, q.desc, { fontSize: '16px', color: '#9a9ab0', wordWrap: { width: 480, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5));
+    if (stepHint) c.add(this.add.text(0, 40, stepHint, { fontSize: '15px', color: '#7eff9a', stroke: '#0a0a14', strokeThickness: 2 }).setOrigin(0.5));
     this._questCard = c;
     this.tweens.add({
       targets: c, alpha: 1, duration: 300,
@@ -1928,6 +2189,27 @@ export class WorldScene extends Phaser.Scene {
               `项目 +${applied.progressGain}%`,
               '#5fbf7f',
             );
+          }
+          // ⚠️ 交付即接下一环(修"第二个任务要跟老陈交流两次"):交付完不直接 return,
+          // 同一次交互里再算一次 action。若下一环已解锁(requires 满足、无待播剧情 pending)
+          // → 立即接取,交付台词关闭后自动弹"新任务接取"卡,一次交互完成"交付+接取"。
+          // 若此刻有 pendingAct(里程碑刚触发,该先推进剧情)→ 不接,让玩家去找老陈推进剧情。
+          const next = seniorInteractAction({
+            questSystem: this.questSystem,
+            story: this._story,
+            workLoopEnabled: this.workLoopEnabled,
+            act: this.act,
+          });
+          if (next.kind === 'accept') {
+            const acc = applySeniorAction(this.questSystem, next);
+            if (acc.ok) {
+              // 接取卡延到交付台词关闭后再弹(_showLine 关闭会清 dialogueActive),
+              // 避免与交付台词抢屏。用一次性 dialogueEnd 钩子承接。
+              this._pendingAcceptCard = {
+                questId: next.questId || acc.questId,
+                title: next.title || acc.line,
+              };
+            }
           }
           this._updateNpcMarks();
           this._autoSave?.();
@@ -2061,7 +2343,9 @@ export class WorldScene extends Phaser.Scene {
     this._saveProgressToSlot();
   }
 
-  _saveProgressToSlot(extra) {
+  // extra: 额外合并字段(如下班时 {day}); opts.skipNull: 剔除值为 null 的字段,
+  // 避免"系统尚未创建"时(进场 init)用 null 冲掉存档里已有的好值。
+  _saveProgressToSlot(extra, opts) {
     const slot = this._activeSlot || 1;
     const payload = {
       career: this.career, act: this.act,
@@ -2078,6 +2362,11 @@ export class WorldScene extends Phaser.Scene {
       items: this.items ? this.items.serialize() : null,
       ...extra,
     };
+    if (opts && opts.skipNull) {
+      for (const k of Object.keys(payload)) {
+        if (payload[k] == null) delete payload[k];
+      }
+    }
     return SaveSystem.saveSlot(slot, payload);
   }
 
@@ -2173,9 +2462,23 @@ export class WorldScene extends Phaser.Scene {
       kb.off('keydown-ESC', close);
       c.destroy(true);
       this.dialogueActive = false;
+      this._resumePausedNpc(); // 聊完了，让停下的走动 NPC 继续做他的事
+      // B1 修复：E/SPACE/ESC 关闭本气泡的这一帧，update() 里的 JustDown(eKey)/
+      // JustDown(escKey) 仍可能读到 true（键盘 down 事件先于 scene.update 触发），
+      // 导致"刚关闭又对同一 NPC/同一帧重新触发交互"或"顺带弹出暂停菜单"。
+      // 250ms 抑制窗口只盖住这次关闭附近的几帧，玩家松手再按完全不受影响。
+      this._suppressInteractUntil = this.time.now + 250;
       this._lineActive = false;
       this._lineBodyText = null;
       if (this.guideText) this.guideText.setVisible(true);
+      // 交付台词关闭后:若刚才 deliver 时顺带接取了下一环,现在弹"新任务接取"卡
+      // (一次交互完成"交付+接下一环",修"第二个任务要交流两次")。
+      if (this._pendingAcceptCard) {
+        const card = this._pendingAcceptCard;
+        this._pendingAcceptCard = null;
+        this._showQuestAcceptedCard(card.questId, card.title);
+        this._updateNpcMarks();
+      }
     };
     this.time.delayedCall(120, () => {
       hit.on('pointerdown', close);
@@ -2282,6 +2585,16 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  // objectiveHud 可见性【单一数据源】:有内容 且 非对话中 且 状态面板未展开,才显示。
+  // 三个写入方(onExpandChange/每帧dialogue同步/标签变化)全调它,消除"谁最后写谁赢"的每帧竞争。
+  _syncObjectiveHudVisibility() {
+    if (!this.objectiveHud) return;
+    const visible = !!this.objectiveHud.text
+      && !this.dialogueActive
+      && !(this.statusUI && this.statusUI.expanded);
+    this.objectiveHud.setVisible(visible);
+  }
+
   // 每帧轻量更新（HUD 文本变化才 setText;箭头按目标方向环绕玩家）
   // guideText 与 objectiveHud 共用 _currentGoal，避免静态「新人报到」与真实下一步打架。
   _updateObjectiveHud() {
@@ -2290,7 +2603,7 @@ export class WorldScene extends Phaser.Scene {
     const hud = chainHudStep(this.questSystem, this.act);
     let label;
     if (hud.title) {
-      label = `⛓ ${hud.title}\n${hud.step}`;
+      label = `${hud.title}\n${hud.step}`;
     } else if (goal) {
       label = `${goal.text}`;
     } else {
@@ -2299,22 +2612,21 @@ export class WorldScene extends Phaser.Scene {
     if (this._lastGoalLabel !== label) {
       this._lastGoalLabel = label;
       if (this.objectiveHud) {
-        this.objectiveHud.setText(label).setVisible(!!label && !this.dialogueActive);
+        this.objectiveHud.setText(label);
+        this._syncObjectiveHudVisibility();
       }
       // 底部引导条：与 objective 同源
       if (this.guideText && !this.dialogueActive) {
         const gTheme = CAREER_THEMES[this.career] || CAREER_THEMES.programmer;
         const [gName] = gTheme.npcs.senior;
-        const bottom = goal ? `📋 ${goal.text}` : `▸ 找头顶 ❗ 的人，或按 ESC 打开任务日志（导师：${gName}）`;
+        const bottom = goal ? `${goal.text}` : `▸ 找头顶有感叹号标记的人，或按 ESC 打开任务日志（导师：${gName}）`;
         if (this._lastGuideLabel !== bottom) {
           this._lastGuideLabel = bottom;
           this.guideText.setText(bottom);
         }
       }
     }
-    if (this.objectiveHud && this.objectiveHud.visible === this.dialogueActive && label) {
-      this.objectiveHud.setVisible(!this.dialogueActive); // 对话中隐藏
-    }
+    this._syncObjectiveHudVisibility(); // 每帧兜底(对话/展开态变化)——单一数据源,不再各自写
     // 方向箭头：目标离玩家 >260px 才显示（近了看得见头顶浮标,箭头反而碍事）
     if (!this._goalArrow) return;
     if (!goal || goal.x == null || this.dialogueActive) { this._goalArrow.setVisible(false); return; }
@@ -2473,15 +2785,29 @@ export class WorldScene extends Phaser.Scene {
     if (!this.workers) return;
     const keep = Math.round(Phaser.Math.Clamp(ratio, 0, 1) * this.workers.length);
     this.workers.forEach((w, i) => {
+      // 正在当"事件信使"送事件的人豁免于本次时段隐藏（A2 修复）：TA 可能正 goVisit 走向
+      // 玩家(busy)，若被这里 reset()+淡出，goVisit 的 onArrive 永不触发，玩家只能干等
+      // 20s 兜底、信使本人已隐身凭空消失。跳过整条处理，等 _releaseCourier 送达/超时
+      // 释放后，下一次时段切换会正常把它纳入人口调度。
+      if (w === this._eventCourier) return;
       const show = i < keep;
+      // 单一可见性数据源：_hiddenByPopulation 标记"当前时段是否被下班隐藏"。
+      // _updateFocus 会读这个标记并全程避让被隐藏的人，不会把它们的 alpha 拉回。
+      const prevHidden = w._hiddenByPopulation;
+      w._hiddenByPopulation = !show;
       if (!w.spr) return;
       if (w._body && w._body.body) w._body.body.enable = show; // 隐藏的人不挡路
       if (w._mood) w._mood.setVisible(show); // 隐藏的人不显示状态泡泡
-      if (show === w.spr.visible) return;
+      // ⚠️ 判据用【意图位 _hiddenByPopulation】而非滞后的 spr.visible:后者由 500ms 淡出
+      // tween 的 onComplete 才翻转,两次 _setPopulation 落在同一淡出窗口内且 show 反相时,
+      // 旧判据 show===spr.visible 会误判提前 return,导致该同事卡"alpha=1 但 visible=false"
+      // 的隐身态。先 killTweensOf 掐掉在途 tween 再起新的,保证可见性永远跟意图一致。
+      if (show === !prevHidden && prevHidden !== undefined) return; // 意图未变,免重复起 tween
       if (!show && w.agent) w.agent.reset(); // 下班的人若正在走动，先归位再淡出
+      this.tweens.killTweensOf(w.spr);       // 掐掉上一条未完成的淡入/淡出,避免互相打断
+      if (show) w.spr.setVisible(true);       // show 立即可见(不等 onStart),hide 才延到 onComplete
       this.tweens.add({
         targets: w.spr, alpha: show ? 1 : 0, duration: 500,
-        onStart: () => { if (show) w.spr.setVisible(true); },
         onComplete: () => { if (!show) w.spr.setVisible(false); },
       });
     });
@@ -2549,19 +2875,42 @@ export class WorldScene extends Phaser.Scene {
   //  test(守护者)：写用例 TestCase → 找bug/回归 Debug → 流程 Sequence
   //  其余职业：Debug ↔ Sequence 翻转（沿用旧行为）
   _workGameRotation() {
-    if (this.career === 'programmer' && this.subRole === 'dev') {
-      return ['DebugGameScene', 'SequenceGameScene', 'CodeReviewScene'];
-    }
-    if (this.career === 'programmer' && this.subRole === 'test') {
-      return ['TestCaseScene', 'DebugGameScene', 'SequenceGameScene'];
-    }
-    return ['DebugGameScene', 'SequenceGameScene'];
+    // 每个职业用自己【可爱好玩、人人能玩、有职业味】的工作玩法(替换硬核点代码小游戏)。
+    // 靠节奏/直觉/应对,不考专业知识——迷茫的大学生也能上手。
+    const BY_CAREER = {
+      programmer: ['TypingRhythmScene'],  // 敲码节奏
+      designer: ['ColorMatchScene'],      // 配色整理
+      sales: ['SalesTalkScene'],          // 对话应对
+      doctor: ['DiagnoseScene'],          // 看诊选择
+    };
+    if (BY_CAREER[this.career]) return BY_CAREER[this.career];
+    // 其余职业(产品/行政/运营/教师/公务员/律师)暂用敲码节奏的通用节奏玩法,
+    // 后续可各自做专属玩法(产品→需求排优先级、行政→整理归档…)。
+    return ['TypingRhythmScene'];
   }
 
-  _launchCoding(onComplete, difficulty = null) {
-    const rot = this._workGameRotation();
-    this._workGameIdx = ((this._workGameIdx == null ? -1 : this._workGameIdx) + 1) % rot.length;
-    const gameKey = rot[this._workGameIdx];
+  // gameType → 小游戏场景的映射(让工单内容和玩法咬合,不再无脑轮换换皮)
+  _gameSceneForType(gameType) {
+    const MAP = {
+      // 新工作玩法(可爱好玩人人能玩,不考编程知识)——替换掉硬核的"点点代码"小游戏。
+      // 程序员的写码/修bug/开发,都用「敲码节奏」(代码掉到判定线按空格,连击有爽感)。
+      debug: 'TypingRhythmScene',      // 修bug/排查/写码 → 敲码节奏
+      sequence: 'TypingRhythmScene',   // 开发新功能/对接 → 敲码节奏
+      review: 'CodeReviewScene',       // 评审(暂留,后续可换更可爱的"挑刺"节奏)
+      testcase: 'TestCaseScene',       // 补用例(暂留)
+    };
+    return MAP[gameType] || null;
+  }
+
+  _launchCoding(onComplete, difficulty = null, gameType = null) {
+    // 优先按工单类型选对应小游戏(名实相符:修bug→找茬、评审→审查、开发→序列、测试→用例);
+    // 无 gameType(如任务链默认工作)才回退到轮换。
+    let gameKey = gameType ? this._gameSceneForType(gameType) : null;
+    if (!gameKey) {
+      const rot = this._workGameRotation();
+      this._workGameIdx = ((this._workGameIdx == null ? -1 : this._workGameIdx) + 1) % rot.length;
+      gameKey = rot[this._workGameIdx];
+    }
     this.scene.pause();
     this.scene.launch(gameKey, {
       act: this.act, difficulty, fromScene: null,
@@ -2614,6 +2963,8 @@ export class WorldScene extends Phaser.Scene {
     if (!this.projectSystem) return;
     this.dialogueActive = true; // 冻结移动（玩家此时已坐在工位上）
     if (this.guideText) this.guideText.setVisible(false);
+    const kb = this.input.keyboard;
+    this._workBoardKeyHandlers = []; // {name, handler}——ESC + 数字键 + 回车，随面板关闭统一解绑
     const { width, height } = this.scale;
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(10000);
     if (typeof this.attachToUICamera === 'function') this.attachToUICamera(c);
@@ -2632,11 +2983,14 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.text(px - pw / 2 + 48, mainY - 8, '⛓ 当前任务', { fontSize: '17px', fill: '#8fc3ff', fontStyle: 'bold' }).setOrigin(0, 0.5));
     // 主任务卡
     c.add(this.add.rectangle(px, mainY + 42, pw - 80, 90, 0x1e2a3e, 0.98).setStrokeStyle(3, 0x4a7ab5));
+    // 标题/步骤限宽:卡片左内边距60,右侧留"项目X%"约100,故 wordWrap 上限 = pw-220。
+    // 加防线(此前无任何宽度约束,任务标题/步骤文案一长就撞破卡片、盖住右侧"项目X%")。
+    const cardTextW = pw - 220;
     if (hud.title) {
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 20, hud.title, { fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0, 0.5));
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 52, hud.step, { fontSize: '16px', fill: '#ffd24d' }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 20, hud.title, { fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3, wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 52, hud.step, { fontSize: '16px', fill: '#ffd24d', wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
     } else {
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 42, hud.step, { fontSize: '16px', fill: '#8fc3ff' }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 42, hud.step, { fontSize: '16px', fill: '#8fc3ff', wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
     }
     c.add(this.add.text(px + pw / 2 - 56, mainY + 42, `项目 ${pj}%`, { fontSize: '16px', fill: '#f0c060', fontStyle: 'bold' }).setOrigin(1, 0.5));
 
@@ -2680,13 +3034,17 @@ export class WorldScene extends Phaser.Scene {
         }).setOrigin(0.5);
       c.add(btn); c.add(btnTxt);
       if (enabled) {
+        const doMainWork = () => {
+          this._closeWorkBoard(c);
+          this._doQuestWork(activeQuest);
+        };
         btn.setInteractive({ useHandCursor: true })
           .on('pointerover', () => btn.setFillStyle(0x3a5a4e))
           .on('pointerout', () => btn.setFillStyle(0x2a4a3e))
-          .on('pointerdown', () => {
-            this._closeWorkBoard(c);
-            this._doQuestWork(activeQuest);
-          });
+          .on('pointerdown', doMainWork);
+        // 回车/E 确认主任务工作——键盘玩家不用鼠标也能开工
+        this._workBoardKeyHandlers.push({ name: 'ENTER', handler: doMainWork });
+        this._workBoardKeyHandlers.push({ name: 'E', handler: doMainWork });
       }
     }
 
@@ -2709,6 +3067,7 @@ export class WorldScene extends Phaser.Scene {
 
     const orders = this.projectSystem.getOrders();
     const DIFF = { easy: { t: '简单', c: '#6fcf7f' }, mid: { t: '中等', c: '#f0c060' }, hard: { t: '困难', c: '#e8735a' } };
+    const ORDER_DIGIT_NAMES = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
     orders.forEach((o, i) => {
       const oy = secY + 54 + i * 70;
       const done = o.done;
@@ -2716,10 +3075,14 @@ export class WorldScene extends Phaser.Scene {
       const card = this.add.rectangle(px, oy, pw - 80, 60, done ? 0x182618 : (disabled ? 0x1a1a24 : 0x232338), 0.96)
         .setStrokeStyle(2, done ? 0x3a5a3a : (disabled ? 0x2a2a34 : 0x4a4a6a));
       if (!done && !disabled) {
+        const doOrder = () => { this._closeWorkBoard(c); this._doWorkOrder(o); };
         card.setInteractive({ useHandCursor: true })
           .on('pointerover', () => card.setFillStyle(0x33334e))
           .on('pointerout', () => card.setFillStyle(0x232338))
-          .on('pointerdown', () => { this._closeWorkBoard(c); this._doWorkOrder(o); });
+          .on('pointerdown', doOrder);
+        // 数字键选工单——键盘玩家不用鼠标也能开工
+        const keyName = ORDER_DIGIT_NAMES[i];
+        if (keyName) this._workBoardKeyHandlers.push({ name: keyName, handler: doOrder });
       }
       c.add(card);
       const d = DIFF[o.difficulty] || DIFF.mid;
@@ -2729,7 +3092,7 @@ export class WorldScene extends Phaser.Scene {
       c.add(this.add.text(px - pw / 2 + 60, oy + 14, `${d.t} · +${o.progress}% · 绩效+${o.performance}`, {
         fontSize: '15px', fill: '#7a7a8e',
       }).setOrigin(0, 0.5));
-      c.add(this.add.text(px + pw / 2 - 56, oy, done ? '已完成' : (disabled ? '🔒' : '▶ 开工'), {
+      c.add(this.add.text(px + pw / 2 - 56, oy, done ? '已完成' : (disabled ? '🔒' : `▶ ${i + 1} 开工`), {
         fontSize: '16px', fill: done ? '#6a8a6a' : (disabled ? '#4a4a5e' : d.c), fontStyle: 'bold',
       }).setOrigin(1, 0.5));
     });
@@ -2741,14 +3104,29 @@ export class WorldScene extends Phaser.Scene {
     c.add(closeBtn);
     mask.on('pointerdown', () => this._closeWorkBoard(c)); // 点空白关闭
     this._workBoardUI = c;
+    // ESC 关闭面板——延迟绑定，避免开面板同一帧 ESC 被读到导致"刚开就关"
+    const onEsc = () => this._closeWorkBoard(c);
+    this._workBoardKeyHandlers.push({ name: 'ESC', handler: onEsc });
+    this.time.delayedCall(120, () => {
+      this._workBoardKeyHandlers.forEach(({ name, handler }) => kb.on(`keydown-${name}`, handler));
+    });
   }
 
   _closeWorkBoard(c) {
     if (c) c.destroy(true);
     this._workBoardUI = null;
     this.dialogueActive = false;
+    // ESC 关闭本面板的这一帧，update() 里的 JustDown(escKey) 仍可能读到 true，
+    // 顺带弹出暂停菜单（同款 B1 修复，见 _openNpcMenu/_showLine）。
+    this._suppressInteractUntil = this.time.now + 250;
     this._standUp(); // 收工起身
     if (this.guideText) this.guideText.setVisible(true);
+    // 解绑本面板加的全部键盘监听（ESC + 数字键 + 回车/E），防止泄漏重复触发
+    if (this._workBoardKeyHandlers) {
+      const kb = this.input.keyboard;
+      this._workBoardKeyHandlers.forEach(({ name, handler }) => kb.off(`keydown-${name}`, handler));
+      this._workBoardKeyHandlers = null;
+    }
   }
 
   // 开工做某工单 → 小游戏 → 成绩 quality 决定推进/绩效,并按工单消耗身心。
@@ -2765,6 +3143,20 @@ export class WorldScene extends Phaser.Scene {
       else if (quality >= 0.5) { this.stateSystem.change('skill', 2); }
       else { this.stateSystem.change('stress', 3); this.stateSystem.change('skill', 1); }
       this.stateSystem.change('energy', -8); // 干活耗精力
+      // 任务链工作也喂 stateSystem.performance(绩效评分,结局读它),口径与工单一致
+      this.stateSystem.change('performance', quality >= 0.7 ? 3 : (quality >= 0.4 ? 2 : 1));
+      // ⚠️ 任务链工作也是"工作成果"→ 计入绩效 + 项目进度(修 bug:此前只加 skill/passion,
+      // 导致玩家做了活但绩效/项目进度纹丝不动)。口径与工单一致:压力过高产出打折 ×0.8。
+      let qwork = null;
+      if (this.projectSystem) {
+        const stressMul = stressOutputMultiplier(this.stateSystem.get('stress'));
+        const effQuality = quality * stressMul.multiplier;
+        if (stressMul.stressed) {
+          Juice.floatText(this, this.player.x, this.player.y - 60, '压力过大，产出打折 ×0.8', '#e8a05a');
+        }
+        qwork = this.projectSystem.creditWork(effQuality);
+        this._updateProjectHud();
+      }
       // 推进任务链目标
       this.questSystem.progress('minigame', 'coding');
       this.questSystem.progress('minigame', 'work');
@@ -2774,10 +3166,11 @@ export class WorldScene extends Phaser.Scene {
       Juice.celebrate(this, this.player.x, this.player.y - 30, 0x5fbf7f);
       const q = quest ? this.questSystem.defs[quest.id] : null;
       const ready = quest && this.questSystem.isReady(quest.id);
+      const perfSuffix = qwork ? ` · 项目 +${qwork.progressGain}% · 绩效 +${qwork.perfGain}` : '';
       this._showThoughtBubble(
         ready
-          ? `✅ 任务工作完成！去找导师交付「${(q && q.title) || '任务'}」（头顶 ❓）`
-          : '✅ 干完一轮。看看左上角还差什么。',
+          ? `✅ 任务工作完成！去找导师交付「${(q && q.title) || '任务'}」（头顶 ❓）${perfSuffix}`
+          : `✅ 干完一轮。看看左上角还差什么。${perfSuffix}`,
         '#5fbf7f',
       );
       if (energyGate(this.stateSystem.get('energy')).forceOff && !this._exhaustedPrompted) {
@@ -2800,6 +3193,14 @@ export class WorldScene extends Phaser.Scene {
       }
       const r = this.projectSystem.completeOrder(order.id, effQuality);
       if (order.cost) for (const [k, v] of Object.entries(order.cost)) this.stateSystem.change(k, v);
+      // ⚠️ 工作产出同步喂 stateSystem.performance(8项状态里的"绩效",结局评分与状态条读它)。
+      // 修 bug:此前 performance 只由办公室事件偶尔喂,核心工作循环完全不动→玩家一路看 HUD
+      // 项目绩效涨,结局却按停在初值50的 stateSystem.performance 打分。现按质量给绩效评分增量,
+      // 让"做得好→绩效涨→结局体现"闭环。增量温和(好+3/一般+2/差+1),一局累积到合理区间。
+      this.stateSystem.change('performance', quality >= 0.7 ? 3 : (quality >= 0.4 ? 2 : 1));
+      // 工单也长一点技能:让"成长"回到职场主循环(此前技能全靠夜晚 study 独占,白天工单不加
+      // skill→干活不变强)。温和 +2/+1,别让夜晚 study(+6) 失去意义。
+      this.stateSystem.change('skill', quality >= 0.7 ? 2 : 1);
       if (quality >= 0.99) this.stateSystem.change('passion', 3);       // 做得漂亮,有成就感
       else if (quality <= 0.34) this.stateSystem.change('stress', 3);   // 搞砸了,额外焦虑
       this._updateProjectHud();
@@ -2822,7 +3223,7 @@ export class WorldScene extends Phaser.Scene {
         this._exhaustedPrompted = true;
         this._showThoughtBubble('（精力见底了……今天到极限了，该下班了。）', '#f0c060');
       }
-    }, order.difficulty); // 按工单难度抽对应难度的关卡
+    }, order.difficulty, order.gameType); // 按工单难度抽关卡 + 按 gameType 选对应小游戏(名实相符)
   }
 
   // ==================== 随机办公室事件 ====================
@@ -2832,10 +3233,11 @@ export class WorldScene extends Phaser.Scene {
     this._eventSeen = new Set();
     if (!this._officeEvents.length) return;
     if (this._eventTimer) this._eventTimer.remove();
-    // 低频但有仪式感：每 ~60 秒掷一次、35% 概率触发。
-    // 触发时不再凭空弹窗——先派一个 NPC 走到玩家面前"送"事件。
+    // 突发事件是职场体验的核心——要高频、有存在感(用户反馈"事件没了")。
+    // 每 ~25 秒掷一次、55% 概率触发(见 _maybeTriggerEvent 的 fireChance),
+    // 一个工作日能遇到 2-4 次信使跑来逼你做选择。触发时先派 NPC 走到玩家面前"送"事件。
     this._eventTimer = this.time.addEvent({
-      delay: 60000, loop: true, callback: () => this._maybeTriggerEvent(),
+      delay: 25000, loop: true, callback: () => this._maybeTriggerEvent(),
     });
   }
 
@@ -2849,7 +3251,7 @@ export class WorldScene extends Phaser.Scene {
       seenIds: this._eventSeen,
       act: this.act,
       relations: this.relations,
-      fireChance: 0.35,
+      fireChance: 0.55,
       rng: () => Phaser.Math.RND.frac(),
       relationFilter: eventMeetsRelations,
     });
@@ -2883,7 +3285,7 @@ export class WorldScene extends Phaser.Scene {
         if (pathTo && pathTo.length) {
           this._eventCourier = courierNpc;
           if (courierNpc._mood) { courierNpc._mood.setText('有事找你'); this._positionMood(courierNpc); }
-          courierNpc.agent.goVisit(pathTo, () => this._showOfficeEvent(ev, courierNpc));
+          courierNpc.agent.goVisit(pathTo, () => this._courierArrive(courierNpc, ev)); // 到达后追踪玩家
           this.time.delayedCall(20000, () => {
             if (this._eventCourier === courierNpc && !this._eventUI) {
               this._releaseCourier(); this._showOfficeEvent(ev, courierNpc);
@@ -2911,13 +3313,40 @@ export class WorldScene extends Phaser.Scene {
     if (!pathTo || !pathTo.length) return false;
     this._eventCourier = w;
     if (w._mood) { w._mood.setText('有事找你'); this._positionMood(w); }
-    w.agent.goVisit(pathTo, () => this._showOfficeEvent(ev, w));
+    w.agent.goVisit(pathTo, () => this._courierArrive(w, ev)); // 到达后追踪玩家
     this.time.delayedCall(20000, () => {
       if (this._eventCourier === w && !this._eventUI) {
         this._releaseCourier(); this._showOfficeEvent(ev);
       }
     });
     return true;
+  }
+
+  /**
+   * 信使到达后的追踪:如果玩家已经走开(距离>90px),重新寻路到玩家【当前】位置再走一次,
+   * 直到真正追到玩家身边才弹事件(用户反馈:信使应一直追我,而不是跑到我的旧位置就停)。
+   * @param courier 信使 NPC / worker
+   * @param ev 事件
+   * @param hops 已追踪次数(防死循环上限)
+   */
+  _courierArrive(courier, ev, hops = 0) {
+    // 已被别的流程接管/事件已弹/信使被释放 → 不再追
+    if (this._eventCourier !== courier || this._eventUI || !this.player || !courier.spr) return;
+    const dist = Phaser.Math.Distance.Between(courier.spr.x, courier.spr.y, this.player.x, this.player.y);
+    // 追到身边(≤90px)或追太多次(6次兜底,防玩家一直跑) → 弹事件
+    if (dist <= 90 || hops >= 6) {
+      this._showOfficeEvent(ev, courier);
+      return;
+    }
+    // 玩家走开了:重新寻路到玩家【当前】位置,继续追
+    const snap = this._pathfinder
+      ? this._pathfinder.snapToWalkable(this.player.x + 40, this.player.y)
+      : { x: this.player.x + 40, y: this.player.y };
+    if (!snap) { this._showOfficeEvent(ev, courier); return; }
+    const pathTo = this._findPath(courier.spr.x, courier.spr.y, snap.x, snap.y);
+    if (!pathTo || !pathTo.length) { this._showOfficeEvent(ev, courier); return; }
+    if (courier._mood) { courier._mood.setText('等等，找你！'); this._positionMood(courier); }
+    courier.agent.goVisit(pathTo, () => this._courierArrive(courier, ev, hops + 1));
   }
 
   /** 事件送达后：courier 回工位 */
@@ -3034,10 +3463,11 @@ export class WorldScene extends Phaser.Scene {
       chC.add(this.add.text(badgeX, 0, `${i + 1}`, {
         fontSize: '16px', color: '#16161f', fontStyle: 'bold',
       }).setOrigin(0.5).setScrollFactor(0));
-      // 选项文字
+      // 选项文字。⚠️ useAdvancedWrap:true 必须加——Phaser 默认 basicWordWrap 只按空格切词,
+      // 中文无空格永远不换行、直接横向撑破选项框并与相邻选项重叠。事件选项后续会扩充文案。
       chC.add(this.add.text(14, 0, ch.label, {
         fontSize: '17px', color: '#ffffff',
-        wordWrap: { width: chW - 96 }, align: 'center',
+        wordWrap: { width: chW - 96, useAdvancedWrap: true }, align: 'center',
       }).setOrigin(0.5).setScrollFactor(0));
       // 交互热区
       const zone = this.add.zone(0, 0, chW, chH).setScrollFactor(0).setInteractive({ useHandCursor: true });
@@ -3156,6 +3586,18 @@ export class WorldScene extends Phaser.Scene {
     // 今日工资 = 底薪 + 今日绩效，进钱包（在 _doGoHome 存档前落账）
     const salary = dailySalary(this.projectSystem.todayPerformance);
     this.stateSystem.change('money', salary);
+    // 房租·生活费:每幕最后一天下班时扣一笔(act1-4 各 -300,共 -1200;act5 终局不扣)。
+    // 让工资不再纯盈余——摸鱼者现金流吃紧,逼出"为钱多干活 vs 保住身心"的取舍(接主旨)。
+    let rent = null;
+    if (this.daySystem) {
+      const actNow = this._story ? (this._story.act || this.act) : this.act;
+      const needDays = (this.daySystem.actDayMap && this.daySystem.actDayMap[actNow]) || 999;
+      const isLastDayOfAct = (this.daySystem.dayInAct || 1) >= needDays;
+      if (isLastDayOfAct && actNow < 5) {
+        rent = 300;
+        this.stateSystem.change('money', -rent);
+      }
+    }
     const nowStats = this.stateSystem.getAll();
     const start = this._dayStartStats || nowStats;
     const report = buildDailyReportRows({
@@ -3168,6 +3610,7 @@ export class WorldScene extends Phaser.Scene {
       statsNow: nowStats,
       statsStart: start,
       salary,
+      rent,
     });
     let ry = py - 150;
     for (const row of report.rows) {
@@ -3188,7 +3631,7 @@ export class WorldScene extends Phaser.Scene {
     btn.on('pointerout', () => btn.setFillStyle(0x2a4a3e));
     btn.on('pointerdown', () => { c.destroy(true); this._reportUI = null; this.dialogueActive = false; this._doGoHome(); });
     c.add(btn);
-    c.add(this.add.text(px, py + ph / 2 - 44, '下班回家 🏠', { fontSize: '20px', fill: '#eafff0', fontStyle: 'bold' }).setOrigin(0.5));
+    c.add(this.add.text(px, py + ph / 2 - 44, '下班回家', { fontSize: '20px', fill: '#eafff0', fontStyle: 'bold' }).setOrigin(0.5));
     this._reportUI = c;
   }
 
@@ -3200,6 +3643,7 @@ export class WorldScene extends Phaser.Scene {
     SceneRouter.goto(this, 'HomeScene', {
       career: this.career, act: this.act,
       day: this.daySystem.day, stats: this.stateSystem.getAll(),
+      slot: this._activeSlot,
     });
   }
 
@@ -3304,7 +3748,16 @@ export class WorldScene extends Phaser.Scene {
     // 走近时用一个柔和高亮圈 + [E] 提示指示"这里能交互",更真实。
     for (const def of defs) {
       const [x, y] = def.pos;
-      this._interactables.push({ ...def, x, y });
+      const obj = { ...def, x, y };
+      this._interactables.push(obj);
+      // 常驻交互提示:让玩家一眼看到"这里能按E交互"。样式【明显区别于名字】——
+      // 带 [E] 前缀 + 青绿描边胶囊感,一看就是"交互点"不是"某人的名字"
+      // (玩家名字=金色无前缀在头顶,NPC名字=白色·职位,物件=青绿[E]提示)。
+      obj._label = this.add.text(x, y - 30, `[E] ${def.prompt || def.id}`, {
+        fontSize: '11px', color: '#8affd0', fontStyle: 'bold', stroke: '#06120c', strokeThickness: 4,
+        backgroundColor: '#0c2018cc', padding: { x: 6, y: 2 },
+      }).setOrigin(0.5, 1).setDepth(y - 1).setAlpha(0.7);
+      if (this.uiCamera) this.uiCamera.ignore(obj._label);
     }
     // 选定圈：贴地金色椭圆 + 脉冲发光（跟随当前选中实体脚下，平时隐藏）
     this._selRing = this.add.ellipse(0, 0, 52, 24, 0xffe08a, 0.12)
@@ -3333,6 +3786,11 @@ export class WorldScene extends Phaser.Scene {
 
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
+      self._resumePausedNpc(); // 剧情对话结束,让停下的走动 NPC 继续做他的事
+      // B1 修复：剧情对话可能由玩家按 ESC 触发退出（DialogueEngine._forceExit →
+      // _endDialogue → 这里）。同一帧 WorldScene.update() 的 JustDown(escKey) 仍可能
+      // 读到 true，把 ESC 又当成"唤起暂停菜单"的按键，对话一退出就顺带弹出暂停菜单。
+      self._suppressInteractUntil = self.time.now + 250;
       if (self.guideText) self.guideText.setVisible(true); // 对话结束恢复引导语
       if (self.offWorkBtn) self.offWorkBtn.setVisible(true);
       // 剧情结束回办公室：移除场景背景 + 恢复办公室色调，露出办公室地图
@@ -3367,7 +3825,14 @@ export class WorldScene extends Phaser.Scene {
           self._showRitual('🌱 你给绿萝浇了水。它好像在灯光下轻轻颤了一下。');
           break;
         case 'write_letter':
-          self._showRitual('✉️ 你写下了给一年后自己的信,封存在抽屉最深处。');
+          // 同一 action 名在不同幕语义相反：act1(含轻量职业入职)是"写信封存"，
+          // act5 是"拆信读"（回收第1幕封存的那封）。按当前剧情数据的 act 区分横幅文案，
+          // 避免"写下并封存"和正文"拆信读"打架。
+          if (eng.currentAct === 5) {
+            self._showRitual('✉️ 你拆开了入职时写给自己的信，一年前的字迹还在。');
+          } else {
+            self._showRitual('✉️ 你写下了给一年后自己的信,封存在抽屉最深处。');
+          }
           break;
         case 'minigame:coding':
         case 'minigame:review':
@@ -3411,7 +3876,10 @@ export class WorldScene extends Phaser.Scene {
             // 统一重新渲染当前节点：有选项展示选择；无选项(结束节点)走它自己的
             // advance 收尾——直接 _endDialogue 会吞掉结束节点的 action(如 act5 的
             // 'ending')，玩家会被卡在世界里进不了结局。
-            if (n) eng._showNode(eng.currentId);
+            // skipEffects:true——该节点的 effects 在玩家点击选项进入(choice.onClick →
+            // _showNode(choice.next))时已经施加过一次；这里只是心象返回后的重渲染，
+            // 不能再施加一次，否则同一节点 effects 被叠加两次，污染数值(P1-1)。
+            if (n) eng._showNode(eng.currentId, { skipEffects: true });
             else eng._endDialogue();
           });
           break;
@@ -3539,6 +4007,10 @@ export class WorldScene extends Phaser.Scene {
       kb.off('keydown-ESC', close);
       kb.off('keydown-SPACE', close);
       overlay.destroy(true);
+      // B1 修复（同源问题，非仅限对话）：_showRitual 不一定伴随 dialogueActive=true
+      // （如 water_plant 浇水仪式），ESC 直接绑在 kb 上关闭本弹窗；同一帧 update() 的
+      // JustDown(escKey) 仍可能读到 true，紧接着弹出暂停菜单。补设抑制窗口堵住这个口子。
+      this._suppressInteractUntil = this.time.now + 250;
     };
     this.time.delayedCall(100, () => {
       mask.on('pointerdown', close);
@@ -3567,9 +4039,33 @@ export class WorldScene extends Phaser.Scene {
     this._showFamilyByAct(this.act);
     const need = ACT_DAYS[this.act] || 1;
     const seniorName = (this.npcs || []).find(n => n.id === 'senior')?.name || '导师';
-    // workLoop：下一步是领链任务——直接弹仪式（不等 400ms），文字更明确
+
+    // ★去割裂：workLoop 职业，剧情刚结束就【当场把第一个任务发到手上】，
+    // 不再让玩家"再走回老陈那儿按一次 E"——那次二次交互是纯空转，正是割裂感来源。
+    // 复用 seniorInteractAction 的 accept 分支：此刻 pending=false，会返回第一个待派链任务。
+    if (this.workLoopEnabled && this.questSystem) {
+      const action = seniorInteractAction({
+        questSystem: this.questSystem,
+        story: this._story,
+        workLoopEnabled: this.workLoopEnabled,
+        act: this.act,
+      });
+      if (action.kind === 'accept') {
+        const applied = applySeniorAction(this.questSystem, action);
+        if (applied.ok) {
+          this._updateNpcMarks();
+          this._persistStory();
+          this._autoSave?.();
+          // 直接弹"新任务接取"卡片（与走近老陈领任务同款体验），玩家看完开场任务已在手
+          this._showQuestAcceptedCard(action.questId || applied.questId, action.title || applied.line);
+          return;
+        }
+      }
+    }
+
+    // 兜底（非 workLoop / 无可派任务）：仍走原引导仪式
     const body = this.workLoopEnabled
-      ? `📅 开场故事结束。\n\n${seniorName}有事找你——\n再走近他（头顶有 ❗），按 E 对话，\n他会给你第一个工作任务。\n\n之后：找同事对接 → 回工位开工 → 右上角下班。`
+      ? `📅 开场故事结束。\n${seniorName}把第一个活儿交给你了——\n看左上角任务：找同事对接 → 回工位开工 → 右上角下班。`
       : `📅 这一阶段的故事告一段落。\n接下来的${need}天，好好经营你的职场日常——\n做做任务、和同事聊聊、累了就下班回家。\n等你过完这几天，去找${seniorName}聊下一步。`;
     this._showRitual(body);
   }

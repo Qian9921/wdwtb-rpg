@@ -44,7 +44,7 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
     ws._goHome();
   });
   await sleep(1500);
-  const savedAfterHome = await p.evaluate(() => JSON.parse(localStorage.getItem('wdwtb_save')));
+  const savedAfterHome = await p.evaluate(() => JSON.parse(localStorage.getItem('wdwtb_save_1')));
   ok('下班后存档仍保住 story（BUG-1核心）', savedAfterHome.story && savedAfterHome.story.phase === 'working',
     JSON.stringify(savedAfterHome.story));
 
@@ -55,14 +55,14 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
     if (hs && hs._sleep) hs._sleep();
   });
   await sleep(1200);
-  const savedAfterSleep = await p.evaluate(() => JSON.parse(localStorage.getItem('wdwtb_save')));
+  const savedAfterSleep = await p.evaluate(() => JSON.parse(localStorage.getItem('wdwtb_save_1')));
   ok('睡觉后经营期天数 daysInAct 累加', savedAfterSleep.story && savedAfterSleep.story.daysInAct >= 1,
     JSON.stringify(savedAfterSleep.story));
 
   // 5. 续档恢复 + 推进：用 reload 得到干净会话（headless 下同页多次转场会累积竞态，
   //    真实玩家不会），写入"睡觉后"的存档，重进 WorldScene 验证 init 恢复。
-  await p.evaluate(() => localStorage.setItem('wdwtb_save', JSON.stringify({
-    version: 2, career: 'programmer', act: 1,
+  await p.evaluate(() => localStorage.setItem('wdwtb_save_1', JSON.stringify({
+    version: 2, slot: 1, career: 'programmer', act: 1,
     stats: { health: 80, energy: 100, san: 80, stress: 20, skill: 10, performance: 50, money: 0, passion: 70 },
     story: { phase: 'working', act: 1, daysInAct: 1 },
   })));

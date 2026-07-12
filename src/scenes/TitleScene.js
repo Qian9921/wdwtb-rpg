@@ -71,18 +71,19 @@ export class TitleScene extends Phaser.Scene {
       fontSize: '18px', color: '#3a6a9a', letterSpacing: 4,
     }).setOrigin(0.5).setAlpha(0.7);
 
-    // ===== 主标题：像素字体 + 描边 + 逐字弹入 =====
-    const titleChars = '你想成为谁'.split('');
+    // ===== 主标题 OFFERED：像素字体 + 描边 + 逐字弹入 =====
+    // 一个词就把职场语境立住:拿到 offer=被录用,悬念在"录用之后——这份工作真的适合你吗"。
+    const titleChars = 'OFFERED'.split('');
     const titleY = H * 0.20;
-    const charSpacing = 96;
+    const charSpacing = 92; // 英文 7 字母,间距略小于中文
     const titleStartX = W / 2 - ((titleChars.length - 1) * charSpacing) / 2;
     titleChars.forEach((ch, i) => {
       const t = this.add.text(titleStartX + i * charSpacing, titleY, ch, {
-        fontSize: '80px', color: '#fff8e8', fontStyle: 'bold',
-        stroke: '#c47020', strokeThickness: 8,
+        fontSize: '84px', color: '#fff8e8', fontStyle: 'bold',
+        stroke: '#c47020', strokeThickness: 9,
       }).setOrigin(0.5).setDepth(10).setScale(0);
       this.tweens.add({
-        targets: t, scale: 1, duration: 400, delay: 200 + i * 100,
+        targets: t, scale: 1, duration: 400, delay: 200 + i * 90,
         ease: 'Back.out', onComplete: () => {
           this.tweens.add({
             targets: t, scale: 1.04, duration: 2400 + i * 100,
@@ -92,45 +93,53 @@ export class TitleScene extends Phaser.Scene {
       });
       t.setShadow(0, 6, '#e8a05099', 16, false, true);
     });
+    // 中文副标题:让不熟英文的玩家也秒懂这是什么
+    const subTitle = this.add.text(W / 2, H * 0.285, '录用通知', {
+      fontSize: '22px', color: '#d4a353', letterSpacing: 10, fontStyle: 'bold',
+    }).setOrigin(0.5).setAlpha(0);
+    this.tweens.add({ targets: subTitle, alpha: 0.95, duration: 700, delay: 700 });
 
     // ===== Slogan =====
-    const slogan = this.add.text(W / 2, H * 0.31, '试一种人生，找到你自己', {
-      fontSize: '26px', color: '#5a8aaa', letterSpacing: 6,
+    const slogan = this.add.text(W / 2, H * 0.33, '入职之后，才知道适不适合', {
+      fontSize: '24px', color: '#5a8aaa', letterSpacing: 4,
     }).setOrigin(0.5).setAlpha(0);
-    this.tweens.add({ targets: slogan, alpha: 0.9, duration: 800, delay: 800 });
+    this.tweens.add({ targets: slogan, alpha: 0.9, duration: 800, delay: 900 });
 
-    // ===== 职业图标横排（10 个职业的小标签——展示游戏丰富度）=====
+    // ===== 职业标签横排：主打「程序员」金亮突出 + 其余灰色「敬请期待」=====
+    // 软灰度后不再平铺 10 职业(误导以为都能玩),明确当前主打程序员线、更多陆续开放。
     const CAREER_TAGS = [
-      { name: '程序员', color: '#7ec8ff' },
-      { name: '产品', color: '#7eff9a' },
-      { name: '行政', color: '#ffd870' },
-      { name: '设计', color: '#e890b0' },
-      { name: '运营', color: '#a890e8' },
-      { name: '教师', color: '#90e8b0' },
-      { name: '医生', color: '#ff9a7a' },
-      { name: '公务员', color: '#c8a070' },
-      { name: '销售', color: '#e8c870' },
-      { name: '律师', color: '#b0c8e8' },
+      { name: '程序员', color: '#7ec8ff', playable: true },
+      { name: '产品', color: '#5a6070' },
+      { name: '行政', color: '#5a6070' },
+      { name: '设计', color: '#5a6070' },
+      { name: '运营', color: '#5a6070' },
+      { name: '教师', color: '#5a6070' },
+      { name: '医生', color: '#5a6070' },
+      { name: '公务员', color: '#5a6070' },
+      { name: '销售', color: '#5a6070' },
+      { name: '律师', color: '#5a6070' },
     ];
-    const tagY = H * 0.38;
+    const tagY = H * 0.40;
     const tagSpacing = Math.min(120, (W - 200) / CAREER_TAGS.length);
     const tagStartX = W / 2 - ((CAREER_TAGS.length - 1) * tagSpacing) / 2;
     CAREER_TAGS.forEach((tag, i) => {
       const tx = tagStartX + i * tagSpacing;
-      const bg = this.add.rectangle(tx, tagY, 90, 28, 0x1a2a3a, 0.7)
-        .setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(tag.color).color, 0.6)
+      const on = !!tag.playable;
+      const bg = this.add.rectangle(tx, tagY, 90, 28, on ? 0x1a3a4a : 0x14141c, on ? 0.85 : 0.5)
+        .setStrokeStyle(on ? 2.5 : 1, Phaser.Display.Color.HexStringToColor(tag.color).color, on ? 0.9 : 0.35)
         .setAlpha(0).setDepth(6);
       const txt = this.add.text(tx, tagY, tag.name, {
-        fontSize: '14px', color: tag.color,
+        fontSize: on ? '15px' : '13px', color: tag.color, fontStyle: on ? 'bold' : 'normal',
       }).setOrigin(0.5).setAlpha(0).setDepth(7);
+      // 主打程序员:头顶一颗小星,更醒目
+      const star = on ? this.add.text(tx, tagY - 22, '★', { fontSize: '13px', color: '#ffd24d' }).setOrigin(0.5).setAlpha(0).setDepth(7) : null;
+      const targets = star ? [bg, txt, star] : [bg, txt];
       this.tweens.add({
-        targets: [bg, txt], alpha: 1, duration: 300, delay: 1200 + i * 60,
+        targets, alpha: on ? 1 : 0.55, duration: 300, delay: 1200 + i * 60,
         onComplete: () => {
-          // 持续轻微浮动
-          this.tweens.add({
-            targets: [bg, txt], y: tagY - 3, duration: 1500 + i * 80,
-            yoyo: true, repeat: -1, ease: 'Sine.inOut',
-          });
+          if (on) { // 只有主打的持续浮动+呼吸,其余静置(灰)
+            this.tweens.add({ targets: [bg, txt, star].filter(Boolean), y: '-=3', duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+          }
         },
       });
     });
@@ -551,7 +560,7 @@ export class TitleScene extends Phaser.Scene {
     this._openOverlay(); this._overlayTitle('制作组'); this._overlayCloseButton();
     const { width: W, height: H } = this.scale;
     const lines = [
-      { t: '你想成为谁', c: '#ffd24d', s: '24px' },
+      { t: 'OFFERED · 录用通知', c: '#ffd24d', s: '24px' },
       { t: '', c: '#888' },
       { t: 'AI 开发引擎', c: '#8fd08f', s: '20px' },
       { t: 'WorkBuddy — 腾讯 AI 办公智能体', c: '#ffe08a', s: '18px' },
@@ -559,10 +568,10 @@ export class TitleScene extends Phaser.Scene {
       { t: '', c: '#888' },
       { t: 'AI 内容引擎', c: '#8fd08f', s: '18px' },
       { t: '腾讯混元 hy3 — 结局画像 / NPC 台词', c: '#c8c8dc' },
-      { t: '10 职业 x 5 幕叙事，AI 实时生成', c: '#9a9ab0' },
+      { t: '5 幕叙事，AI 实时生成', c: '#9a9ab0' },
       { t: '', c: '#888' },
       { t: '游戏设计', c: '#8fd08f', s: '18px' },
-      { t: '职场探索叙事 RPG · 10 职业世界', c: '#c8c8dc' },
+      { t: '职场探索叙事 RPG · 当前主打程序员线', c: '#c8c8dc' },
       { t: '任务链 / 好感 / 物品 / 事件 / 五结局', c: '#9a9ab0' },
       { t: '', c: '#888' },
       { t: '像素美术', c: '#8fd08f', s: '18px' },
@@ -574,14 +583,15 @@ export class TitleScene extends Phaser.Scene {
       { t: '', c: '#888' },
       { t: '部署：腾讯云 EdgeOne Pages', c: '#8fd08f', s: '18px' },
       { t: '', c: '#888' },
-      { t: '试一种人生，找到你自己。', c: '#ffd24d', s: '20px' },
+      { t: '入职之后，才知道适不适合。', c: '#ffd24d', s: '20px' },
       { t: '腾讯云黑客松 2026 · WorkBuddy 出品', c: '#6a6a82' },
     ];
-    const lineH = 30;
-    const startY = H / 2 - (lines.length * lineH) / 2 + 20;
+    const lineH = 26; // 略缩行距,容下更多行且不撞标题
+    // 从面板标题(y = H/2 - 410 + 36)下方留足 56px 开始,避免居中算法把长列表顶到标题上重叠。
+    const startY = H / 2 - 820 / 2 + 36 + 56;
     lines.forEach((line, i) => {
       this._overlay.add(this.add.text(W / 2, startY + i * lineH, line.t, {
-        fontSize: line.s || '17px', color: line.c || '#c8c8dc', fontStyle: line.s ? 'bold' : 'normal',
+        fontSize: line.s || '16px', color: line.c || '#c8c8dc', fontStyle: line.s ? 'bold' : 'normal',
       }).setOrigin(0.5));
     });
   }

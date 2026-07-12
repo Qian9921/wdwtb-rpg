@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { buildPauseInsight, CAREER_NAMES as FIT_NAMES } from '../systems/CareerFit.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // PauseScene — 暂停菜单覆盖场景（完整像素 RPG 标配）
 // 由 WorldScene 通过 scene.launch('PauseScene', { origin, stateSystem, career, act }) 唤起，
@@ -37,6 +38,7 @@ export class PauseScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.W = W; this.H = H;
+    ensurePixelIcons(this); // 像素图标纹理（替代 emoji，幂等）
     AudioSystem.duck(true); // 菜单打开压低 BGM
     // 半透明遮罩（吃掉底层点击）
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0a12, 0.82).setInteractive();
@@ -62,21 +64,38 @@ export class PauseScene extends Phaser.Scene {
     }).setOrigin(0.5));
   }
 
-  _menuButton(y, label, cb, w = 340, color = 0x2a2a44) {
-    // 先量文字再定框：宽取 max(给定宽, 文字宽+边距)，高随文字，绝不挡字
-    const txt = this.add.text(this.W / 2, y, label, { fontSize: '20px', color: '#e8e8f4' }).setOrigin(0.5);
-    const bw = Math.max(w, Math.ceil(txt.width) + 56);
+  // iconKey：像素图标 ICON_KEYS.xxx（替代 emoji），传了就画在文字左侧、随文字一起水平居中。
+  _menuButton(y, label, cb, w = 340, color = 0x2a2a44, iconKey = null) {
+    // 可爱圆角按钮：先量文字再定框（绝不挡字），圆角+金边+hover 弹性
+    const iconSize = 20, iconGap = 8;
+    const txt = this.add.text(0, y, label, { fontSize: '20px', color: '#eef1ff', fontStyle: 'bold' }).setOrigin(0, 0.5).setDepth(2);
+    const contentW = txt.width + (iconKey ? iconSize + iconGap : 0);
+    const startX = this.W / 2 - contentW / 2;
+    let icon = null;
+    if (iconKey) {
+      icon = makeIcon(this, startX + iconSize / 2, y, iconKey, 0xeef1ff, iconSize).setDepth(2);
+      txt.setX(startX + iconSize + iconGap);
+    } else {
+      txt.setX(startX);
+    }
+    const bw = Math.max(w, Math.ceil(contentW) + 56);
     const bh = Math.ceil(txt.height) + 24;
-    const btn = this.add.rectangle(this.W / 2, y, bw, bh, color, 0.96)
-      .setStrokeStyle(2, 0x5a5a8a).setInteractive({ useHandCursor: true });
-    txt.setDepth(btn.depth + 1);
-    btn.on('pointerover', () => btn.setFillStyle(0x3a3a5e));
-    btn.on('pointerout', () => btn.setFillStyle(color));
-    btn.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
-    // 框要在文字下方：先加框再加文字
-    this.panel.add(btn); this.panel.add(txt);
-    btn.label = txt; // 供调用方动态改文字（如辅助模式开关）
-    return btn;
+    const r = Math.min(16, bh / 2);
+    const g = this.add.graphics();
+    const draw = (hover) => {
+      g.clear();
+      g.fillStyle(hover ? 0x3a3a5e : color, 0.97); g.fillRoundedRect(this.W / 2 - bw / 2, y - bh / 2, bw, bh, r);
+      g.lineStyle(2, 0xd4a353, hover ? 1 : 0.6); g.strokeRoundedRect(this.W / 2 - bw / 2, y - bh / 2, bw, bh, r);
+    };
+    draw(false);
+    const zone = this.add.zone(this.W / 2, y, bw, bh).setInteractive({ useHandCursor: true });
+    const hoverTargets = icon ? [txt, icon] : [txt];
+    zone.on('pointerover', () => { draw(true); this.tweens.add({ targets: hoverTargets, scale: 1.04, duration: 100, ease: 'Back.out' }); });
+    zone.on('pointerout', () => { draw(false); this.tweens.add({ targets: hoverTargets, scale: 1, duration: 100 }); });
+    zone.on('pointerdown', () => { AudioSystem.uiClick(); cb(); });
+    this.panel.add(g); this.panel.add(txt); this.panel.add(zone);
+    if (icon) this.panel.add(icon);
+    return { label: txt, icon, g, zone };
   }
 
   _backButton() {
@@ -91,6 +110,14 @@ export class PauseScene extends Phaser.Scene {
   // ===== 主菜单 =====
   _showMain() {
     this._clear();
+    // 可爱圆角卡（衬在菜单后，包住标题+8个按钮，绝不出框）
+    // B3 修复：新增"操作说明"入口后按钮数 7→8，卡高/卡心相应下调，否则最后一个按钮会出框。
+    const cardW = 500, cardH = 570, cx = this.W / 2, cy = 375;
+    const card = this.add.graphics();
+    card.fillStyle(0x1a1a2c, 0.98); card.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 26);
+    card.fillStyle(0xffffff, 0.04); card.fillRoundedRect(cx - cardW / 2 + 6, cy - cardH / 2 + 6, cardW - 12, cardH * 0.24, 22);
+    card.lineStyle(3, 0xd4a353, 1); card.strokeRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 26);
+    this.panel.add(card);
     this._title('暂 停', 130);
     const cn = CAREER_NAMES[this.career] || this.career;
     this.panel.add(this.add.text(this.W / 2, 172, `${cn} · 第${this.act}幕 ${ACT_NAMES[this.act] || ''}`, {
@@ -99,22 +126,56 @@ export class PauseScene extends Phaser.Scene {
 
     let y = 216;
     this._menuButton(y, '▶  继续游戏', () => this._close()); y += 54;
-    this._menuButton(y, '🌌  心象世界', () => this._enterMindscape()); y += 54;
-    this._menuButton(y, '👤  角色状态', () => this._showStatus()); y += 54;
-    this._menuButton(y, '🎒  物品', () => this._showItems()); y += 54;
-    this._menuButton(y, '📋  任务日志', () => this._showQuests()); y += 54;
+    this._menuButton(y, '心象世界', () => this._enterMindscape(), 340, 0x2a2a44, ICON_KEYS.nebula); y += 54;
+    this._menuButton(y, '角色状态', () => this._showStatus(), 340, 0x2a2a44, ICON_KEYS.person); y += 54;
+    this._menuButton(y, '物品', () => this._showItems(), 340, 0x2a2a44, ICON_KEYS.bag); y += 54;
+    this._menuButton(y, '任务日志', () => this._showQuests(), 340, 0x2a2a44, ICON_KEYS.list); y += 54;
+    // B3 修复：首玩引导只弹一次(localStorage 记过就永不再弹)，玩家忘了操作后无处可查。
+    // 暂停菜单是随时可达的入口，加一个纯只读的操作说明，最小改动、最自然的位置。
+    this._menuButton(y, '操作说明', () => this._showControls(), 340, 0x2a2a44, ICON_KEYS.help); y += 54;
     this._menuButton(y, '⚙  设置', () => this._showSettings()); y += 54;
-    this._menuButton(y, '🚪  返回职业大厅', () => {
+    this._menuButton(y, '返回职业大厅', () => {
       this._confirm('返回职业大厅？当前进度已自动存档。', () => {
         this.scene.stop(this.origin);
         this.scene.stop();
         this.scene.start('HubScene');
       });
-    }, 320, 0x3a3222); y += 54;
+    }, 320, 0x3a3222, ICON_KEYS.door); y += 54;
 
     this.panel.add(this.add.text(this.W / 2, this.H - 24, 'ESC 继续游戏', {
       fontSize: '12px', color: '#5a5a7a',
     }).setOrigin(0.5));
+  }
+
+  // ===== 操作说明（B3：忘了怎么玩时随时可查）=====
+  _showControls() {
+    this._clear(); this.inSub = true;
+    this._title('操作说明'); this._backButton();
+
+    const rows = [
+      ['WASD / 方向键', '移动'],
+      ['Shift（按住）', '冲刺'],
+      ['E', '交互（对话 / 坐下 / 使用物品）'],
+      ['Tab', '展开 / 收起状态面板'],
+      ['T', '倾听内心（进入心象世界）'],
+      ['ESC', '暂停菜单 / 返回上一步'],
+    ];
+    const cx = this.W / 2, startY = 150, rowH = 40, labelX = cx - 140, valueX = cx - 20;
+    rows.forEach(([key, desc], i) => {
+      const y = startY + i * rowH;
+      this.panel.add(this.add.rectangle(cx, y, 460, 32, 0x22223a, 0.9).setStrokeStyle(1, 0x3a3a5a));
+      this.panel.add(this.add.text(labelX, y, key, {
+        fontSize: '15px', color: '#ffd68a', fontStyle: 'bold',
+      }).setOrigin(0, 0.5));
+      this.panel.add(this.add.text(valueX, y, desc, {
+        fontSize: '14px', color: '#e8e8f4',
+      }).setOrigin(0, 0.5));
+    });
+    this.panel.add(this.add.text(cx, startY + rows.length * rowH + 20,
+      '提示：接到任务后，头顶有 ❗/❓ 标记的同事就是下一步该找的人。', {
+        fontSize: '13px', color: '#8b8bb0', align: 'center',
+        wordWrap: { width: 460, useAdvancedWrap: true },
+      }).setOrigin(0.5, 0));
   }
 
   // ===== 从暂停菜单进入心象世界 =====

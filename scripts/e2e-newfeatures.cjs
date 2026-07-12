@@ -19,8 +19,9 @@ const puppeteer=require('puppeteer'); const sleep=ms=>new Promise(r=>setTimeout(
     await new Promise(r=>setTimeout(r,600));});
   const hubTags=await ev(()=>{const h=window.__game.scene.getScene('HubScene');
     const texts=h.children.list.filter(o=>o.text).map(o=>o.text);
-    return {full:texts.includes('★完整版'), mini:texts.includes('★迷你完整')};});
-  t('Hub 内容量角标(完整版/迷你完整)', hubTags.full&&hubTags.mini);
+    // 软灰度后:程序员=★完整版(金标),其余9职业=敬请期待(灰标)
+    return {full:texts.includes('★完整版'), soon:texts.includes('敬请期待')};});
+  t('Hub 角标(程序员完整版 + 其余敬请期待)', hubTags.full&&hubTags.soon);
 
   // 进世界
   await ev(async()=>{ localStorage.clear(); localStorage.setItem('wdwtb_onboarded','1');

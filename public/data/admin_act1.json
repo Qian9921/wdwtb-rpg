@@ -7,334 +7,498 @@
   "nodes": {
     "a1_start": {
       "speaker": "",
-      "text": "六点四十的公交,靠窗坐着。晨光把行道树的影子一格一格铺在腿上,像有人替我把日子提前排好了序。",
+      "text": "六点四十的公交,靠窗坐着。晨光把树影铺在腿上。",
       "bg": "office_lobby",
       "effects": {},
       "choices": [
-        { "text": "(继续)", "next": "a1_commute_mono" }
+        {
+          "text": "(继续)",
+          "next": "a1_commute_mono"
+        }
       ]
     },
     "a1_commute_mono": {
       "speaker": "",
-      "text": "高校行政,编制,一杯茶一张报一整天。念叨了三年的'稳定',今天起就是我的了。上岸了——这两个字在心里念一遍,肩膀都松了半寸。",
+      "text": "高校行政,编制,一杯茶一张报一整天。念叨了三年的'稳定',今天起是我的了。上岸了。",
       "bg": "office_lobby",
-      "effects": { "passion": 4 },
+      "effects": {
+        "passion": 4
+      },
       "choices": [
-        { "text": "(继续)", "next": "a1_gate" }
+        {
+          "text": "(继续)",
+          "next": "a1_gate"
+        }
       ]
     },
     "a1_gate": {
       "speaker": "",
-      "text": "行政楼比想象中旧。灰白外墙,爬山虎沿着排水管往上爬。玻璃门上贴着一张卷了边的通知,又压着一张新的,新的盖着红章。",
+      "text": "行政楼比想象中旧。玻璃门上一张卷边的旧通知,又压着一张新的,盖着红章。",
       "bg": "office_lobby",
       "effects": {},
       "choices": [
-        { "text": "推门进去", "next": "a1_report" }
+        {
+          "text": "推门进去",
+          "next": "a1_report"
+        }
       ]
     },
     "a1_report": {
       "speaker": "王主任",
-      "text": "一个头发花白的男人正端着搪瓷缸站在传达室门口。他看了眼我手里的报到单:新来的?小同志,填个表,按个手印,你就算这楼里的人了。",
+      "text": "传达室门口,一个头发花白的男人端着搪瓷缸。他瞥了眼报到单:新来的?填个表,按个手印,你就算这楼里的人了。",
       "bg": "office_lobby",
       "effects": {},
       "choices": [
-        { "text": "认真填表、按手印", "next": "a1_badge", "note": "体制的仪式感" }
+        {
+          "text": "认真填表、按手印",
+          "next": "a1_badge",
+          "note": "体制的仪式感"
+        }
       ]
     },
     "a1_badge": {
       "speaker": "王主任",
-      "text": "他从抽屉里摸出一张还带着塑封余温的工牌，用袖口在牌面上蹭了蹭，才递过来：拿好，别弄丢。这楼里，认牌不认脸。",
+      "text": "他从抽屉里摸出一张工牌，用袖口蹭了蹭，递过来：拿好，别弄丢。这楼里，认牌不认脸。",
       "bg": "office_lobby",
-      "effects": { "passion": 3, "money": 3 },
+      "effects": {
+        "passion": 3,
+        "money": 3
+      },
       "choices": [
-        { "text": "接过工牌", "next": "a1_badge_mono" }
+        {
+          "text": "接过工牌",
+          "next": "a1_badge_mono"
+        }
       ]
     },
     "a1_badge_mono": {
       "speaker": "",
-      "text": "工牌上的照片是我，名字是我，可'高校行政'四个字底下，好像还印着另一行看不见的小字。我摩挲着塑封边角——这就是所谓的'一份保障'了。",
+      "text": "工牌上,照片是我,名字是我。这就是所谓的'一份保障'了。",
       "bg": "office_lobby",
       "effects": {},
       "choices": [
-        { "text": "上楼，去科室报到", "next": "a1_meet_wang" }
+        {
+          "text": "上楼，去科室报到",
+          "next": "a1_meet_wang"
+        }
       ]
     },
     "a1_meet_wang": {
       "speaker": "王主任",
-      "text": "刚才传达室那人，此刻坐在科室最里头的位置。报纸摊开半版，搪瓷缸冒着热气，一撮茶叶在水面打转。他没抬头：坐吧，先别急着干活。这行当，急不来。",
+      "text": "传达室那人,此刻坐在科室最里头,报纸摊开。他没抬头：坐吧，先别急着干活。这行当，急不来。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "王主任，我该从哪儿开始？", "next": "a1_wang_tea", "note": "急着表现" },
-        { "text": "先坐下，等他开口", "next": "a1_wang_tea", "note": "沉住气" }
+        {
+          "text": "王主任，我该从哪儿开始？",
+          "next": "a1_wang_tea",
+          "note": "急着表现"
+        },
+        {
+          "text": "先坐下，等他开口",
+          "next": "a1_wang_tea",
+          "note": "沉住气"
+        }
       ]
     },
     "a1_wang_tea": {
       "speaker": "王主任",
-      "text": "他给我也倒了一缸茶，水线压得很低：在这栋楼里，把事办成，靠的不是快。你记着——盖章的顺序，比盖的是什么章还要紧。这话，我琢磨了小三十年。",
+      "text": "他给我也倒了一缸茶：把事办成，靠的不是快。盖章的顺序，比盖的是什么章还要紧——我琢磨了小三十年。",
       "bg": "desk",
-      "effects": { "skill": 3 },
+      "effects": {
+        "skill": 3
+      },
       "choices": [
-        { "text": "(继续)", "next": "a1_wang_mono" }
+        {
+          "text": "(继续)",
+          "next": "a1_wang_mono"
+        }
       ]
     },
     "a1_wang_mono": {
       "speaker": "",
-      "text": "小三十年。我端着那缸有点烫的茶，想象不出一个人怎么在同一张桌子后面，坐进白头发里。可他眼神很静，像一口不起波澜的老井。我猜，那也是一种活法。",
+      "text": "小三十年。我端着茶，想象不出一个人怎么在同一张桌子后面坐进白头发里。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "王主任领我去工位", "next": "a1_desk_assign" }
+        {
+          "text": "王主任领我去工位",
+          "next": "a1_desk_assign"
+        }
       ]
     },
     "a1_desk_assign": {
       "speaker": "王主任",
-      "text": "靠窗那张，以前是小周的，他考走了。他拍了拍一张掉漆的铁皮桌：桌子旧，风水好——晒得着太阳。抽屉钥匙在笔筒底下。",
+      "text": "靠窗那张，以前是小周的，他考走了。他拍拍那张掉漆的铁皮桌：桌子旧，风水好，晒得着太阳。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "坐下，打量这张桌子", "next": "a1_desk_atmos" }
+        {
+          "text": "坐下，打量这张桌子",
+          "next": "a1_desk_atmos"
+        }
       ]
     },
     "a1_desk_atmos": {
       "speaker": "",
-      "text": "桌面有一圈圈茶渍叠出的年轮，抽屉里躺着半盒过期的曲别针、一支写不出的红笔，还有一张前任贴的便签，字迹已经发黄：'催三次，还是得自己跑一趟。'",
+      "text": "抽屉里躺着半盒过期曲别针、一支写不出的红笔,还有张发黄的便签：'催三次，还是得自己跑一趟。'",
       "bg": "desk",
-      "effects": { "passion": 3 },
+      "effects": {
+        "passion": 3
+      },
       "choices": [
-        { "text": "把桌子擦干净，收拾出自己的角落", "next": "a1_desk_clean" }
+        {
+          "text": "把桌子擦干净，收拾出自己的角落",
+          "next": "a1_desk_clean"
+        }
       ]
     },
     "a1_desk_clean": {
       "speaker": "",
-      "text": "抹布擦过桌面，茶渍的年轮淡了些，却擦不掉。阳光正好落在窗台上，那里空着——像在等一点什么活物，来给这间旧办公室添口气。",
+      "text": "抹布擦过桌面，茶渍淡了些，却擦不掉。窗台空着，阳光正好落在那儿。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "中午去花市，带回一盆小绿植", "next": "a1_plant_intro" }
+        {
+          "text": "中午去花市，带回一盆小绿植",
+          "next": "a1_plant_intro"
+        }
       ]
     },
     "a1_plant_intro": {
       "speaker": "",
-      "text": "花市角落，一盆不起眼的绿萝，叶子被晒得有点蔫，标价便宜。老板说这东西命硬，忘了浇也死不了。就它吧——它和我，都得学着在这栋楼里活下去。",
+      "text": "花市角落，一盆不起眼的绿萝，叶子有点蔫，标价便宜。老板说这东西命硬。就它吧。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "把它安顿到窗台，给它起个名字", "next": "a1_plant_ritual" }
+        {
+          "text": "把它安顿到窗台，给它起个名字",
+          "next": "a1_plant_ritual"
+        }
       ]
     },
     "a1_plant_ritual": {
       "speaker": "",
-      "text": "我把花盆摆正，让最蔫的那片叶子朝着光。第一次浇水，水从盆底渗出来，在窗台上洇开一小片深色。往后每天的第一件事，就是它了。",
+      "text": "我把花盆摆正，让最蔫的叶子朝着光。第一次浇水，水从盆底渗出来，洇开一片深色。",
       "bg": "desk",
-      "effects": { "passion": 3, "san": 2 },
+      "effects": {
+        "passion": 3,
+        "san": 2
+      },
       "action": "plant_tree",
       "choices": [
-        { "text": "看着它，忽然想认真对待这份工作", "next": "a1_letter_intro" }
+        {
+          "text": "看着它，忽然想认真对待这份工作",
+          "next": "a1_letter_intro"
+        }
       ]
     },
     "a1_letter_intro": {
       "speaker": "王主任",
-      "text": "他不知什么时候站到我身后，看着窗台笑了：新人都爱摆盆花。我教你个老规矩——趁今天还热乎，给一年后的自己写封信，封起来，明年今天再拆。看看那时候的你，还认不认得今天的你。",
+      "text": "王主任看着窗台笑了：新人都爱摆盆花。教你个老规矩——给一年后的自己写封信，封起来，明年今天再拆。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "找出信纸，认真想一想要写什么", "next": "a1_letter_write" }
+        {
+          "text": "找出信纸，认真想一想要写什么",
+          "next": "a1_letter_write"
+        }
       ]
     },
     "a1_letter_write": {
       "speaker": "",
-      "text": "笔尖悬在纸上。写给一年后的我——那时的我，会变成什么样子？有些话，得趁现在还没被日子磨掉，先写下来。只能选一句，压在信封最上面。",
+      "text": "笔尖悬在纸上。写给一年后的我。只能选一句，压在信封最上面。",
       "bg": "desk",
       "effects": {},
       "action": "write_letter",
       "choices": [
-        { "text": "别让'稳定'把你想做的事磨没了", "next": "a1_letter_sealed", "note": "热情线关键句" },
-        { "text": "守好本分，细水长流也是一种活法", "next": "a1_letter_sealed", "note": "稳健线关键句" },
-        { "text": "记住你是来生活的，不是来把日子熬完的", "next": "a1_letter_sealed", "note": "边界线关键句" }
+        {
+          "text": "别让'稳定'把你想做的事磨没了",
+          "next": "a1_letter_sealed",
+          "note": "热情线关键句"
+        },
+        {
+          "text": "守好本分，细水长流也是一种活法",
+          "next": "a1_letter_sealed",
+          "note": "稳健线关键句"
+        },
+        {
+          "text": "记住你是来生活的，不是来把日子熬完的",
+          "next": "a1_letter_sealed",
+          "note": "边界线关键句"
+        }
       ]
     },
     "a1_letter_sealed": {
       "speaker": "",
-      "text": "我把信纸折成三折，塞进信封，舔了舔封口——一股淡淡的胶水味。在封面写下'一年后拆'，压进抽屉最里层。像是把今天的自己，郑重地埋了下去。",
+      "text": "信纸折成三折，塞进信封，写下'一年后拆'，压进抽屉最里层。",
       "bg": "desk",
-      "effects": { "passion": 3, "san": 2 },
+      "effects": {
+        "passion": 3,
+        "san": 2
+      },
       "choices": [
-        { "text": "抬起头，办公室里有人来了", "next": "a1_colleague_meet" }
+        {
+          "text": "抬起头，办公室里有人来了",
+          "next": "a1_colleague_meet"
+        }
       ]
     },
     "a1_colleague_meet": {
-      "speaker": "李姐",
-      "text": "一个端着大保温杯的女人晃进来，杯壁上贴着褪色的养生贴。她瞄了眼我窗台的绿萝，又瞄了眼我：新来的吧？我李姐。放轻松，这儿的活饿不着也撑不着，待几年你就懂了。",
+      "speaker": "刘姐",
+      "text": "一个端着保温杯的女人晃进来，瞄了眼绿萝：新来的吧？我刘姐。放轻松，这儿的活饿不着也撑不着。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "李姐，这楼里的事，是不是特别多规矩？", "next": "a1_colleague_stamp", "note": "好奇" }
+        {
+          "text": "刘姐，这楼里的事，是不是特别多规矩？",
+          "next": "a1_colleague_stamp",
+          "note": "好奇"
+        }
       ]
     },
     "a1_colleague_stamp": {
-      "speaker": "李姐",
-      "text": "她拿起一份表格给我演示：你看，这份，A科签完盖章，走到B科，B科再签，再盖，最后回主任这儿总签。她盖章的手很熟，啪、啪、啪，三下，纸上就多了三个红团。就这么个事，走完得三天。",
+      "speaker": "刘姐",
+      "text": "她拿起一份表格演示：A科盖章，走到B科再签再盖，最后回主任这儿总签。三下，纸上多了三个红团——走完得三天。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "(继续)", "next": "a1_stamp_mono" }
+        {
+          "text": "(继续)",
+          "next": "a1_stamp_mono"
+        }
       ]
     },
     "a1_stamp_mono": {
       "speaker": "",
-      "text": "三个红章，三天。表格上真正要办的那件事，只有一行字。可就是这一行字，要在三个人的手里，各睡上一晚。我盯着那三个红团，说不清是踏实，还是有点空。",
+      "text": "三个红章，三天。真正要办的事只有一行字，却要在三个人手里各睡一晚。",
       "bg": "desk",
       "effects": {},
       "choices": [
-        { "text": "李姐，这样……不觉得慢吗？", "next": "a1_corridor_walk", "note": "较真苗头" },
-        { "text": "原来如此，我记下了", "next": "a1_corridor_walk", "note": "先学规矩" }
+        {
+          "text": "刘姐，这样……不觉得慢吗？",
+          "next": "a1_corridor_walk",
+          "note": "较真苗头"
+        },
+        {
+          "text": "原来如此，我记下了",
+          "next": "a1_corridor_walk",
+          "note": "先学规矩"
+        }
       ]
     },
     "a1_corridor_walk": {
-      "speaker": "李姐",
-      "text": "慢？她笑，把表格往我怀里一塞：这份你去跑吧，就当认认路。B科在走廊那头。她努了努嘴——那条走廊很长，两排一模一样的门，灯管有几根不亮，尽头暗着，看不清有多远。",
+      "speaker": "刘姐",
+      "text": "慢？她笑，把表格塞进我怀里：这份你去跑吧，就当认路。B科在走廊那头——很长，尽头暗着。",
       "bg": "corridor",
       "effects": {},
       "choices": [
-        { "text": "抱着表格，走进那条长走廊", "next": "a1_corridor_mono" }
+        {
+          "text": "抱着表格，走进那条长走廊",
+          "next": "a1_corridor_mono"
+        }
       ]
     },
     "a1_corridor_mono": {
       "speaker": "",
-      "text": "脚步声在走廊里回响。一样的门，一样的门牌，只有编号在变。走到一半，我下意识回头看了眼来路——原来从这头，也一样望不到尽头。我摇摇头，是我想多了。第一天而已。",
+      "text": "脚步声在走廊里回响。一样的门，只有编号在变。走到一半回头，来路也望不到头。",
       "bg": "corridor",
       "effects": {},
       "choices": [
-        { "text": "在B科门口，遇见一个等着的学生", "next": "a1_student_meet" }
+        {
+          "text": "在B科门口，遇见一个等着的学生",
+          "next": "a1_student_meet"
+        }
       ]
     },
     "a1_student_meet": {
       "speaker": "学生",
-      "text": "一个背着书包的男生蹲在B科门口，抱着一摞材料，脸憋得通红：老师……我这个证明，跑了两趟了，一会儿说少张表，一会儿说章盖错了地方。您、您能帮我看看吗？我下午还要赶去实习报到。",
+      "text": "一个男生蹲在B科门口，抱着材料，脸憋得通红：老师……这个证明跑了两趟了，一会儿说少张表，一会儿说章盖错了地方。",
       "bg": "corridor",
       "effects": {},
       "choices": [
-        { "text": "别急，材料给我看看", "next": "a1_student_help" }
+        {
+          "text": "别急，材料给我看看",
+          "next": "a1_student_help"
+        }
       ]
     },
     "a1_student_help": {
       "speaker": "",
-      "text": "我翻了翻。表格是旧版的，得换新的；章盖在了骑缝的位置，其实不算错，是B科的人图省事不认。说白了，不是他材料有问题，是他不懂这栋楼的'暗规矩'。而我，今天刚好懂了一点点。",
+      "text": "我翻了翻。表格是旧版的；章盖在骑缝位置，其实不算错，是B科的人图省事不认。他不懂这栋楼的'暗规矩'。",
       "bg": "corridor",
       "effects": {},
       "choices": [
-        { "text": "带他把这摞材料一次办妥", "next": "a1_affairs_game" }
+        {
+          "text": "带他把这摞材料一次办妥",
+          "next": "a1_affairs_game"
+        }
       ]
     },
     "a1_affairs_game": {
       "speaker": "",
-      "text": "换新表、指他把骑缝章的事说清、赶在B科午休前递进窗口——每一步的顺序，都是刚才王主任那句话在起作用。",
+      "text": "换新表、说清骑缝章的事、赶在B科午休前递进窗口——每一步都是王主任那句话在起作用。",
       "bg": "corridor",
       "effects": {},
       "action": "minigame:affairs",
       "choices": [
-        { "text": "开始帮他跑这趟流程", "next": "a1_affairs_done" }
+        {
+          "text": "开始帮他跑这趟流程",
+          "next": "a1_affairs_done"
+        }
       ]
     },
     "a1_affairs_done": {
       "speaker": "学生",
-      "text": "窗口那头终于点了头。男生接过盖好章的材料，反复确认了三遍，抬头时眼睛发亮：谢谢老师！真的谢谢您！第一次有人肯帮我把话说明白——他鞠了个躬，抱着材料一路小跑走了。",
+      "text": "窗口终于点了头。男生接过材料，眼睛发亮：谢谢老师！他鞠了个躬，抱着材料跑了。",
       "bg": "corridor",
-      "effects": { "passion": 5, "skill": 3, "performance": 2 },
+      "effects": {
+        "passion": 5,
+        "skill": 3,
+        "performance": 2
+      },
       "choices": [
-        { "text": "(继续)", "next": "a1_affairs_mono" }
+        {
+          "text": "(继续)",
+          "next": "a1_affairs_mono"
+        }
       ]
     },
     "a1_affairs_mono": {
       "speaker": "",
-      "text": "他跑远的背影，让我心里某个地方轻轻亮了一下。原来这一摞盖章走流程的琐碎里，真的能长出一点有用的东西——我帮到了一个具体的人。就为这一下，好像值了。",
+      "text": "他跑远的背影，让我心里轻轻亮了一下。我帮到了一个具体的人。",
       "bg": "corridor",
       "effects": {},
       "choices": [
-        { "text": "抱着自己那份表，继续去B科", "next": "a1_back_office" }
+        {
+          "text": "抱着自己那份表，继续去B科",
+          "next": "a1_back_office"
+        }
       ]
     },
     "a1_back_office": {
       "speaker": "",
-      "text": "跑完自己那趟，回到科室已经临近下班。夕光斜进来，把办公室染成暖橙色。李姐早收拾利索了，杯子一拎:先走啦，第一天别硬撑。就剩窗台那盆绿萝，和坐在最里头没走的王主任。",
+      "text": "跑完自己那趟，回到科室已临近下班。刘姐先走了。就剩窗台那盆绿萝，和没走的王主任。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        { "text": "整理今天跑过的材料", "next": "a1_wang_evening" }
+        {
+          "text": "整理今天跑过的材料",
+          "next": "a1_wang_evening"
+        }
       ]
     },
     "a1_wang_evening": {
       "speaker": "王主任",
-      "text": "他也没急着走，帮我把几份材料按科室分好，动作比我利落十倍。分着分着，他忽然停下，望着窗外渐暗的天，声音低下去：干了三十年，闭着眼都会。可我年轻时候啊……也想干点不一样的。",
+      "text": "他帮我把材料分好，动作比我利落十倍。忽然停下，望着窗外：干了三十年，闭着眼都会。可我年轻时候……也想干点不一样的。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        { "text": "(继续)", "next": "a1_wang_evening2" }
+        {
+          "text": "(继续)",
+          "next": "a1_wang_evening2"
+        }
       ]
     },
     "a1_wang_evening2": {
       "speaker": "王主任",
-      "text": "他像是被自己这句话绊了一下，赶紧摆摆手，把搪瓷缸里的凉茶一饮而尽:嗐，人老了爱说胡话。这儿好，稳当，风吹不着雨淋不着。你小年轻，好好干，别学我瞎想。说完他站起身，招呼我早点回。",
+      "text": "他像被这句话绊了一下，摆摆手：嗐，人老了爱说胡话。你小年轻，好好干，别学我瞎想。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        { "text": "(继续)", "next": "a1_wang_evening_mono" }
+        {
+          "text": "(继续)",
+          "next": "a1_wang_evening_mono"
+        }
       ]
     },
     "a1_wang_evening_mono": {
       "speaker": "",
-      "text": "'也想干点不一样的。'这句话，比一整天的红章都沉。他把它说出口，又那么快地按了回去，像按灭一根不该点的烟。我忽然有点怕——怕三十年后，坐在这张桌子后面说同样这句话的人，是我。",
+      "text": "'也想干点不一样的。'比一整天的红章都沉。他说出口，又很快按了回去。",
       "bg": "office_night",
-      "effects": { "san": -1 },
+      "effects": {
+        "san": -1
+      },
       "note": "温水/镜像伏笔:王主任=未来可能的你,首次心里一沉,不扣情绪分只san微降",
       "choices": [
-        { "text": "走到窗台，给绿萝浇今天最后一点水", "next": "a1_night_plant" }
+        {
+          "text": "走到窗台，给绿萝浇今天最后一点水",
+          "next": "a1_night_plant"
+        }
       ]
     },
     "a1_night_plant": {
       "speaker": "",
-      "text": "水珠顺着叶脉滚下去。白天被晒蔫的那片叶子，好像挺精神了些。抽屉里那封信静静躺着，封面上'一年后拆'四个字，此刻像一句轻轻的问。我关灯前，又看了它一眼。",
+      "text": "水珠顺着叶脉滚下去，蔫叶子好像挺精神了些。抽屉里的信静静躺着，像一句轻轻的问。",
       "bg": "office_night",
-      "effects": { "passion": 2 },
+      "effects": {
+        "passion": 2
+      },
       "choices": [
-        { "text": "(继续)", "next": "a1_final_choice" }
+        {
+          "text": "(继续)",
+          "next": "a1_final_choice"
+        }
       ]
     },
     "a1_final_choice": {
       "speaker": "",
-      "text": "锁上办公室的门，钥匙在手里转了一圈。第一天，就这么过去了。稳定，体面，甚至还帮到了一个人。可王主任那句话还悬在心口。往后每一天，我想成为谁——从明天起，其实全看今晚我怎么想。",
+      "text": "锁上门，第一天就这么过去了。稳定，体面，还帮到了一个人。可王主任那句话，还悬在心口。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        { "text": "想做实事，把这堆流程改得对人更友好一点", "next": "a1_end_striver", "note": "上进:理想主义,想改进流程,未来可能碰壁" },
-        { "text": "先学着别较真，把规矩摸熟，稳稳当当", "next": "a1_end_steady", "note": "随大流:安稳优先,埋被磨平伏笔" },
-        { "text": "守住自己的下班和生活，工作是工作", "next": "a1_end_boundary", "note": "边界:清醒自守,不被工作吞掉" }
+        {
+          "text": "想做实事，把这堆流程改得对人更友好一点",
+          "next": "a1_end_striver",
+          "note": "上进:理想主义,想改进流程,未来可能碰壁"
+        },
+        {
+          "text": "先学着别较真，把规矩摸熟，稳稳当当",
+          "next": "a1_end_steady",
+          "note": "随大流:安稳优先,埋被磨平伏笔"
+        },
+        {
+          "text": "守住自己的下班和生活，工作是工作",
+          "next": "a1_end_boundary",
+          "note": "边界:清醒自守,不被工作吞掉"
+        }
       ]
     },
     "a1_end_striver": {
       "speaker": "",
-      "text": "我打算试试。那个学生跑远时眼里的光，比三个红章诚实。也许我改不动这栋楼，但至少，我想让下一个来办事的人，少跑一趟冤枉路。第一天，我把这点念头，也一起锁进了抽屉。",
+      "text": "我打算试试。那学生眼里的光，比三个红章诚实。也许我改不动这栋楼，但想让下一个人少跑一趟。",
       "bg": "office_night",
-      "effects": { "passion": 4, "skill": 3, "san": 2 },
+      "effects": {
+        "passion": 4,
+        "skill": 3,
+        "san": 2
+      },
       "action": "next_act",
       "note": "上进结局:热情/技能上扬,埋第2幕理想撞流程的伏笔",
       "choices": []
     },
     "a1_end_steady": {
       "speaker": "",
-      "text": "还是听李姐的，先把规矩摸熟。较真是要吃亏的，王主任那句叹气就是前车之鉴。我把绿萝往窗台里挪了挪，别太扎眼。稳当点，先在这栋楼里，安安稳稳站住脚。",
+      "text": "还是听刘姐的，先把规矩摸熟。较真是要吃亏的。先安安稳稳站住脚。",
       "bg": "office_night",
-      "effects": { "passion": 2, "skill": 2, "san": 3 },
+      "effects": {
+        "passion": 2,
+        "skill": 2,
+        "san": 3
+      },
       "action": "next_act",
       "note": "随大流结局:趋稳务实,热情涨幅最小,埋第2幕温水/被磨平伏笔",
       "choices": []
     },
     "a1_end_boundary": {
       "speaker": "",
-      "text": "白天我认真干，五点半我准时走——这是我给自己定的规矩。信里那句'你是来生活的'，我想从第一天就当真。绿萝要浇水，我也要好好过日子，不只是把日子熬完。",
+      "text": "白天认真干，五点半准时走——这是我给自己定的规矩。'你是来生活的'，我想从第一天就当真。",
       "bg": "office_night",
-      "effects": { "passion": 3, "san": 4, "health": 2 },
+      "effects": {
+        "passion": 3,
+        "san": 4,
+        "health": 2
+      },
       "action": "next_act",
       "note": "边界结局:身心守正,san最高,埋第2幕工作与生活拉扯的伏笔",
       "choices": []

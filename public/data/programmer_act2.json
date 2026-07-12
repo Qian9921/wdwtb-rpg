@@ -4,90 +4,74 @@
   "act": 2,
   "actName": "上手：你怎么和世界协作",
   "start": "a2_start",
-  "_meta": "第二章·上手。第一个真需求(dev=接口/test=用例)→协作还是单干→需求变更初体验→第一份工资。探针:独立↔协作、规划↔随性。",
+  "_meta": "第二章·上手(精简版)。剧情做减法:短句、少节点、不堆砌。保留职业核心时刻——你写的东西被真人用了(测喜不喜欢:love_impact/neutral)、需求变更初体验(讨好/边界/说清代价)。去旁白化。次要玩法(找同事对接/工位干活)交给任务链,剧情不重复。",
   "nodes": {
     "a2_start": {
       "speaker": "",
-      "text": "上手第几天你已经数不清了。今早你交的那个小功能上线了——后台显示,有 130 个真实用户用过它。\n130 个陌生人,因为你写的几行东西,生活里多了一点点方便。窗台上的绿萝,冒了片新叶。",
+      "text": "后台跳出一个数字:你上周改的登录按钮,今日活跃 130。\n130 个陌生人,点了一下你写的东西,然后顺利进去了。",
       "bg": "office_day",
-      "effects": { "passion": 4, "san": 2 },
-      "choices": [{ "label": "(有点想笑)", "next": "a2_task" }],
-      "note": "小成就:世界第一次因为我动了一下。"
+      "effects": {},
+      "choices": [
+        { "label": "心里被点亮了一下", "next": "a2_task", "effects": { "passion": 5 }, "tag": "love_impact", "axes": { "risk": 1 } },
+        { "label": "哦，130。看下一个需求", "next": "a2_task", "effects": { "skill": 1 }, "tag": "neutral_impact", "axes": { "plan": 1 } }
+      ],
+      "note": "★上线时刻,一句话。测『你写的东西被人用了,你上头还是无感』。"
     },
     "a2_task": {
-      "speaker": "",
-      "text": "老陈把一张需求卡拍在你桌上:「真正的活儿。别怕,不会一次做好——这行没人一次做好。」",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [
-        { "label": "(翻开·开发的活)", "next": "a2_task_dev", "condition": { "subRole": "dev" } },
-        { "label": "(翻开·测试的活)", "next": "a2_task_test", "condition": { "subRole": "test" } }
-      ],
-      "note": "★子职业分叉:第一个真需求。"
-    },
-    "a2_task_dev": {
-      "speaker": "",
-      "text": "「做个登录接口。」老陈说,「需求别猜,去找产品小林对齐——猜需求是这行最大的坑。」\n你盯着空白的编辑器,光标一闪一闪。从零造一个东西的感觉,既兴奋又发怵。",
+      "speaker": "同事老陈",
+      "text": "老陈把一张需求卡推过来:「真正的活儿。别怕——这行没人一次做对。」",
       "bg": "office_day",
       "effects": { "passion": 2 },
-      "choices": [{ "label": "(先想清楚,再动手)", "next": "a2_collab" }]
-    },
-    "a2_task_test": {
-      "speaker": "",
-      "text": "「登录接口开发在做,你来兜住质量。」老陈说,「先想清楚它会怎么坏:空手机号、错验证码、过期、连点两次……」\n你盯着需求文档,开始在脑子里给它「找茬」。守住别人看不见的漏洞,是你的战场。",
-      "bg": "office_day",
-      "effects": { "san": 2 },
-      "choices": [{ "label": "(先把边界列全)", "next": "a2_collab" }]
-    },
-    "a2_collab": {
-      "speaker": "",
-      "text": "做着做着,你卡住了:有个细节,文档里没写清。\n是自己闷头猜一个,还是起身去问?",
-      "bg": "office_day",
-      "effects": {},
       "choices": [
-        { "label": "自己先啃,啃不动再说", "next": "a2_pace", "effects": { "skill": 2 }, "tag": "solo", "axes": { "collab": -2 } },
-        { "label": "起身去找对接人对齐", "next": "a2_pace", "effects": { "san": 2 }, "tag": "align", "axes": { "collab": 2 } }
+        { "label": "(开发的活)", "next": "a2_reqchange", "condition": { "subRole": "dev" } },
+        { "label": "(测试的活)", "next": "a2_reqchange", "condition": { "subRole": "test" } }
       ],
-      "note": "探针:独立↔协作。"
-    },
-    "a2_pace": {
-      "speaker": "",
-      "text": "时间过半,活儿还没成型。你意识到自己得选个节奏——",
-      "bg": "office_day",
-      "effects": {},
-      "choices": [
-        { "label": "停下来,先把方案列清楚", "next": "a2_reqchange", "effects": { "skill": 2 }, "tag": "steady", "axes": { "plan": 2 } },
-        { "label": "先跑起来,能动了再优化", "next": "a2_reqchange", "effects": { "performance": 2 }, "tag": "ship_fast", "axes": { "plan": -2 } }
-      ],
-      "note": "探针:规划↔随性。"
+      "note": "子职业一句带过,不再铺造物/攻坚长段(那些交给工位小游戏体验)。"
     },
     "a2_reqchange": {
       "speaker": "",
-      "text": "屁股还没坐热,群里「叮」——运营 Kelly 直接 @你:「这个地方能不能今天就改一下?老板要看。」\n你手上的活儿还没完。这是你第一次撞上「需求变更」。",
+      "text": "屁股还没坐热,群里「叮」——\n小林@你:「登录这块老板临时想加个第三方登录,今天能上不?就一个按钮的事。」\n你瞥了眼时间:16:40。手上这版还没交。",
       "bg": "office_day",
-      "effects": { "stress": 3 },
+      "effects": {},
       "choices": [
-        { "label": "「行,我马上改!」先扛下来", "next": "a2_pay", "effects": { "performance": 4, "health": -3, "passion": -1 }, "tag": "please", "axes": { "empathy": 2, "risk": 1 } },
-        { "label": "先说清代价,再谈优先级", "next": "a2_pay", "effects": { "san": 3, "skill": 2 }, "tag": "boundary", "axes": { "empathy": -1, "plan": 2 } },
-        { "label": "去问老陈该怎么接", "next": "a2_pay", "effects": { "skill": 3, "san": 2 }, "tag": "ask_mentor", "axes": { "collab": 2 } }
+        { "label": "「行，我加班搞。」", "next": "a2_stay", "effects": { "performance": 3, "health": -5, "stress": 3 }, "tag": "please", "axes": { "empathy": 2 } },
+        { "label": "「今天不行，排明天。」", "next": "a2_no", "effects": { "health": 2 }, "tag": "boundary", "axes": { "empathy": -1, "risk": -1 } },
+        { "label": "「一个按钮，但要接 SDK，得两天。」", "next": "a2_est", "effects": { "skill": 3, "passion": 2 }, "tag": "principle", "axes": { "plan": 2 } }
       ],
-      "note": "★需求变更初体验:讨好/边界/借力,三种应对各推不同轴。"
+      "note": "★需求变更:职业核心冲突。三选各分到不同后果(不合流),保留『选择有后果』。"
+    },
+    "a2_stay": {
+      "speaker": "",
+      "text": "你留到九点。第二天小林在群里@全组夸你——只有你自己知道,今早闹钟响时身体像灌了铅。",
+      "bg": "office_night",
+      "effects": {},
+      "choices": [{ "label": "(继续)", "next": "a2_pay" }],
+      "note": "讨好后果:被夸,但健康债。一句话。"
+    },
+    "a2_no": {
+      "speaker": "",
+      "text": "「……好吧。」小林回了三个字,然后没下文。你不太确定她是不是不高兴,但你准点下班了。",
+      "bg": "office_evening",
+      "effects": {},
+      "choices": [{ "label": "(继续)", "next": "a2_pay" }],
+      "note": "边界后果:守住下班,关系悬着。一句话。"
+    },
+    "a2_est": {
+      "speaker": "",
+      "text": "你把话说清楚了。小林愣了下:「原来不是一句话的事。」路过的老陈瞥了眼你的屏幕,几不可察地点了下头。",
+      "bg": "office_day",
+      "effects": { "performance": 2 },
+      "choices": [{ "label": "(继续)", "next": "a2_pay" }],
+      "note": "说清代价后果:专业被看见。一句话。"
     },
     "a2_pay": {
       "speaker": "",
-      "text": "月底,工资到账。数字不大,但这是你人生第一笔「靠自己写东西挣的钱」。\n你给爸妈转了个小红包,备注:第一个月。",
+      "text": "月底,工资到账。你人生第一笔靠写代码挣的钱。\n手机弹出妈妈:「够花吗?别太省。」",
       "bg": "office_evening",
-      "effects": { "money": 300, "passion": 3, "san": 2 },
-      "choices": [{ "label": "(把红包发出去)", "next": "a2_end" }]
-    },
-    "a2_end": {
-      "speaker": "",
-      "text": "下班路上,你回想这几周:上手没那么难,难的是和「人」打交道——变来变去的需求、对不齐的期待、说不说得出口的「不」。\n老陈说,这才刚开始。前面还有更硬的仗。",
-      "bg": "office_night",
       "action": "next_act",
-      "effects": { "san": 2 },
+      "effects": { "money": 300, "passion": 3, "san": 3 },
       "choices": [],
-      "note": "★章末 next_act。"
+      "note": "★章末 next_act。第一份工资+妈妈一句微信收尾。next_act后引擎直接派下一环任务(去割裂)。"
     }
   }
 }

@@ -7,409 +7,661 @@
   "nodes": {
     "a1_start": {
       "speaker": "",
-      "text": "六点五十的地铁比闹钟准时。人群把你推进车厢，你把公文包抱在胸前，屏幕上那封录用通知你昨晚看了七遍——「产品经理·实习转正」。",
+      "text": "六点五十的地铁,比闹钟准时。录用通知我昨晚看了七遍——「产品经理·实习转正」。",
       "bg": "street_morning",
-      "effects": { "passion": 5 },
+      "effects": {
+        "passion": 5
+      },
       "choices": [
-        { "label": "（继续）", "next": "a1_commute_monologue" }
+        {
+          "label": "（继续）",
+          "next": "a1_commute_monologue"
+        }
       ]
     },
     "a1_commute_monologue": {
       "speaker": "",
-      "text": "产品经理。三个字，我在招聘网站的收藏夹里放了整整一年。别人说它是「CEO的学前班」——不用写代码，却能决定一个东西长什么样、给谁用、解决什么。我想，那大概就是「定义」的感觉。",
+      "text": "产品经理,这三个字我在收藏夹里放了一年。别人说它是「CEO的学前班」——不写代码,却决定东西长什么样、给谁用。",
       "bg": "street_morning",
       "choices": [
-        { "label": "（继续）", "next": "a1_commute_monologue2" }
+        {
+          "label": "（继续）",
+          "next": "a1_commute_monologue2"
+        }
       ]
     },
     "a1_commute_monologue2": {
       "speaker": "",
-      "text": "手机弹出导航：距「云溪科技」还有400米。我把领带又正了正——虽然公司说不用穿正装。到站的风灌进袖口，凉，但我心里是烫的。",
+      "text": "导航提示:还有400米。我把领带正了正。风灌进袖口,凉,心里却是烫的。",
       "bg": "street_morning",
-      "effects": { "passion": 3 },
+      "effects": {
+        "passion": 3
+      },
       "choices": [
-        { "label": "推开旋转门", "next": "a1_lobby_arrive" }
+        {
+          "label": "推开旋转门",
+          "next": "a1_lobby_arrive"
+        }
       ]
     },
     "a1_lobby_arrive": {
       "speaker": "",
-      "text": "大堂很大，玻璃幕墙把晨光切成一格一格。前台后面挂着公司slogan：「让每个想法，都被看见」。你在访客登记簿前站定，笔尖悬在「来访事由」那一栏。",
+      "text": "大堂玻璃幕墙把晨光切成一格一格。前台后挂着slogan:「让每个想法,都被看见」。笔尖悬在「来访事由」那栏。",
       "bg": "office_lobby",
       "choices": [
-        { "label": "写下「入职报到」", "next": "a1_reception" }
+        {
+          "label": "写下「入职报到」",
+          "next": "a1_reception"
+        }
       ]
     },
     "a1_reception": {
       "speaker": "前台小姐姐",
-      "text": "「新同学吧？看你这精神头就是。」她笑着扫了眼系统，「产品部的，对吧？工牌我帮你取来了——诶，照片拍得还挺好看。」",
+      "text": "「新同学吧？」她笑着扫了眼系统，「产品部的？工牌帮你取来了。」",
       "bg": "office_lobby",
       "choices": [
-        { "label": "接过工牌", "next": "a1_badge" }
+        {
+          "label": "接过工牌",
+          "next": "a1_badge"
+        }
       ]
     },
     "a1_badge": {
       "speaker": "",
-      "text": "工牌是硬质的，边缘还带着塑封机的余温。你的名字下面印着「产品经理」四个字。你用拇指摩挲了一下那行字，像在确认它是真的。",
+      "text": "工牌硬质,边缘带着塑封机余温。名字下印着「产品经理」四个字。",
       "bg": "office_lobby",
-      "effects": { "passion": 4, "money": 8 },
+      "effects": {
+        "passion": 4,
+        "money": 8
+      },
       "note": "money为入职一次性上调（签字费/首月预支的价值感）",
       "choices": [
-        { "label": "（继续）", "next": "a1_badge_monologue" }
+        {
+          "label": "（继续）",
+          "next": "a1_badge_monologue"
+        }
       ]
     },
     "a1_badge_monologue": {
       "speaker": "",
-      "text": "从今天起，我不再是那个在图书馆改简历改到闭馆的人了。我有一个工位、一张工牌、一个头衔。这张卡片挂在脖子上，沉甸甸的——原来「被需要」是有重量的。",
+      "text": "我有了工位、工牌、头衔。这张卡片挂在脖子上,沉甸甸的。",
       "bg": "office_lobby",
       "choices": [
-        { "label": "坐电梯上楼", "next": "a1_elevator" }
+        {
+          "label": "坐电梯上楼",
+          "next": "a1_elevator"
+        }
       ]
     },
     "a1_elevator": {
       "speaker": "",
-      "text": "电梯里，一个抱着笔记本电脑的男生正对着手机低声骂：「这需求昨天说好的今天又变，产品经理是不是没睡醒……」他瞥见你的工牌，尴尬地咳了一声，提前一层出去了。",
+      "text": "电梯里,一个男生对着手机低声骂：「需求昨天说好今天又变,产品经理没睡醒吧……」瞥见你的工牌,咳了一声提前出去了。",
       "bg": "office_lobby",
       "note": "第一处「未来会痛」的反差伏笔：开发对PM的怨气",
       "choices": [
-        { "label": "（继续）", "next": "a1_elevator_monologue" }
+        {
+          "label": "（继续）",
+          "next": "a1_elevator_monologue"
+        }
       ]
     },
     "a1_elevator_monologue": {
       "speaker": "",
-      "text": "……他说的「产品经理」，是我吗？我把这句话在心里翻了个面，又放下。第一天，别多想。也许只是他今天不太顺。",
+      "text": "他说的「产品经理」,是我吗？第一天,别多想。",
       "bg": "office_lobby",
       "choices": [
-        { "label": "走进产品部", "next": "a1_meet_linjie" }
+        {
+          "label": "走进产品部",
+          "next": "a1_meet_linjie"
+        }
       ]
     },
     "a1_meet_linjie": {
       "speaker": "",
-      "text": "产品部的开放区里，一个女人正站在白板前，一手拿马克笔，一手端着咖啡，同时对着两个方向说话：「这版原型今晚要」「跟法务的会我改到四点」。她语速快，但每句话都落在点上。工牌写着：林悦·产品总监。",
+      "text": "产品部,一个女人站在白板前一手马克笔一手咖啡,同时对两个方向说话：「原型今晚要」「法务的会改到四点」。工牌:林悦·产品总监——同事都喊她林姐,没人叫全名。",
       "bg": "meeting_room",
       "choices": [
-        { "label": "上前自我介绍", "next": "a1_linjie_intro" }
+        {
+          "label": "上前自我介绍",
+          "next": "a1_linjie_intro"
+        }
       ]
     },
     "a1_linjie_intro": {
       "speaker": "林悦",
-      "text": "她转过头，上下打量你半秒：「新来的？」不等你答完，她已经把马克笔递过来，「白板给你，把你理解的『我们公司是做什么的』画出来。三分钟。不用画好看，我要看你怎么想。」",
+      "text": "她打量你半秒：「新来的？」马克笔递过来，「把你理解的『我们公司是做什么的』画出来。三分钟,我要看你怎么想。」",
       "bg": "meeting_room",
       "choices": [
-        { "label": "认真画业务逻辑图", "next": "a1_linjie_test_serious", "effects": { "skill": 3, "performance": 3, "stress": 2 }, "note": "激进表现型：展示专业，代价是紧张" },
-        { "label": "画用户旅程，先想用户", "next": "a1_linjie_test_user", "effects": { "skill": 2, "san": 2 }, "note": "踏实稳健型：以用户为中心，温和" },
-        { "label": "坦白：还不了解，先问她", "next": "a1_linjie_test_honest", "effects": { "san": 3, "performance": -2, "health": 2 }, "note": "边界自保型：诚实守住，performance吃亏" }
+        {
+          "label": "认真画业务逻辑图",
+          "next": "a1_linjie_test_serious",
+          "effects": {
+            "skill": 3,
+            "performance": 3,
+            "stress": 2
+          },
+          "note": "激进表现型：展示专业，代价是紧张"
+        },
+        {
+          "label": "画用户旅程，先想用户",
+          "next": "a1_linjie_test_user",
+          "effects": {
+            "skill": 2,
+            "san": 2
+          },
+          "note": "踏实稳健型：以用户为中心，温和"
+        },
+        {
+          "label": "坦白：还不了解，先问她",
+          "next": "a1_linjie_test_honest",
+          "effects": {
+            "san": 3,
+            "performance": -2,
+            "health": 2
+          },
+          "note": "边界自保型：诚实守住，performance吃亏"
+        }
       ]
     },
     "a1_linjie_test_serious": {
       "speaker": "林悦",
-      "text": "你在白板上拉出方框和箭头，商业模式、上下游、变现路径。她看着，没打断。三分钟到，她敲敲白板：「结构清楚。但你画的全是『公司怎么赚钱』——没有一个框里写着『用户为什么要用』。记住这个空白，以后你会常犯这个错。」",
+      "text": "你拉出方框和箭头,商业模式、变现路径。三分钟到,她敲敲白板：「结构清楚。但全是『公司怎么赚钱』——没写『用户为什么要用』。」",
       "bg": "meeting_room",
       "choices": [
-        { "label": "（继续）", "next": "a1_linjie_verdict" }
+        {
+          "label": "（继续）",
+          "next": "a1_linjie_verdict"
+        }
       ]
     },
     "a1_linjie_test_user": {
       "speaker": "林悦",
-      "text": "你画了一条歪歪扭扭的用户旅程线：打开、卡住、放弃、回来。她挑了下眉：「哟。第一天就知道从用户那头往回倒推。」她没夸更多，但把你画的那条线拍了张照，「留着。」",
+      "text": "你画了条用户旅程线：打开、卡住、放弃、回来。她挑眉：「第一天就知道从用户那头倒推。」把线拍了张照，「留着。」",
       "bg": "meeting_room",
-      "effects": { "passion": 3 },
+      "effects": {
+        "passion": 3
+      },
       "choices": [
-        { "label": "（继续）", "next": "a1_linjie_verdict_user" }
+        {
+          "label": "（继续）",
+          "next": "a1_linjie_verdict_user"
+        }
       ]
     },
     "a1_linjie_verdict_user": {
       "speaker": "林悦",
-      "text": "「三分钟考的不是画得对不对，」她把马克笔帽扣上，「是看你脑子里第一反应装的是谁。有人装老板，有人装数据，你俩里——」她瞥了眼白板，没把话说完，「行，跟我来，给你安排位置。」",
+      "text": "「三分钟考的不是画得对不对，」她扣上笔帽，「是看你脑子里第一反应装的是谁。」瞥了眼白板，「行,跟我来。」",
       "bg": "meeting_room",
       "choices": [
-        { "label": "跟上她", "next": "a1_to_desk" }
+        {
+          "label": "跟上她",
+          "next": "a1_to_desk"
+        }
       ]
     },
     "a1_to_desk": {
       "speaker": "林悦",
-      "text": "她带你穿过工位区，停在靠窗的一张空桌前：「这儿。窗户能开，采光好——产品是这公司唯一还坐得到窗边的岗，珍惜。」她拍了拍桌面，「电脑下午到，先熟悉环境。有事微信我，别憋着。」说完人已经被另一个会拽走了。",
+      "text": "她停在靠窗的空桌前：「产品是唯一还坐得到窗边的岗,珍惜。」拍拍桌面，「电脑下午到,有事微信我。」",
       "bg": "desk",
-      "effects": { "passion": 3, "energy": 2 },
+      "effects": {
+        "passion": 3,
+        "energy": 2
+      },
       "choices": [
-        { "label": "打量自己的工位", "next": "a1_desk_settle" }
+        {
+          "label": "打量自己的工位",
+          "next": "a1_desk_settle"
+        }
       ]
     },
     "a1_desk_settle": {
       "speaker": "",
-      "text": "空桌，一把还带塑料膜的椅子，一个没插电的显示器。可这是我的。我把包放下，坐下去，椅子发出崭新的、有点滑稽的「吱」一声。窗外是半座城市。我忽然想给这方寸之地，添一点活的东西。",
+      "text": "空桌,带塑料膜的椅子,没插电的显示器。可这是我的。椅子发出崭新的「吱」一声。窗外是半座城市。",
       "bg": "desk",
       "choices": [
-        { "label": "从包里拿出那盆小绿植", "next": "a1_plant" }
+        {
+          "label": "从包里拿出那盆小绿植",
+          "next": "a1_plant"
+        }
       ]
     },
     "a1_linjie_verdict": {
       "speaker": "林悦",
-      "text": "「三分钟考的不是画得对不对，」她把马克笔帽扣上，「是看你脑子里第一反应装的是谁。有人装老板，有人装数据。你先记着这个题——一年后再来答一次，答案会不一样。走，给你安排位置。」",
+      "text": "「三分钟考的不是画对不对，」她扣上笔帽，「是看你脑子里第一反应装的是谁。记着这题——一年后再答。走。」",
       "bg": "meeting_room",
       "note": "呼应结局：一年后回答同一题",
       "choices": [
-        { "label": "跟上她", "next": "a1_to_desk" }
+        {
+          "label": "跟上她",
+          "next": "a1_to_desk"
+        }
       ]
     },
     "a1_linjie_test_honest": {
       "speaker": "林悦",
-      "text": "你放下笔：「林总，我今天刚到，画出来的一定是瞎猜。与其糊弄，我想先听您说，再自己去用一遍产品。」她盯了你两秒，忽然笑了：「行。至少你不装懂。装懂的人，我这儿留不住。」",
+      "text": "你放下笔：「我刚到,画出来一定是瞎猜。想先听您说,再自己用一遍产品。」她盯了两秒,笑了：「行,至少你不装懂。」",
       "bg": "meeting_room",
       "choices": [
-        { "label": "（继续）", "next": "a1_linjie_verdict_honest" }
+        {
+          "label": "（继续）",
+          "next": "a1_linjie_verdict_honest"
+        }
       ]
     },
     "a1_linjie_verdict_honest": {
       "speaker": "林悦",
-      "text": "「刚才那题考的不是你懂多少，」她把马克笔帽扣上，「是看你敢不敢承认自己不懂。这行最贵的能力，是分得清『我知道』和『我以为我知道』。走，给你安排位置。」",
+      "text": "「那题考的不是你懂多少，」她扣上笔帽，「是看你敢不敢承认自己不懂。走,给你安排位置。」",
       "bg": "meeting_room",
       "choices": [
-        { "label": "跟上她", "next": "a1_to_desk" }
+        {
+          "label": "跟上她",
+          "next": "a1_to_desk"
+        }
       ]
     },
     "a1_plant": {
       "speaker": "",
-      "text": "一盆小小的绿萝，昨晚特地从楼下花店买的。土还是湿的。搬家我都嫌麻烦，却给它腾了半个书包。也许我是想，无论这份工作把我变成什么样，这窗台上，总得有一样东西是按它自己的节奏在长的。",
+      "text": "一盆小绿萝,昨晚特地买的。搬家我都嫌麻烦,却给它腾了半个书包。这窗台上,总得有样东西按自己的节奏长。",
       "bg": "desk",
       "action": "plant_tree",
-      "effects": { "passion": 4, "san": 3 },
+      "effects": {
+        "passion": 4,
+        "san": 3
+      },
       "note": "仪式：种绿植=心理外化，玩家命名并浇水",
       "choices": [
-        { "label": "给它浇上第一杯水，取个名字", "next": "a1_plant_named" }
+        {
+          "label": "给它浇上第一杯水，取个名字",
+          "next": "a1_plant_named"
+        }
       ]
     },
     "a1_plant_named": {
       "speaker": "",
-      "text": "水顺着叶脉滑下去，一滴挂在最低的那片叶尖，久久不落。我把它摆在显示器右边，正好挡住空调直吹的位置。「以后就靠你，替我记住今天这口气了。」我对它说，然后自己被自己逗笑了。",
+      "text": "水顺着叶脉滑下去。我把它摆在显示器旁：「以后靠你,替我记住今天这口气。」说完自己都笑了。",
       "bg": "desk",
       "choices": [
-        { "label": "（继续）", "next": "a1_before_letter" }
+        {
+          "label": "（继续）",
+          "next": "a1_before_letter"
+        }
       ]
     },
     "a1_before_letter": {
       "speaker": "",
-      "text": "工位抽屉里，HR放了个入职礼包。最底下压着一张卡片和一个牛皮纸信封，上面印着：「给一年后的你。写下此刻你最想它记住的话——一年后，我们寄回给你。」",
+      "text": "抽屉里,入职礼包最底下压着卡片和信封：「给一年后的你。写下此刻最想它记住的话——一年后寄回。」",
       "bg": "desk",
       "choices": [
-        { "label": "拿起笔", "next": "a1_letter" }
+        {
+          "label": "拿起笔",
+          "next": "a1_letter"
+        }
       ]
     },
     "a1_letter": {
       "speaker": "",
-      "text": "笔尖悬在纸上。一年后……那时候的我，会变成什么样？会不会已经忘了今天这盆绿萝、这口热气？我想留一句话给他。只能留一句——留哪一句，好像也是在选，我究竟想成为谁。",
+      "text": "笔尖悬在纸上。一年后的我会是什么样？只能留一句——留哪句,也是在选我想成为谁。",
       "bg": "desk",
       "action": "write_letter",
       "note": "仪式：写信，三选一关键句，结局开封对照",
       "choices": [
-        { "label": "「别忘了你是来做产品的，不是来做PPT的。」", "next": "a1_letter_passion", "effects": { "passion": 5 }, "note": "热情线关键句" },
-        { "label": "「慢慢来，先学会听懂每个人真正想要什么。」", "next": "a1_letter_steady", "effects": { "skill": 3, "san": 2 }, "note": "稳健线关键句" },
-        { "label": "「记住，你不欠任何人一个『马上改』。」", "next": "a1_letter_boundary", "effects": { "san": 4, "health": 2 }, "note": "边界线关键句" }
+        {
+          "label": "「别忘了你是来做产品的，不是来做PPT的。」",
+          "next": "a1_letter_passion",
+          "effects": {
+            "passion": 5
+          },
+          "note": "热情线关键句"
+        },
+        {
+          "label": "「慢慢来，先学会听懂每个人真正想要什么。」",
+          "next": "a1_letter_steady",
+          "effects": {
+            "skill": 3,
+            "san": 2
+          },
+          "note": "稳健线关键句"
+        },
+        {
+          "label": "「记住，你不欠任何人一个『马上改』。」",
+          "next": "a1_letter_boundary",
+          "effects": {
+            "san": 4,
+            "health": 2
+          },
+          "note": "边界线关键句"
+        }
       ]
     },
     "a1_letter_passion": {
       "speaker": "",
-      "text": "写完，我把这句话又读了一遍，脸有点热——太理想主义了。但我不想删。折好，塞进信封，舔了封口，用力压实。一年，说长不长。到时候你要是变成一个只会做漂亮PPT的人，这封信会当面骂醒你。",
+      "text": "写完又读了一遍,脸有点热——太理想主义了。但我不想删。折好塞进信封,以后要是只会做PPT,这信会骂醒你。",
       "bg": "desk",
       "choices": [
-        { "label": "把信投进「时光邮筒」", "next": "a1_letter_sealed" }
+        {
+          "label": "把信投进「时光邮筒」",
+          "next": "a1_letter_sealed"
+        }
       ]
     },
     "a1_letter_steady": {
       "speaker": "",
-      "text": "写完，我盯着「听懂」两个字看了很久。以前总觉得产品经理是提要求的人。可今天林姐那句话在我心里转了半天——也许更多时候，是先闭嘴，听。折好，封口，压实。一年后，希望你耳朵比现在软，脊梁比现在硬。",
+      "text": "写完,盯着「听懂」两个字看了很久。以前觉得产品经理是提要求的人,今天林姐那句话让我改了主意——更多时候是先听。",
       "bg": "desk",
       "choices": [
-        { "label": "把信投进「时光邮筒」", "next": "a1_letter_sealed" }
+        {
+          "label": "把信投进「时光邮筒」",
+          "next": "a1_letter_sealed"
+        }
       ]
     },
     "a1_letter_boundary": {
       "speaker": "",
-      "text": "写完，我自己都愣了一下——第一天就写这么「刺」的话，是不是太防备了？可电梯里那个男生的脸又浮上来。我把这句话叠进信封，封口，压实。不是要跟谁作对，只是想提醒一年后的你：别把自己弄丢了。",
+      "text": "写完自己都愣了——第一天就写这么「刺」的话？电梯里那男生的脸浮上来。叠进信封,封口。只是提醒自己:别弄丢了自己。",
       "bg": "desk",
       "choices": [
-        { "label": "把信投进「时光邮筒」", "next": "a1_letter_sealed" }
+        {
+          "label": "把信投进「时光邮筒」",
+          "next": "a1_letter_sealed"
+        }
       ]
     },
     "a1_letter_sealed": {
       "speaker": "",
-      "text": "邮筒是个复古的铁皮盒子，红漆掉了几块。信滑进去，「咚」的一声落底。我伸手摸了摸盒盖，凉的。好了。这句话，暂时交给时间保管。",
+      "text": "邮筒是复古铁皮盒,红漆掉了几块。信滑进去，「咚」一声落底。这句话,交给时间保管了。",
       "bg": "desk",
-      "effects": { "passion": 3, "san": 2 },
+      "effects": {
+        "passion": 3,
+        "san": 2
+      },
       "choices": [
-        { "label": "（继续）", "next": "a1_meet_colleagues" }
+        {
+          "label": "（继续）",
+          "next": "a1_meet_colleagues"
+        }
       ]
     },
     "a1_meet_colleagues": {
       "speaker": "",
-      "text": "茶水间。一个穿黑色格子衫、顶着黑眼圈的男生正在接咖啡，胸卡写着「陈默·后端」。旁边一个笑容灿烂、说话带着感叹号的女生凑过来：「诶你就是新来的产品吧？我叫苏婷，运营！以后多合作呀——」",
+      "text": "茶水间。黑眼圈男生在接咖啡,胸卡「陈默·后端」。旁边女生凑过来：「你就是新来的产品吧？我叫苏婷,运营！以后多合作呀——」",
       "bg": "office_night",
       "choices": [
-        { "label": "先跟陈默打招呼", "next": "a1_chen_first" },
-        { "label": "先回应热情的苏婷", "next": "a1_su_first" }
+        {
+          "label": "先跟陈默打招呼",
+          "next": "a1_chen_first"
+        },
+        {
+          "label": "先回应热情的苏婷",
+          "next": "a1_su_first"
+        }
       ]
     },
     "a1_chen_first": {
       "speaker": "陈默",
-      "text": "他头都没抬：「产品啊。」顿了顿，「提醒你一句——你们的需求文档要是再写『按用户直觉来』这种话，我建议你直接去问用户的直觉，别来问我的。」苏婷在旁边捂嘴憋笑。",
+      "text": "他头都没抬：「产品啊。」顿了顿，「需求文档要是再写『按用户直觉来』,直接问用户的直觉,别问我。」苏婷在旁边捂嘴憋笑。",
       "bg": "office_night",
       "note": "毒舌后端第一印象，怼需求主力",
       "choices": [
-        { "label": "（继续）", "next": "a1_colleagues_scene" }
+        {
+          "label": "（继续）",
+          "next": "a1_colleagues_scene"
+        }
       ]
     },
     "a1_su_first": {
       "speaker": "苏婷",
-      "text": "「哎呀你别理陈默，他对全世界都这个脸——」她压低声音，「不过他技术是真的好，你搞定他，半个开发团队就搞定了。」话锋一转又亮起来，「对了，下周有个数据要冲，到时候你多帮衬帮衬哈！」",
+      "text": "「别理陈默,他对全世界都这脸——」她压低声音，「技术是真好,搞定他半个开发团队就搞定了。」又亮起来，「下周有数据要冲,多帮衬哈！」",
       "bg": "office_night",
       "note": "运营见风使舵，笑里藏活",
       "choices": [
-        { "label": "（继续）", "next": "a1_colleagues_scene" }
+        {
+          "label": "（继续）",
+          "next": "a1_colleagues_scene"
+        }
       ]
     },
     "a1_colleagues_scene": {
       "speaker": "",
-      "text": "端着水回工位的路上，你路过一间玻璃会议室。里面一个前辈产品正被陈默和另一个开发轮番「拷问」：「这个改动上线，崩了谁负责？」「你说的『简单加个按钮』，后面挂着三个系统你知道吗？」那位前辈额头冒汗，笑得很勉强。",
+      "text": "路过玻璃会议室,一个前辈产品正被开发围问：「改动崩了谁负责？」「说的『加个按钮』,后面挂着三个系统你知道吗？」前辈额头冒汗。",
       "bg": "meeting_room",
       "note": "第一次旁观开发怼产品，权责不对等伏笔",
       "choices": [
-        { "label": "（继续）", "next": "a1_scene_monologue" }
+        {
+          "label": "（继续）",
+          "next": "a1_scene_monologue"
+        }
       ]
     },
     "a1_scene_monologue": {
       "speaker": "",
-      "text": "隔着一层玻璃，我看不清那位前辈在想什么，只看见他一直在点头、点头。原来「定义产品的人」，也是那个要站在所有人对面、替所有决定挨问的人。这一幕，我先记下了——虽然我还不知道，多久之后，玻璃里坐着的会是我。",
+      "text": "隔着玻璃,我只看见他一直在点头。原来「定义产品的人」,也是要站在所有人对面、替决定挨问的人。",
       "bg": "meeting_room",
       "note": "金句伏笔：你负责所有人的期待",
       "choices": [
-        { "label": "回工位，电脑到了", "next": "a1_first_task" }
+        {
+          "label": "回工位，电脑到了",
+          "next": "a1_first_task"
+        }
       ]
     },
     "a1_first_task": {
       "speaker": "林悦",
-      "text": "电脑刚插上电，林姐的消息就到了：「热热身。用户反馈『登录页找不到忘记密码』，你写个一句话需求，下午评审会你旁听，顺便把这条提上去。别紧张，就一句话，但要让开发一看就懂『改什么、为什么、改到什么程度』。」",
+      "text": "电脑刚插电,林姐消息就到：「热热身。用户反馈『登录页找不到忘记密码』,写个一句话需求,下午评审提上去。」",
       "bg": "desk",
       "choices": [
-        { "label": "开始写需求", "next": "a1_write_req" }
+        {
+          "label": "开始写需求",
+          "next": "a1_write_req"
+        }
       ]
     },
     "a1_write_req": {
       "speaker": "",
-      "text": "一句话，听着简单。可我删了三遍。第一遍写「把忘记密码放显眼点」——太模糊，陈默肯定怼。第二遍写「在登录按钮下方加蓝色链接」——又太细，越俎代庖。到底该说到哪一层？",
+      "text": "一句话,听着简单,我删了三遍。「放显眼点」——太模糊；「加蓝色链接」——又太细。到底该说到哪一层？",
       "bg": "desk",
       "choices": [
-        { "label": "写清『问题+目标』，把方案留给开发", "next": "a1_req_good", "effects": { "skill": 4, "san": 2 }, "note": "踏实稳健型：抓准需求本质" },
-        { "label": "写得又快又满，方案全给到位显专业", "next": "a1_req_over", "effects": { "performance": 3, "skill": 1, "stress": 2 }, "note": "激进表现型：想一步到位" }
+        {
+          "label": "写清『问题+目标』，把方案留给开发",
+          "next": "a1_req_good",
+          "effects": {
+            "skill": 4,
+            "san": 2
+          },
+          "note": "踏实稳健型：抓准需求本质"
+        },
+        {
+          "label": "写得又快又满，方案全给到位显专业",
+          "next": "a1_req_over",
+          "effects": {
+            "performance": 3,
+            "skill": 1,
+            "stress": 2
+          },
+          "note": "激进表现型：想一步到位"
+        }
       ]
     },
     "a1_req_good": {
       "speaker": "",
-      "text": "最后我写：「问题：15%用户在登录页找不到重置密码入口，导致流失。目标：让首次用户3秒内找到。方案交由开发评估。」写完自己念了一遍，心里踏实了——我说清了『为什么』，把『怎么做』留给最懂的人。",
+      "text": "最后写：「问题：15%用户找不到重置密码,导致流失。目标：3秒内找到。方案交开发评估。」把『怎么做』留给最懂的人。",
       "bg": "desk",
-      "effects": { "passion": 2 },
+      "effects": {
+        "passion": 2
+      },
       "choices": [
-        { "label": "带着需求去评审会", "next": "a1_review" }
+        {
+          "label": "带着需求去评审会",
+          "next": "a1_review"
+        }
       ]
     },
     "a1_req_over": {
       "speaker": "",
-      "text": "我一口气写了半页：链接颜色、字号、位置、埋点、A/B方案……越写越顺，仿佛把整个产品都攥在手里了。发出去前我犹豫了一下——会不会写太满了？但转念一想，第一天，总得让人看到我能干活。",
+      "text": "我一口气写了半页：颜色、字号、位置、埋点、A/B方案……犹豫了下——太满了？转念一想,第一天总得让人看到我能干活。",
       "bg": "desk",
-      "effects": { "passion": 2 },
+      "effects": {
+        "passion": 2
+      },
       "note": "野心线伏笔：想证明自己",
       "choices": [
-        { "label": "带着需求去评审会", "next": "a1_review" }
+        {
+          "label": "带着需求去评审会",
+          "next": "a1_review"
+        }
       ]
     },
     "a1_review": {
       "speaker": "林悦",
-      "text": "评审会开始。林姐把你的需求投上屏幕：「新人第一条，大家给点面子——也别客气。」陈默推了推眼镜，果然开口了。一场需求评审的攻防，就在这张会议桌上展开了。轮到你为自己的需求答辩。",
+      "text": "评审会开始。林姐把需求投上屏幕：「新人第一条,大家别客气。」陈默推了推眼镜,开口了。轮到你答辩。",
       "bg": "meeting_room",
       "action": "minigame:review",
-      "effects": { "skill": 3, "performance": 2 },
+      "effects": {
+        "skill": 3,
+        "performance": 2
+      },
       "note": "评审小游戏入口，轻量成就",
       "choices": [
-        { "label": "接住陈默的追问", "next": "a1_review_result" }
+        {
+          "label": "接住陈默的追问",
+          "next": "a1_review_result"
+        }
       ]
     },
     "a1_review_result": {
       "speaker": "陈默",
-      "text": "几个回合下来，陈默难得没再挑刺，只丢下一句：「……行吧，这条至少知道自己要什么。」林姐在桌子另一头对你几不可察地点了下头。散会时她走过你身边，低声一句：「第一次能顶住陈默，不错。」",
+      "text": "几个回合下来,陈默丢下一句：「……行吧,这条至少知道自己要什么。」林姐点了下头,散会时低声：「第一次顶住陈默,不错。」",
       "bg": "meeting_room",
-      "effects": { "passion": 5, "performance": 3, "skill": 2 },
+      "effects": {
+        "passion": 5,
+        "performance": 3,
+        "skill": 2
+      },
       "note": "轻量成就达成，蜜月期高光",
       "choices": [
-        { "label": "（继续）", "next": "a1_review_monologue" }
+        {
+          "label": "（继续）",
+          "next": "a1_review_monologue"
+        }
       ]
     },
     "a1_review_monologue": {
       "speaker": "",
-      "text": "回工位的路上，我的心还在怦怦跳。刚才那几分钟，我说的话真的改变了一件事要怎么被做出来。原来这就是「定义」的感觉——不是发号施令，是让一屋子聪明人愿意朝同一个方向使劲。原来「被听见」，是这么让人上瘾的东西。",
+      "text": "心还在怦怦跳。刚才那几分钟,我说的话真的改变了一件事要怎么被做出来。原来「被听见」,是这么让人上瘾的东西。",
       "bg": "office_night",
       "note": "热情来源锚点：我定义的东西真的被人用了",
       "choices": [
-        { "label": "（继续）", "next": "a1_dayend" }
+        {
+          "label": "（继续）",
+          "next": "a1_dayend"
+        }
       ]
     },
     "a1_dayend": {
       "speaker": "",
-      "text": "窗外的天色暗下来，工位区的灯一盏盏亮起。第一天，就要结束了。我望向窗台——那盆绿萝的叶子上，还挂着早上那滴没落的水。它一天没动，却好像也陪我扛完了这一整天。",
+      "text": "窗外天色暗下来,工位区灯一盏盏亮起。第一天要结束了。窗台绿萝叶子上,还挂着早上那滴没落的水。",
       "bg": "office_night",
       "note": "呼应绿植",
       "choices": [
-        { "label": "（继续）", "next": "a1_dayend2" }
+        {
+          "label": "（继续）",
+          "next": "a1_dayend2"
+        }
       ]
     },
     "a1_dayend2": {
       "speaker": "",
-      "text": "我想起投进邮筒的那封信。一年后拆开的时候，我会是什么样子？会不会还记得今天这种「心是烫的」的感觉？我不知道。但此刻我很确定：我喜欢今天的自己。",
+      "text": "我想起投进邮筒的信。一年后拆开时,我会是什么样子？不知道。但此刻我确定：喜欢今天的自己。",
       "bg": "office_night",
-      "effects": { "passion": 3, "san": 2 },
+      "effects": {
+        "passion": 3,
+        "san": 2
+      },
       "note": "呼应写信",
       "choices": [
-        { "label": "关电脑前，看到明天评审的方案", "next": "a1_final_choice" }
+        {
+          "label": "关电脑前，看到明天评审的方案",
+          "next": "a1_final_choice"
+        }
       ]
     },
     "a1_final_choice": {
       "speaker": "",
-      "text": "屏幕上还开着明天要评审的初版方案。我今天已经做得够好了，完全可以直接下班。可鼠标悬在关机键上，我犹豫了——要不要，再把它打磨一遍？",
+      "text": "屏幕上还开着明天要评审的方案。今天已经够好了,可以直接下班。鼠标悬在关机键上,我犹豫了。",
       "bg": "office_night",
       "note": "幕末小抉择，为第二幕定基调",
       "choices": [
-        { "label": "再打磨一版，明天一鸣惊人", "next": "a1_final_polish", "effects": { "performance": 4, "skill": 2, "health": -3, "energy": -3 }, "note": "激进表现型：加班换高光，埋消耗伏笔" },
-        { "label": "先回家，好状态才有好判断", "next": "a1_final_rest", "effects": { "health": 4, "san": 3, "energy": 3, "performance": -1 }, "note": "边界自保型：守住身体，performance小亏" },
-        { "label": "只标几个疑问，明天当面对齐", "next": "a1_final_balanced", "effects": { "skill": 2, "san": 2 }, "note": "踏实稳健型：折中，抓协作" }
+        {
+          "label": "再打磨一版，明天一鸣惊人",
+          "next": "a1_final_polish",
+          "effects": {
+            "performance": 4,
+            "skill": 2,
+            "health": -3,
+            "energy": -3
+          },
+          "note": "激进表现型：加班换高光，埋消耗伏笔"
+        },
+        {
+          "label": "先回家，好状态才有好判断",
+          "next": "a1_final_rest",
+          "effects": {
+            "health": 4,
+            "san": 3,
+            "energy": 3,
+            "performance": -1
+          },
+          "note": "边界自保型：守住身体，performance小亏"
+        },
+        {
+          "label": "只标几个疑问，明天当面对齐",
+          "next": "a1_final_balanced",
+          "effects": {
+            "skill": 2,
+            "san": 2
+          },
+          "note": "踏实稳健型：折中，抓协作"
+        }
       ]
     },
     "a1_final_polish": {
       "speaker": "",
-      "text": "我又坐了回去。窗外的城市一格格熄灯，我这盏还亮着。改到方案第三版时，我给绿萝也补了点水：「陪我再熬会儿。」那一刻我没多想——只觉得，为一件自己在乎的事熬夜，是幸福的。至于这幸福的账单什么时候寄到，明天的我还不知道。",
+      "text": "我又坐了回去。窗外城市一格格熄灯,我这盏还亮着。给绿萝补了点水：「陪我再熬会儿。」为在乎的事熬夜,是幸福的。",
       "bg": "office_night",
       "note": "野心线，蜜月期不扣心态，但埋'账单'伏笔",
       "choices": [
-        { "label": "结束第一天", "next": "a1_to_act2" }
+        {
+          "label": "结束第一天",
+          "next": "a1_to_act2"
+        }
       ]
     },
     "a1_final_rest": {
       "speaker": "",
-      "text": "我按下关机键。屏幕暗下去的一瞬，映出我自己的脸——今天笑了不少。方案明天再说，好的判断需要一个睡饱的脑子。我拎起包，回头看了绿萝一眼：「走了，明天见。」",
+      "text": "我按下关机键。屏幕暗下去,映出自己的脸——今天笑了不少。方案明天再说,好判断需要睡饱的脑子。",
       "bg": "office_night",
       "note": "清醒线",
       "choices": [
-        { "label": "结束第一天", "next": "a1_to_act2" }
+        {
+          "label": "结束第一天",
+          "next": "a1_to_act2"
+        }
       ]
     },
     "a1_final_balanced": {
       "speaker": "",
-      "text": "我没关机，也没埋头改，只在方案里标了三个我拿不准的地方，写上「明天问陈默/苏婷」。有些事一个人憋在工位上想不通，得摊到桌面上一起对。标完，我心安理得地关了灯。",
+      "text": "我没关机也没埋头改,只标了三个拿不准的地方，「明天问陈默/苏婷」。有些事一个人想不通,得摊开一起对。",
       "bg": "office_night",
       "note": "可靠易被忽视线",
       "choices": [
-        { "label": "结束第一天", "next": "a1_to_act2" }
+        {
+          "label": "结束第一天",
+          "next": "a1_to_act2"
+        }
       ]
     },
     "a1_to_act2": {
       "speaker": "",
-      "text": "走出公司，夜风比早上暖了些。工牌还挂在脖子上，我没舍得摘。抬头，写字楼的灯像一片竖起来的星空。「你想成为谁？」——今天没人这样问我，但这句话，好像已经悄悄住进了我心里。第一天，结束了。而真正的故事，才刚刚开始。",
+      "text": "走出公司,夜风比早上暖了些。工牌还挂在脖子上,没舍得摘。「你想成为谁？」这句话,已经悄悄住进了我心里。",
       "bg": "street_morning",
       "action": "next_act",
       "note": "转场第二幕",

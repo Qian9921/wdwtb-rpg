@@ -62,6 +62,9 @@ export class MinigameScene extends Phaser.Scene {
     this.progressText = null;
     this.timerText = null;
     this.loadingText = null;
+    this._numKeyHandlers = []; // 数字键 1-9 选答案
+    this._kbAdvanceHandler = null; // 反馈页空格/回车推进（与点击 advance 是同一函数，供 off 用）
+    this._resultKeyHandler = null; // 结果页空格/回车/ESC = 返回
   }
 
   create() {
@@ -77,6 +80,7 @@ export class MinigameScene extends Phaser.Scene {
     } else {
       this._loadCareerQuestions();
     }
+    this.events.once('shutdown', () => this._clearUI()); // 场景切换时解绑键盘，防泄漏
   }
 
   // 按 type 加载 ./data/minigame_<type>.json（coding/review/affairs 三套）。
@@ -126,10 +130,38 @@ export class MinigameScene extends Phaser.Scene {
   _clearUI() {
     if (this.ui) { this.ui.destroy(true); this.ui = null; }
     if (this._advanceTimer) { this._advanceTimer.remove(); this._advanceTimer = null; }
+    const kb = this.input.keyboard;
     if (this._advanceHandler) {
       this.input.off('pointerdown', this._advanceHandler);
+      kb.off('keydown-SPACE', this._advanceHandler);
+      kb.off('keydown-ENTER', this._advanceHandler);
       this._advanceHandler = null;
     }
+    this._unbindNumKeys();
+    if (this._resultKeyHandler) {
+      kb.off('keydown-SPACE', this._resultKeyHandler);
+      kb.off('keydown-ENTER', this._resultKeyHandler);
+      kb.off('keydown-ESC', this._resultKeyHandler);
+      this._resultKeyHandler = null;
+    }
+  }
+
+  // 数字键 1-9 = 选对应选项
+  _bindNumKeys(count) {
+    this._unbindNumKeys();
+    const kb = this.input.keyboard;
+    const NUMS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+    for (let i = 0; i < count && i < NUMS.length; i++) {
+      const handler = () => this._onSelect(i);
+      kb.on(`keydown-${NUMS[i]}`, handler);
+      this._numKeyHandlers.push({ key: NUMS[i], handler });
+    }
+  }
+
+  _unbindNumKeys() {
+    const kb = this.input.keyboard;
+    for (const { key, handler } of this._numKeyHandlers) kb.off(`keydown-${key}`, handler);
+    this._numKeyHandlers = [];
   }
 
   _clearTimer() {
@@ -176,7 +208,7 @@ export class MinigameScene extends Phaser.Scene {
 
     // 问题
     const qY = blockY + blockH + 14;
-    c.add(this.add.text(50, qY, q.question, {
+    c.add(this.add.text(50, qY, `${q.question}（数字键1-9可选）`, {
       fontSize: '16px', color: '#e6e6e6',
       wordWrap: { width: 860, useAdvancedWrap: true },
     }));
@@ -187,7 +219,7 @@ export class MinigameScene extends Phaser.Scene {
       const by = btnStartY + i * 50;
       const btn = this.add.rectangle(480, by, 440, 42, 0x21262d)
         .setInteractive({ useHandCursor: true });
-      const txt = this.add.text(480, by, opt, {
+      const txt = this.add.text(480, by, `${i + 1}. ${opt}`, {
         fontSize: '14px', color: '#c9d1d9',
         wordWrap: { width: 400, useAdvancedWrap: true },
       }).setOrigin(0.5);
@@ -199,6 +231,7 @@ export class MinigameScene extends Phaser.Scene {
       c.add(btn);
       c.add(txt);
     });
+    this._bindNumKeys(q.options.length);
   }
 
   // ---------- 选择答案 ----------
@@ -206,6 +239,7 @@ export class MinigameScene extends Phaser.Scene {
     if (this.answered) return;
     this.answered = true;
     this._clearTimer();
+    this._unbindNumKeys();
 
     const q = this.questions[this.idx];
     const isCorrect = idx === q.answer;
@@ -216,6 +250,7 @@ export class MinigameScene extends Phaser.Scene {
   _onTimeout() {
     if (this.answered) return;
     this.answered = true;
+    this._unbindNumKeys();
     const q = this.questions[this.idx];
     this._showFeedback(false, '⏰ 时间到！\n' + q.explain);
   }
@@ -252,16 +287,22 @@ export class MinigameScene extends Phaser.Scene {
       }).setOrigin(0.5, 0));
     }
 
-    c.add(this.add.text(480, 400, '点击任意处继续', {
+    c.add(this.add.text(480, 400, '点击任意处继续 · 空格/回车', {
       fontSize: '13px', color: '#484f58',
     }).setOrigin(0.5));
 
-    // 2 秒自动推进，或点击跳过。
+    // 2 秒自动推进，或点击/空格/回车跳过。
     // 关键：先移除监听再置空，否则监听泄漏到下一题、玩家点第一个选项就被残留监听吞掉一题
     // （这是"3题只显示2题"的根因）
+    const kb = this.input.keyboard;
     const advance = () => {
       if (this._advanceTimer) { this._advanceTimer.remove(); this._advanceTimer = null; }
-      if (this._advanceHandler) { this.input.off('pointerdown', this._advanceHandler); this._advanceHandler = null; }
+      if (this._advanceHandler) {
+        this.input.off('pointerdown', this._advanceHandler);
+        kb.off('keydown-SPACE', this._advanceHandler);
+        kb.off('keydown-ENTER', this._advanceHandler);
+        this._advanceHandler = null;
+      }
       this.idx++;
       if (this.idx < this.questions.length) this._showQuestion();
       else this._showResult();
@@ -269,6 +310,8 @@ export class MinigameScene extends Phaser.Scene {
     this._advanceTimer = this.time.delayedCall(2000, advance);
     this._advanceHandler = advance;
     this.input.on('pointerdown', advance);
+    kb.on('keydown-SPACE', advance);
+    kb.on('keydown-ENTER', advance);
   }
 
   // ---------- 结果页 ----------
@@ -295,10 +338,10 @@ export class MinigameScene extends Phaser.Scene {
     // 返回按钮
     const btn = this.add.rectangle(480, 280, 200, 44, 0x238636)
       .setInteractive({ useHandCursor: true });
-    const btnTxt = this.add.text(480, 280, '返回', {
+    const btnTxt = this.add.text(480, 280, '返回 · 空格/回车', {
       fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
-    btn.on('pointerdown', () => {
+    const goBack = () => {
       // ratio 契约：0-1（与 Debug/Sequence 场景一致），保留两位小数
       const result = { correct: this.correct, total, ratio: Math.round(ratio * 100) / 100 };
       if (this.onComplete) {
@@ -307,8 +350,15 @@ export class MinigameScene extends Phaser.Scene {
         console.log('[Minigame]', result);
       }
       if (this.fromScene) this.scene.start(this.fromScene);
-    });
+    };
+    btn.on('pointerdown', goBack);
     c.add(btn);
     c.add(btnTxt);
+    // 空格/回车/ESC 都可返回（结果页只有一个出口，不必强求单一键位）
+    const kb = this.input.keyboard;
+    this._resultKeyHandler = goBack;
+    kb.on('keydown-SPACE', goBack);
+    kb.on('keydown-ENTER', goBack);
+    kb.on('keydown-ESC', goBack);
   }
 }

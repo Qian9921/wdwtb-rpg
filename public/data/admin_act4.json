@@ -7,490 +7,800 @@
   "nodes": {
     "a4_start": {
       "speaker": "",
-      "text": "日光灯管有一根在闪,一秒亮,一秒暗。没人报修,它闪了三个月了。",
+      "text": "日光灯管有一根在闪，一秒亮，一秒暗。没人报修，它闪了三个月了。",
       "bg": "office_dusk",
-      "effects": {"passion": -2, "san": -1},
+      "effects": {
+        "passion": -2,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_desk_daze"}
+        {
+          "text": "(继续)",
+          "next": "a4_desk_daze"
+        }
       ]
     },
     "a4_desk_daze": {
       "speaker": "",
-      "text": "早上打开电脑,填一张表。抬头,窗外的光已经斜了。我不记得中间做了什么。",
+      "text": "早上打开电脑，填一张表。抬头，光已经斜了。我不记得中间做了什么。",
       "bg": "office_dusk",
-      "effects": {"passion": -2, "san": -2, "energy": -1},
+      "effects": {
+        "passion": -2,
+        "san": -2,
+        "energy": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_desk_daze2"}
+        {
+          "text": "(继续)",
+          "next": "a4_desk_daze2"
+        }
       ]
     },
     "a4_desk_daze2": {
       "speaker": "",
-      "text": "不是累。累还有个尽头。是像有人把声音调成了静音——事情还在发生,我却什么都感觉不到了。",
+      "text": "不是累。累还有个尽头。是像有人把声音调成了静音——事情还在发生，我却感觉不到了。",
       "bg": "office_dusk",
-      "effects": {"san": -1},
+      "effects": {
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_old_colleague"}
+        {
+          "text": "(继续)",
+          "next": "a4_old_colleague"
+        }
       ]
     },
     "a4_old_colleague": {
-      "speaker": "老同事",
-      "text": "小同志,别皱眉。这活儿的诀窍就俩字——别想。你一想,就熬不下去了。我在这张桌子后头坐了二十三年,想通这个,才活过来。",
+      "speaker": "刘姐",
+      "text": "小同志，这活儿的诀窍就俩字——别想。我坐了二十多年，想通这个，才活过来。",
       "bg": "office_dusk",
-      "effects": {"stress": 1},
+      "effects": {
+        "stress": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_old_colleague2"}
+        {
+          "text": "(继续)",
+          "next": "a4_old_colleague2"
+        }
       ]
     },
     "a4_old_colleague2": {
       "speaker": "",
-      "text": "他说完,又低头去核对那摞报销单。他的保温杯里泡着枸杞,水已经凉透,茶垢结了厚厚一圈。他没喝,只是握着。",
+      "text": "她又低头去核对报销单。保温杯里泡着枸杞，水已凉透，她没喝，只是握着。",
       "bg": "office_dusk",
-      "effects": {"passion": -2, "san": -1},
+      "effects": {
+        "passion": -2,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_ten_years"}
+        {
+          "text": "(继续)",
+          "next": "a4_ten_years"
+        }
       ]
     },
     "a4_ten_years": {
       "speaker": "",
-      "text": "我忽然抬头,把这间办公室看了一遍。王主任在最里头,老同事在中间,我在门口。三张桌子,像一条流水线上的三个工位。",
+      "text": "我忽然把这间办公室看了一遍。王主任在最里头，刘姐在中间，我在门口。像流水线上的三个工位。",
       "bg": "office_dusk",
-      "effects": {"san": -2},
+      "effects": {
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_ten_years2"}
+        {
+          "text": "(继续)",
+          "next": "a4_ten_years2"
+        }
       ]
     },
     "a4_ten_years2": {
       "speaker": "",
-      "text": "门口的新人再干几年,就坐到我这个位置;我再干十年,就坐到老同事那里;老同事熬到退休,就成了王主任。一条走廊,从年轻走到白头,一步都不会拐弯。",
+      "text": "新人再干几年就坐到我这个位置；我再干十年就坐到刘姐那里；她熬到退休，就成了王主任。一条走廊，不会拐弯。",
       "bg": "office_dusk",
-      "effects": {"passion": -3, "san": -2, "stress": 1},
+      "effects": {
+        "passion": -3,
+        "san": -2,
+        "stress": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_ten_years3"}
+        {
+          "text": "(继续)",
+          "next": "a4_ten_years3"
+        }
       ]
     },
     "a4_ten_years3": {
       "speaker": "",
-      "text": "我今年的样子,就是十年后的我。区别只是那时的保温杯里,也泡着一圈枸杞。这个念头没有让我心慌,这才是最可怕的地方——它让我觉得,踏实。",
+      "text": "我今年的样子，就是十年后的我。这个念头没让我心慌，这才是最可怕的——它让我觉得，踏实。",
       "bg": "office_dusk",
-      "effects": {"passion": -2, "san": -2},
+      "effects": {
+        "passion": -2,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_student_comes"}
+        {
+          "text": "(继续)",
+          "next": "a4_student_comes"
+        }
       ]
     },
     "a4_student_comes": {
       "speaker": "",
-      "text": "一个学生敲门进来,手里攥着一张皱巴巴的表。他站在我桌前,脚一直在蹭地。",
+      "text": "一个学生敲门进来，手里攥着一张皱巴巴的表。脚一直在蹭地。",
       "bg": "office_day",
       "effects": {},
       "choices": [
-        {"text": "(继续)", "next": "a4_student_ask"}
+        {
+          "text": "(继续)",
+          "next": "a4_student_ask"
+        }
       ]
     },
     "a4_student_ask": {
       "speaker": "学生",
-      "text": "老师……家里出了急事,我想申请那个临时困难补助。可是系统里要的证明,得我们村委会盖章,来回邮寄要半个月。我这个月……我这个月真的撑不住了。",
+      "text": "老师……家里出了急事，可村委会证明来回邮寄要半个月。我这个月真的撑不住了。",
       "bg": "office_day",
-      "effects": {"passion": 1},
+      "effects": {
+        "passion": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_student_idea"}
+        {
+          "text": "(继续)",
+          "next": "a4_student_idea"
+        }
       ]
     },
     "a4_student_idea": {
       "speaker": "",
-      "text": "我知道有个办法。可以先用他的银行流水和住院单据做个应急预审,补助先批下来,纸质证明后补。流程上有先例,只要科室愿意担这个责任。",
+      "text": "我知道有个办法：先用银行流水和住院单据做应急预审，补助先批下来，证明后补。只要科室愿意担责任。",
       "bg": "office_day",
-      "effects": {"passion": 2},
+      "effects": {
+        "passion": 2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_student_hope"}
+        {
+          "text": "(继续)",
+          "next": "a4_student_hope"
+        }
       ]
     },
     "a4_student_hope": {
       "speaker": "",
-      "text": "这是这几个月里,我第一次感到手里的工作和一个活人连上了。我拿着他的材料,去敲王主任的门。",
+      "text": "这几个月来，我第一次感到手里的工作和一个活人连上了。我拿着材料，去敲王主任的门。",
       "bg": "office_day",
-      "effects": {"passion": 3, "san": 1},
+      "effects": {
+        "passion": 3,
+        "san": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_reject"}
+        {
+          "text": "(继续)",
+          "next": "a4_reject"
+        }
       ]
     },
     "a4_reject": {
       "speaker": "王主任",
-      "text": "预审?先批后补?小同志,规矩不是这么用的。今天你给他破个例,明天全校都来找你破例。出了岔子,谁签的字谁负责——你担得起吗?",
+      "text": "预审？先批后补？今天你破个例，明天全校都来找你破例。出了岔子，谁签的字谁负责——你担得起吗？",
       "bg": "office_day",
-      "effects": {"passion": -2, "stress": 2},
+      "effects": {
+        "passion": -2,
+        "stress": 2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_reject2"}
+        {
+          "text": "(继续)",
+          "next": "a4_reject2"
+        }
       ]
     },
     "a4_reject2": {
       "speaker": "王主任",
-      "text": "多一事不如少一事。让他按流程走,等章。这不是冷血,这是保护你。你在这行还要走很久,别在这种事上栽跟头。",
+      "text": "多一事不如少一事。让他按流程走，等章。这不是冷血，这是保护你。",
       "bg": "office_day",
-      "effects": {"passion": -3, "san": -2},
+      "effects": {
+        "passion": -3,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_reject_walk"}
+        {
+          "text": "(继续)",
+          "next": "a4_reject_walk"
+        }
       ]
     },
     "a4_reject_walk": {
       "speaker": "",
-      "text": "我拿着材料走回工位。学生还站在那儿,眼睛看着我。我把表格推回给他,听见自己用一种很平的声音说:'你先回村里盖章吧,流程就是这样。'",
+      "text": "我拿着材料走回工位。听见自己很平地说：'你先回村里盖章吧，流程就是这样。'",
       "bg": "office_day",
-      "effects": {"passion": -3, "san": -2, "stress": 1},
+      "effects": {
+        "passion": -3,
+        "san": -2,
+        "stress": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_reject_after"}
+        {
+          "text": "(继续)",
+          "next": "a4_reject_after"
+        }
       ]
     },
     "a4_reject_after": {
       "speaker": "",
-      "text": "他'哦'了一声,把表叠好放进兜里,走了。门合上的时候,那句话在我心里响:我明明有办法,却亲手把它掐灭了,还用了他们教我的那个词——流程。",
+      "text": "他'哦'了一声，走了。我明明有办法，却亲手掐灭了它，还用了那个词——流程。",
       "bg": "office_day",
-      "effects": {"passion": -3, "san": -3},
+      "effects": {
+        "passion": -3,
+        "san": -3
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_reject_after2"}
+        {
+          "text": "(继续)",
+          "next": "a4_reject_after2"
+        }
       ]
     },
     "a4_reject_after2": {
       "speaker": "",
-      "text": "我看着他从窗外的走廊走过去,背影很小。我想起自己刚来时,也是这样攥着一张表,以为坐在里面的人无所不能。原来他们只是,也学会了别想。",
+      "text": "我想起自己刚来时，也这样攥着一张表。原来他们只是，也学会了别想。",
       "bg": "office_day",
-      "effects": {"passion": -2, "san": -1},
+      "effects": {
+        "passion": -2,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_night_stay"}
+        {
+          "text": "(继续)",
+          "next": "a4_night_stay"
+        }
       ]
     },
     "a4_night_stay": {
       "speaker": "",
-      "text": "同事们六点准时走光。我没动。不是有活没干完,活早干完了。我只是不知道回去要做什么。房间空了,像被抽掉了空气。",
+      "text": "同事们六点准时走光。我没动。不是有活没干完。我只是不知道回去要做什么。",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -2, "energy": -1},
+      "effects": {
+        "passion": -2,
+        "san": -2,
+        "energy": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_night_stay2"}
+        {
+          "text": "(继续)",
+          "next": "a4_night_stay2"
+        }
       ]
     },
     "a4_night_stay2": {
       "speaker": "",
-      "text": "整层楼只剩我这一盏灯。走廊尽头黑着,像一张张着的嘴。我坐在椅子上,看着屏保上的公章图案一圈圈转,转到我也分不清是几点。",
+      "text": "整层楼只剩我这一盏灯。我看着屏保上的公章一圈圈转。",
       "bg": "office_night",
-      "effects": {"san": -2},
+      "effects": {
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_plant_dead"}
+        {
+          "text": "(继续)",
+          "next": "a4_plant_dead"
+        }
       ]
     },
     "a4_plant_dead": {
       "speaker": "",
-      "text": "起身倒水,看见窗台那盆绿萝。第三幕它还只是发黄垂头,现在叶子枯得只剩两三片,土裂开一道缝。我算了算——上一次给它浇水,是什么时候?我想不起来了。",
+      "text": "起身倒水，看见那盆绿萝叶子枯得只剩两三片，土裂开一道缝。我想不起上一次浇水是什么时候了。",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -2},
+      "effects": {
+        "passion": -2,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_plant_dead2"}
+        {
+          "text": "(继续)",
+          "next": "a4_plant_dead2"
+        }
       ]
     },
     "a4_plant_dead2": {
       "speaker": "",
-      "text": "我甚至已经忘了它的存在。它就在我眼皮底下,一天天枯下去,而我每天从它旁边走过几十次,一次都没看见。我忽然分不清,枯的到底是它,还是我。",
+      "text": "我甚至已经忘了它的存在。我忽然分不清，枯的到底是它，还是我。",
       "bg": "office_night",
-      "effects": {"passion": -3, "san": -2},
+      "effects": {
+        "passion": -3,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_letter_glance"}
+        {
+          "text": "(继续)",
+          "next": "a4_letter_glance"
+        }
       ]
     },
     "a4_letter_glance": {
       "speaker": "",
-      "text": "拉开最底下那个抽屉找抹布,手碰到一个东西。那封信。我几年前写给自己、封好的那封,一直压在文件堆最下面。信封边角已经磨白了。",
+      "text": "找抹布，手碰到那封信——几年前写给自己封好的，边角已经磨白。",
       "bg": "office_night",
-      "effects": {"san": -1},
+      "effects": {
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_letter_glance2"}
+        {
+          "text": "(继续)",
+          "next": "a4_letter_glance2"
+        }
       ]
     },
     "a4_letter_glance2": {
       "speaker": "",
-      "text": "我把它拿在手里,看着封口。里面是那个还相信自己会成为某种人的家伙写的字。我怕拆开它。怕那个人问我:你现在,是他想成为的样子吗?",
+      "text": "我怕拆开它。怕那个还相信自己会成为某种人的家伙问我：你现在，是他想成为的样子吗？",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -1},
+      "effects": {
+        "passion": -2,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_letter_glance3"}
+        {
+          "text": "(继续)",
+          "next": "a4_letter_glance3"
+        }
       ]
     },
     "a4_letter_glance3": {
       "speaker": "",
-      "text": "我把信塞回抽屉,推上。没拆。现在还不是时候——或者说,我没有勇气。这时候,里屋的灯还亮着。王主任也没走。",
+      "text": "我把信塞回抽屉。没拆。我没有勇气。里屋的灯还亮着，王主任也没走。",
       "bg": "office_night",
-      "effects": {"san": -1},
+      "effects": {
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_night"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_night"
+        }
       ]
     },
     "a4_wang_night": {
       "speaker": "王主任",
-      "text": "还没走?年轻人,熬夜伤身。……过来坐会儿吧。反正也睡不着,陪老头子喝口茶。",
+      "text": "还没走？年轻人，熬夜伤身。过来坐会儿吧，陪老头子喝口茶。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart1"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart1"
+        }
       ]
     },
     "a4_wang_heart1": {
       "speaker": "王主任",
-      "text": "今天那个学生的事,你别往心里去。我知道你难受。我看得出来,你还是个会难受的人——这在咱们这儿,不多了。",
+      "text": "今天那个学生的事，你别往心里去。我看得出来，你还是个会难受的人——这在咱们这儿，不多了。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart2"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart2"
+        }
       ]
     },
     "a4_wang_heart2": {
       "speaker": "王主任",
-      "text": "我年轻的时候,跟你一样。刚分配进来,揣着一肚子想法。我写过一份改革方案,厚厚一沓,想把整个审批流程简化,让学生少跑八趟腿。我熬了三个通宵。",
+      "text": "我年轻时跟你一样，揣着一肚子想法。我写过一份改革方案，想简化审批流程，让学生少跑八趟腿。熬了三个通宵。",
       "bg": "office_night",
       "effects": {},
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart3"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart3"
+        }
       ]
     },
     "a4_wang_heart3": {
       "speaker": "王主任",
-      "text": "那份方案交上去,石沉大海。没人说好,也没人说不好。就是没了。半年后我问起来,领导拍拍我肩膀说:'小王啊,想法是好的,可这不合规矩。你还年轻。'",
+      "text": "那份方案交上去，石沉大海。半年后领导拍拍我肩膀：'想法是好的，可不合规矩。你还年轻。'",
       "bg": "office_night",
-      "effects": {"passion": -1},
+      "effects": {
+        "passion": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart4"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart4"
+        }
       ]
     },
     "a4_wang_heart4": {
       "speaker": "王主任",
-      "text": "'你还年轻'这四个字,我听了三十年。听着听着,就真的不年轻了。后来我也学会了对新来的人说这四个字。你今天,是不是也从我嘴里听到了差不多的话?",
+      "text": "'你还年轻'这四个字，我听了三十年。听着听着，就真的不年轻了。你今天，是不是也听到了差不多的话？",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -2},
+      "effects": {
+        "passion": -2,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart5"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart5"
+        }
       ]
     },
     "a4_wang_heart5": {
       "speaker": "王主任",
-      "text": "那份方案,我一直留着。锁在家里抽屉里,三十年没敢再看。有时候半夜想起来,还是心口疼。可你要问我后不后悔——我不知道。稳定嘛,是糖,咽下去了,也就成了茧。破不开了。",
+      "text": "那份方案，我锁在家里三十年没敢再看。要问后不后悔——我不知道。稳定嘛，是糖，咽下去了，也就成了茧。",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -1},
+      "effects": {
+        "passion": -2,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_wang_heart6"}
+        {
+          "text": "(继续)",
+          "next": "a4_wang_heart6"
+        }
       ]
     },
     "a4_wang_heart6": {
       "speaker": "王主任",
-      "text": "他喝了口凉茶,没再说话。日光灯照着他的白头发,和他桌上那盆同样枯掉的绿植。我第一次发现,原来他的窗台上也有一盆,和我的一模一样。",
+      "text": "他喝了口凉茶。我第一次发现，他的窗台上也有一盆绿植，和我的一模一样，也枯了。",
       "bg": "office_night",
-      "effects": {"passion": -3, "san": -2},
+      "effects": {
+        "passion": -3,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mirror"}
+        {
+          "text": "(继续)",
+          "next": "a4_mirror"
+        }
       ]
     },
     "a4_mirror": {
       "speaker": "",
-      "text": "我看着他,像隔着三十年看一面镜子。他年轻时写方案熬的三个通宵,和我今天想为那个学生做的事,是同一件。他被磨掉的,和我正在被磨掉的,是同一样东西。",
+      "text": "我看着他，像隔着三十年看一面镜子。他熬的三个通宵，和我今天想为学生做的事，是同一件。",
       "bg": "office_night",
-      "effects": {"passion": -3, "san": -2},
+      "effects": {
+        "passion": -3,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_void_question"}
+        {
+          "text": "(继续)",
+          "next": "a4_void_question"
+        }
       ]
     },
     "a4_void_question": {
       "speaker": "",
-      "text": "我走回工位坐下。窗外没有星星,只有对面教学楼零星几扇亮着的窗。一个念头浮上来,很轻,却像块石头压住了胸口——",
+      "text": "我走回工位坐下。一个念头浮上来，很轻，却像块石头压住了胸口——",
       "bg": "office_night",
-      "effects": {"san": -1},
+      "effects": {
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_void_question2"}
+        {
+          "text": "(继续)",
+          "next": "a4_void_question2"
+        }
       ]
     },
     "a4_void_question2": {
       "speaker": "",
-      "text": "我的青春,难道就用来盖章、填表、核对报销单、然后等退休吗?二十多岁到六十岁,四十年,一天八小时,坐在这张桌子后面,把'别想'练成本能。",
+      "text": "我的青春，难道就用来盖章、填表、然后等退休吗？四十年，把'别想'练成本能。",
       "bg": "office_night",
-      "effects": {"passion": -3, "san": -2},
+      "effects": {
+        "passion": -3,
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_void_question3"}
+        {
+          "text": "(继续)",
+          "next": "a4_void_question3"
+        }
       ]
     },
     "a4_void_question3": {
       "speaker": "",
-      "text": "眼皮很沉。屏保上那个公章还在一圈一圈地转。我盯着它,眼前的办公室开始变形,墙往两边退,地板往前面伸,伸成一条望不到头的走廊……",
+      "text": "眼皮很沉。眼前的办公室开始变形，地板伸成一条望不到头的走廊……",
       "bg": "office_night",
       "action": "enter_mindscape",
-      "effects": {"san": -2},
+      "effects": {
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mind1"}
+        {
+          "text": "(继续)",
+          "next": "a4_mind1"
+        }
       ]
     },
     "a4_mind1": {
       "speaker": "",
-      "text": "一条无限长的走廊。两侧全是一模一样的门,门牌号从我的年龄开始,一直往前:28、35、42、50、58……最后一扇写着'退休'。走廊尽头,是灰白色的、什么都没有的光。",
+      "text": "一条无限长的走廊。门牌号从我的年龄开始：28、35、42、50、58……最后一扇写着'退休'。",
       "bg": "mindscape_corridor",
-      "effects": {"san": -2, "passion": -2},
+      "effects": {
+        "san": -2,
+        "passion": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mind2"}
+        {
+          "text": "(继续)",
+          "next": "a4_mind2"
+        }
       ]
     },
     "a4_mind2": {
       "speaker": "",
-      "text": "墙上挂着一只钟。指针停在下午三点——那个每天都最难熬、离下班还很远的时刻。钟不走了。在这里，时间不是流逝的,是堆积的,像灰。",
+      "text": "墙上一只钟，停在下午三点——最难熬的时刻。时间不是流逝的，是堆积的，像灰。",
       "bg": "mindscape_corridor",
-      "effects": {"san": -2},
+      "effects": {
+        "san": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mind3"}
+        {
+          "text": "(继续)",
+          "next": "a4_mind3"
+        }
       ]
     },
     "a4_mind3": {
       "speaker": "",
-      "text": "走廊尽头站着一尊石像。走近了才看清,那是我。石头做的我,坐在石头做的桌子后面,右手举着一枚公章,悬在半空,盖下去的动作凝固了,不知凝固了多少年。",
+      "text": "走廊尽头一尊石像，走近才看清那是我。右手举着公章，盖下去的动作凝固了。",
       "bg": "mindscape_statue",
-      "effects": {"san": -3, "passion": -3},
+      "effects": {
+        "san": -3,
+        "passion": -3
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mind4"}
+        {
+          "text": "(继续)",
+          "next": "a4_mind4"
+        }
       ]
     },
     "a4_mind4": {
       "speaker": "",
-      "text": "石像的脚边,枯着一盆绿萝。石像的胸口,有一道缝,缝里露出一封没有拆开的信。它已经和石头长在了一起,再也拿不出来了。",
+      "text": "石像脚边，枯着一盆绿萝。胸口有道缝，露出一封没拆开的信，已经和石头长在一起。",
       "bg": "mindscape_statue",
-      "effects": {"san": -2, "passion": -2},
+      "effects": {
+        "san": -2,
+        "passion": -2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_mind_choice"}
+        {
+          "text": "(继续)",
+          "next": "a4_mind_choice"
+        }
       ]
     },
     "a4_mind_choice": {
       "speaker": "",
-      "text": "石像举着章的手,忽然轻轻动了一下,像是在等我替它盖下去。走廊很静。我站在这尊未来的自己面前,得决定,此刻我要做什么。",
+      "text": "石像举章的手，忽然轻轻动了一下，像在等我替它盖下去。我得决定此刻要做什么。",
       "bg": "mindscape_statue",
       "effects": {},
       "choices": [
-        {"text": "伸手去够石像胸口那封信——就算够不到,也要试", "next": "a4_struggle1", "note": "不甘挣扎:理想最后的火"},
-        {"text": "在石桌对面坐下,把手也举成盖章的姿势", "next": "a4_surrender1", "note": "彻底认命:被磨平到底(危险)"},
-        {"text": "转身,背对石像,朝来时那条走廊走回去", "next": "a4_awaken1", "note": "自救觉醒:清醒/求生"}
+        {
+          "text": "伸手去够石像胸口那封信——就算够不到,也要试",
+          "next": "a4_struggle1",
+          "note": "不甘挣扎:理想最后的火"
+        },
+        {
+          "text": "在石桌对面坐下,把手也举成盖章的姿势",
+          "next": "a4_surrender1",
+          "note": "彻底认命:被磨平到底(危险)"
+        },
+        {
+          "text": "转身,背对石像,朝来时那条走廊走回去",
+          "next": "a4_awaken1",
+          "note": "自救觉醒:清醒/求生"
+        }
       ]
     },
     "a4_struggle1": {
       "speaker": "",
-      "text": "我伸出手,去够那封信。指尖碰到石头,冰凉。信被封在里面,一分一毫都动不了。我抠得指甲发白,石屑掉了一地,信纹丝不动。",
+      "text": "我伸手去够那封信。指尖碰到石头，冰凉。信一分一毫都动不了，我抠得指甲发白。",
       "bg": "mindscape_statue",
-      "effects": {"passion": 1, "stress": 2, "health": -1},
+      "effects": {
+        "passion": 1,
+        "stress": 2,
+        "health": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_struggle2"}
+        {
+          "text": "(继续)",
+          "next": "a4_struggle2"
+        }
       ]
     },
     "a4_struggle2": {
       "speaker": "",
-      "text": "够不到。可我不肯把手收回来。哪怕只是这样举着,我也想让那个未来的自己知道:我还没认。那个想为学生做点事的我,那个熬夜写方案的我,还没死透。",
+      "text": "够不到。可我不肯收回手。我想让那个未来的自己知道：我还没认，那个想为学生做点事的我，还没死透。",
       "bg": "mindscape_statue",
-      "effects": {"passion": 2, "san": 1, "stress": 1},
+      "effects": {
+        "passion": 2,
+        "san": 1,
+        "stress": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_converge_wake"}
+        {
+          "text": "(继续)",
+          "next": "a4_converge_wake"
+        }
       ]
     },
     "a4_surrender1": {
       "speaker": "",
-      "text": "我在石桌对面坐下。桌面很凉,很稳。我把右手举起来,摆成盖章的姿势。原来这个姿势一点都不累——只要不去想为什么,它甚至让人安心。",
+      "text": "我在石桌对面坐下，把右手举成盖章的姿势。原来这个姿势一点都不累——只要不去想为什么。",
       "bg": "mindscape_statue",
-      "effects": {"passion": -3, "san": -2, "stress": -1},
+      "effects": {
+        "passion": -3,
+        "san": -2,
+        "stress": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_surrender2"}
+        {
+          "text": "(继续)",
+          "next": "a4_surrender2"
+        }
       ]
     },
     "a4_surrender2": {
       "speaker": "",
-      "text": "别想,就不疼了。老同事是对的。学生要等章,那就等章。信不用拆,盆栽枯了就枯了。四十年很长,可只要不想,它也能一天天过去。我感到一种温热的、危险的松弛,像沉进温水里。",
+      "text": "别想，就不疼了。学生要等章，那就等。信不用拆，盆栽枯了就枯了。我感到一种危险的松弛，像沉进温水里。",
       "bg": "mindscape_statue",
-      "effects": {"passion": -3, "san": -3},
+      "effects": {
+        "passion": -3,
+        "san": -3
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_converge_wake"}
+        {
+          "text": "(继续)",
+          "next": "a4_converge_wake"
+        }
       ]
     },
     "a4_awaken1": {
       "speaker": "",
-      "text": "我没有伸手,也没有坐下。我转过身,背对那尊石像。我不要变成它。第一次,这个念头这么清楚,清楚到我自己都愣住了:我不能就这样过一辈子。",
+      "text": "我没有伸手，也没有坐下。我转过身，背对石像。我不要变成它。",
       "bg": "mindscape_corridor",
-      "effects": {"passion": 2, "san": 2, "stress": 1},
+      "effects": {
+        "passion": 2,
+        "san": 2,
+        "stress": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_awaken2"}
+        {
+          "text": "(继续)",
+          "next": "a4_awaken2"
+        }
       ]
     },
     "a4_awaken2": {
       "speaker": "",
-      "text": "我不知道该往哪儿走,也不知道走出去以后能不能不后悔。我只知道,站在这里等着自己一寸寸变成石头,是我唯一不能接受的事。我朝来时的方向走。每走一步,身后的门就熄一盏灯。",
+      "text": "我不知道该往哪儿走，也不知道能不能不后悔。我只知道，等着自己一寸寸变成石头，是唯一不能接受的事。",
       "bg": "mindscape_corridor",
-      "effects": {"passion": 2, "san": 2},
+      "effects": {
+        "passion": 2,
+        "san": 2
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_converge_wake"}
+        {
+          "text": "(继续)",
+          "next": "a4_converge_wake"
+        }
       ]
     },
     "a4_converge_wake": {
       "speaker": "",
-      "text": "手机在桌上震动,把我惊醒。趴在工位上睡着了,不知道多久。嘴角有口水的痕迹,脖子僵得动不了。屏保还在转,窗外还是黑的。走廊、石像、那封长在胸口的信,全没了。",
+      "text": "手机震动，把我惊醒。趴在工位上睡着了，脖子僵得动不了。走廊、石像，全没了。",
       "bg": "office_night",
-      "effects": {"energy": -1, "san": -1},
+      "effects": {
+        "energy": -1,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_lowest1"}
+        {
+          "text": "(继续)",
+          "next": "a4_lowest1"
+        }
       ]
     },
     "a4_lowest1": {
       "speaker": "",
-      "text": "我关了灯。整层楼彻底黑了。我没有立刻走,在黑暗里又坐了一会儿。窗外,城市的灯稀稀落落。这么大一座城,这么多亮着的窗,好像没有一扇是为我亮的。",
+      "text": "我关了灯，整层楼彻底黑了。这么多亮着的窗，好像没有一扇是为我亮的。",
       "bg": "office_night",
-      "effects": {"passion": -2, "san": -2, "energy": -1},
+      "effects": {
+        "passion": -2,
+        "san": -2,
+        "energy": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_lowest2"}
+        {
+          "text": "(继续)",
+          "next": "a4_lowest2"
+        }
       ]
     },
     "a4_lowest2": {
       "speaker": "",
-      "text": "我起身,走到窗台前,摸黑给那盆快枯死的绿萝倒了半杯水。土太干,水一下渗不进去,在裂缝上积了一层。我知道它可能活不过来了。可我还是浇了。",
+      "text": "我摸黑给那盆快枯死的绿萝倒了半杯水。土太干，我知道它可能活不过来了，可我还是浇了。",
       "bg": "office_night",
-      "effects": {"passion": 1, "san": 1},
+      "effects": {
+        "passion": 1,
+        "san": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_lowest3"}
+        {
+          "text": "(继续)",
+          "next": "a4_lowest3"
+        }
       ]
     },
     "a4_lowest3": {
       "speaker": "",
-      "text": "不是因为它会活。是因为——如果我连给一盆枯了的草浇水都不肯了,那我就真的和那尊石像没区别了。这半杯水,是我今晚唯一一件,不合规矩、也没人要求、纯粹因为我还想做的事。",
+      "text": "如果连给一盆枯了的草浇水都不肯了，那我就真的和那尊石像没区别了。",
       "bg": "office_night",
-      "effects": {"passion": 2, "san": 1},
+      "effects": {
+        "passion": 2,
+        "san": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_final_question"}
+        {
+          "text": "(继续)",
+          "next": "a4_final_question"
+        }
       ]
     },
     "a4_final_question": {
       "speaker": "",
-      "text": "锁门,下楼。整栋楼在身后沉进黑里。夜风很凉,吹得人清醒了一点。就在这一点清醒里,那个白天不敢想的问题,终于站到了我面前——",
+      "text": "锁门，下楼。夜风很凉，吹得人清醒了一点。那个白天不敢想的问题，终于站到了我面前——",
       "bg": "campus_night",
-      "effects": {"san": 1},
+      "effects": {
+        "san": 1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_final_question2"}
+        {
+          "text": "(继续)",
+          "next": "a4_final_question2"
+        }
       ]
     },
     "a4_final_question2": {
       "speaker": "",
-      "text": "稳定给了我一切我以为我想要的:体面、清闲、旁人的羡慕、旱涝保收。可它也在一天天、悄无声息地,拿走那个会为一个学生难受、会熬夜写方案、会给枯草浇水的我。这笔交易,我到底还认不认?",
+      "text": "稳定给了我一切我以为想要的：体面、清闲、羡慕。可它也在悄无声息地拿走那个会为学生难受的我。这笔交易，我到底还认不认？",
       "bg": "campus_night",
-      "effects": {"passion": -1, "san": -1},
+      "effects": {
+        "passion": -1,
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_final_question3"}
+        {
+          "text": "(继续)",
+          "next": "a4_final_question3"
+        }
       ]
     },
     "a4_final_question3": {
       "speaker": "",
-      "text": "我没有答案。走到校门口,回头看了一眼那栋楼,王主任办公室的灯,不知什么时候也熄了。一个想为学生做点事的年轻人,和一个把方案锁了三十年的老人,今晚都在这栋楼里,黑着。",
+      "text": "我没有答案。走到校门口，回头看了眼那栋楼，王主任办公室的灯，不知什么时候也熄了。",
       "bg": "campus_night",
-      "effects": {"san": -1},
+      "effects": {
+        "san": -1
+      },
       "choices": [
-        {"text": "(继续)", "next": "a4_final_question4"}
+        {
+          "text": "(继续)",
+          "next": "a4_final_question4"
+        }
       ]
     },
     "a4_final_question4": {
       "speaker": "",
-      "text": "抽屉最底下,那封信还封着。我今晚没敢拆。但我知道,它在那里,等着我。总有一天,我得亲手拆开它,看看那个当初的我,到底想成为谁——在我彻底变成石头之前。",
+      "text": "抽屉最底下，那封信还封着。我今晚没敢拆。但我知道，它在那里等着我。",
       "bg": "campus_night",
       "action": "next_act",
-      "effects": {"passion": 1, "san": 1},
+      "effects": {
+        "passion": 1,
+        "san": 1
+      },
       "choices": []
     }
   }

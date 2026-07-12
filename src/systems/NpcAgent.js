@@ -39,10 +39,17 @@ export class NpcAgent {
 
   // 拜访：走到目的地后停住等待（不自动返回），由外部调 returnHome() 再回工位。
   // 用于"NPC 跑到玩家面前送事件"——到了先说话，说完再回去。
+  //
+  // ⚠️ 关键(信使一直追玩家):到达后 state 变 'visiting'(busy)。玩家走开后需重走一段
+  // 新路径继续追,此时若卡在 busy 直接 return,追踪链就断了——信使定在旧位置,事件
+  // 只能靠 20s 超时兜底弹出。因此这里【允许从 visiting 态再次发起】(等同重定向),
+  // 只拒绝"去程 walking 中/回程中"这类真正进行中的移动,避免打断补间。
   goVisit(pathTo, onArrive) {
-    if (this.busy) return false;
+    if (this.state !== 'sitting' && this.state !== 'visiting') return false;
     const spr = this.w.spr;
     if (!spr || !pathTo || !pathTo.length) return false;
+    // 重定向前若有残留补间,先停掉,避免两条 tween 抢同一 sprite。
+    if (this._tween) { this._tween.stop(); this._tween = null; }
     this.state = 'walking';
     this._tweenPath(pathTo, () => {
       this.state = 'visiting';
@@ -68,7 +75,12 @@ export class NpcAgent {
     const step = () => {
       if (!spr.scene) { this.state = 'sitting'; return; }
       if (i >= waypoints.length) { onDone(); return; }
-      const wp = waypoints[i++];
+      const raw = waypoints[i++];
+      // 防御性:即使寻路给了坏 waypoint,也把目标钳在地图边界内,NPC 绝不跑出地图(用户反馈)
+      const bounds = this.scene.physics && this.scene.physics.world && this.scene.physics.world.bounds;
+      const wp = bounds
+        ? { x: Phaser.Math.Clamp(raw.x, 8, bounds.width - 8), y: Phaser.Math.Clamp(raw.y, 8, bounds.height - 8) }
+        : raw;
       const dx = wp.x - spr.x, dy = wp.y - spr.y;
       const dir = this._dirOf(dx, dy);
       this._lastDir = dir;
@@ -114,7 +126,41 @@ export class NpcAgent {
   // update：补间自带推进,这里只需保证走动时深度随 y(已在 onUpdate 处理),留空即可。
   update() {}
 
+  // 玩家来交互:如果 NPC 正在走动,停下来面对玩家(暂停移动 tween,不改变状态机)。
+  // 交互结束后调 resumeAfterInteract() 让它继续原来的事(走到目的地/回工位)。
+  pauseForInteract(faceDir) {
+    if (this._interactPaused) return;
+    this._interactPaused = true;
+    const spr = this.w.spr;
+    if (this._tween && this._tween.isPlaying && this._tween.isPlaying()) {
+      this._tween.pause();
+    }
+    if (spr) {
+      spr.stop && spr.stop(); // 停走路动画
+      // 面向玩家(可选):给个 idle 帧,像"停下听你说话"
+      const dir = faceDir || this._lastDir || 'down';
+      const idle = this.w.anims?.idleFrame?.(dir);
+      if (idle != null) spr.setFrame(idle);
+    }
+  }
+
+  // 交互结束:恢复移动,NPC 继续做他原来的事。
+  resumeAfterInteract() {
+    if (!this._interactPaused) return;
+    this._interactPaused = false;
+    if (this._tween && this._tween.isPaused && this._tween.isPaused()) {
+      const spr = this.w.spr;
+      // 恢复走路动画 + 继续 tween(从暂停处接着走到原目的地)
+      if (spr && this.state === 'walking') {
+        const anim = `${this.walkPrefix}_${this._lastDir || 'down'}`;
+        if (this.scene.anims.exists(anim)) spr.play(anim, true);
+      }
+      this._tween.resume();
+    }
+  }
+
   reset() {
+    this._interactPaused = false;
     if (this._tween) { this._tween.stop(); this._tween = null; }
     this._sitDown();
   }

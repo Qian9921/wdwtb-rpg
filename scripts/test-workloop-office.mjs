@@ -323,6 +323,14 @@ console.log('\n-- event choice + daily report --');
   ok('日报含压力变化', rep.rows.some(r => r.key === 'stat_stress'));
   ok('无变化 energy 不出现', !rep.rows.some(r => r.key === 'stat_energy'));
   ok('未传 salary 不出现工资行', !rep.rows.some(r => r.key === 'salary'));
+  // 房租行(幕末结算,现金流压力)
+  const withRent = buildDailyReportRows({ day: 3, salary: 80, rent: 300, statsNow: {}, statsStart: {} });
+  ok('传 rent 出现房租行', withRent.rows.some(r => r.key === 'rent' && r.value === '-300'));
+  ok('房租行红色', withRent.rows.find(r => r.key === 'rent')?.color === '#ff7a7a');
+  const noRent = buildDailyReportRows({ day: 1, salary: 80, rent: null, statsNow: {}, statsStart: {} });
+  ok('rent=null 不出现房租行', !noRent.rows.some(r => r.key === 'rent'));
+  const zeroRent = buildDailyReportRows({ day: 1, salary: 80, rent: 0, statsNow: {}, statsStart: {} });
+  ok('rent=0 不出现房租行', !zeroRent.rows.some(r => r.key === 'rent'));
   const behind = buildDailyReportRows({
     day: 1, progressNow: 10, dayStartProgress: 10, daysLeft: 1, isBehind: true,
   });

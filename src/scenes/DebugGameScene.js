@@ -35,6 +35,8 @@ export class DebugGameScene extends Phaser.Scene {
     this.timerEvent = null;
     this.ui = null;
     this.rowZones = [];
+    this._numKeyHandlers = []; // 当前题目数字键(1-9)绑定，_clearUI/_showExplain 切题时精确解绑
+    this._advanceKeyHandler = null; // 解释页空格/回车推进，用完即解绑
   }
 
   // 洗牌（Fisher-Yates），保证每局关卡随机、不重复
@@ -53,6 +55,7 @@ export class DebugGameScene extends Phaser.Scene {
     this.cameras.main.centerOn(480, 270);
     this._buildChrome();
     this._loadPuzzles();
+    this.events.once('shutdown', () => this._clearUI()); // 场景切换时解绑键盘，防泄漏
   }
 
   _buildChrome() {
@@ -129,6 +132,7 @@ export class DebugGameScene extends Phaser.Scene {
       c.add(rowBg); c.add(numT); c.add(codeT);
       this.rowZones.push({ bg: rowBg, index: i, y: ry + rowH / 2 });
     });
+    this._bindRowKeys(); // 数字键 1-9 对应逐行，键鼠都可选
 
     // 计时
     this._clearTimer();
@@ -141,6 +145,25 @@ export class DebugGameScene extends Phaser.Scene {
   _updateTimer() {
     this.timerText.setText(`⏱ ${this.timeLeft}s`);
     this.timerText.setColor(this.timeLeft <= 10 ? '#f85149' : '#e6e6e6');
+  }
+
+  // 数字键 1-9 = 选中对应行（键盘可玩，不删鼠标）
+  _bindRowKeys() {
+    this._unbindRowKeys();
+    const kb = this.input.keyboard;
+    const NUMS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+    this.rowZones.forEach((wz, i) => {
+      if (i >= NUMS.length) return;
+      const handler = () => this._pick(wz.index, wz.bg);
+      kb.on(`keydown-${NUMS[i]}`, handler);
+      this._numKeyHandlers.push({ key: NUMS[i], handler });
+    });
+  }
+
+  _unbindRowKeys() {
+    const kb = this.input.keyboard;
+    for (const { key, handler } of this._numKeyHandlers) kb.off(`keydown-${key}`, handler);
+    this._numKeyHandlers = [];
   }
 
   // 点击某一行判定
@@ -195,26 +218,44 @@ export class DebugGameScene extends Phaser.Scene {
   }
 
   // 解释页（找对/超时后）
+  // C8 修复：原来 icon/ex/cont 全部写死 y（430/462/520），长中文解释（如超时前缀+74字 fetch 说明）
+  // 会把"点击继续"顶到 540 底边之外。现改为：icon 固定上锚点(top=418，代码区最多 7 行时
+  // 底边≈286，留足净空)，ex 紧跟 icon 之下(origin 0.5,0，用实测 icon.height 定位)，
+  // "点击继续"再紧跟 ex 之下(用实测 ex.height 定位)、并 clamp 到 ≤510，任何长度解释文案
+  // 都不会把继续按钮推出可视区。
   _showExplain(solved, explain) {
-    const icon = this.add.text(480, 430, solved ? this.chrome.solvedLabel : this.chrome.failLabel, {
+    this._unbindRowKeys(); // 解释页不再需要选行的数字键(P9键盘)
+    const iconTopY = 418; // P4防溢出:icon固定上锚点,exY 依赖它
+    const icon = this.add.text(480, iconTopY, solved ? this.chrome.solvedLabel : this.chrome.failLabel, {
       fontSize: '18px', color: solved ? '#3fb950' : '#f85149', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 0);
     this.ui.add(icon);
     Juice.pop(this, icon, 1);
-    const ex = this.add.text(480, 462, explain, {
+    const exY = iconTopY + icon.height + 12;
+    const ex = this.add.text(480, exY, explain, {
       fontSize: '13px', color: '#8b949e', wordWrap: { width: 700, useAdvancedWrap: true }, align: 'center', lineSpacing: 3,
     }).setOrigin(0.5, 0);
     this.ui.add(ex);
-    const cont = this.add.text(480, 520, '点击继续', { fontSize: '12px', color: '#484f58' }).setOrigin(0.5);
+    const contY = Math.min(510, exY + ex.height + 30); // P4防溢出:continue clamp到≤510
+    const cont = this.add.text(480, contY, '点击继续 · 空格/回车', { fontSize: '12px', color: '#484f58' }).setOrigin(0.5);
     this.ui.add(cont);
-    // 点击推进（一次性，防泄漏：advance 里先 off）
+    // 点击/空格/回车推进（一次性，防泄漏：advance 里先 off）
+    const kb = this.input.keyboard;
     const advance = () => {
       this.input.off('pointerdown', advance);
+      kb.off('keydown-SPACE', advance);
+      kb.off('keydown-ENTER', advance);
+      this._advanceKeyHandler = null;
       this.idx++;
       if (this.idx < this.puzzles.length) this._showPuzzle();
       else this._finish();
     };
-    this.time.delayedCall(150, () => this.input.on('pointerdown', advance));
+    this._advanceKeyHandler = advance;
+    this.time.delayedCall(150, () => {
+      this.input.on('pointerdown', advance);
+      kb.on('keydown-SPACE', advance);
+      kb.on('keydown-ENTER', advance);
+    });
   }
 
   _finish() {
@@ -226,6 +267,15 @@ export class DebugGameScene extends Phaser.Scene {
     if (this.fromScene) this.scene.start(this.fromScene);
   }
 
-  _clearUI() { if (this.ui) { this.ui.destroy(true); this.ui = null; } }
+  _clearUI() {
+    this._unbindRowKeys();
+    if (this._advanceKeyHandler) {
+      const kb = this.input.keyboard;
+      kb.off('keydown-SPACE', this._advanceKeyHandler);
+      kb.off('keydown-ENTER', this._advanceKeyHandler);
+      this._advanceKeyHandler = null;
+    }
+    if (this.ui) { this.ui.destroy(true); this.ui = null; }
+  }
   _clearTimer() { if (this.timerEvent) { this.timerEvent.remove(); this.timerEvent = null; } }
 }

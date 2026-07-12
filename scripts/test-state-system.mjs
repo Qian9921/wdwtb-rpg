@@ -36,7 +36,7 @@ console.log('\n=== StateSystem 单元测试 ===\n');
   ok('初始 health=80', s.get('health') === 80);
   ok('初始 energy=100', s.get('energy') === 100);
   ok('初始 passion=70', s.get('passion') === 70);
-  ok('初始 money=0', s.get('money') === 0);
+  ok('初始 money=100(起始金,修早期假性贫穷)', s.get('money') === 100);
   ok('getAll 返回 8 项', Object.keys(s.getAll()).length === 8);
 }
 
@@ -53,7 +53,7 @@ console.log('\n=== StateSystem 单元测试 ===\n');
   s.change('energy', 999);
   ok('clamp 上限 100', s.get('energy') === 100);
   s.change('money', 5000);
-  ok('money 不 clamp（可超 100）', s.get('money') === 5000);
+  ok('money 不 clamp（可超 100）', s.get('money') === 5100); // 起始100 + 5000
 }
 
 // 阈值事件

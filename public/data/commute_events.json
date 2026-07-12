@@ -1,14 +1,14 @@
 {
   "_meta": {
     "title": "通勤事件池",
-    "desc": "晨间通勤随机事件，每天早上抽一条。玩家做选择，微调当日状态/心情。轻量、生活化、有代入感。"
+    "desc": "晨间通勤随机事件，每天早上抽一条。玩家做选择，微调当日状态/心情。轻量、生活化、有代入感。requires 命中才可能抽到情境事件；followupSeed 埋下的种子会在未来的情境/连锁事件里被兑现。"
   },
   "events": [
     {
       "id": "subway_seat",
       "text": "地铁上难得有个空座。旁边站着一位看起来很累的老人。",
       "options": [
-        { "label": "让座给老人", "effect": { "san": 5, "energy": -3 }, "reply": "老人连声道谢，你心里暖了一下。" },
+        { "label": "让座给老人", "effect": { "san": 5, "energy": -3 }, "reply": "老人连声道谢，你心里暖了一下。", "followupSeed": "kind_karma" },
         { "label": "假装没看见", "effect": { "energy": 5, "san": -3 }, "reply": "你坐下了，但整段路都有点不自在。" }
       ]
     },
@@ -40,7 +40,7 @@
       "id": "busker",
       "text": "换乘通道里，有个年轻人在弹唱。唱得不算好，但很认真。",
       "options": [
-        { "label": "停下来听一会儿", "effect": { "passion": 5, "energy": -2 }, "reply": "那股认真劲儿，让你想起了刚工作时的自己。" },
+        { "label": "停下来听一会儿", "effect": { "passion": 5, "energy": -2 }, "reply": "那股认真劲儿，让你想起了刚工作时的自己。", "followupSeed": "busker_bond" },
         { "label": "赶时间，快步走过", "effect": { "energy": 2 }, "reply": "琴声在身后越来越远。" }
       ]
     },
@@ -50,6 +50,162 @@
       "options": [
         { "label": "看看当时的自己", "effect": { "san": 3, "passion": 4 }, "reply": "那时的眼神真亮啊。现在呢？" },
         { "label": "关掉，继续赶路", "effect": { "stress": 2 }, "reply": "有些对比，早上不适合看。" }
+      ]
+    },
+    {
+      "id": "crowded_subway",
+      "text": "早高峰的车厢挤得像沙丁鱼罐头，你被人群推得贴在门上。",
+      "options": [
+        { "label": "使劲往里挪一挪", "effect": { "energy": -4, "stress": 3 }, "reply": "总算不会被门夹到，但衣服都皱了。" },
+        { "label": "干脆等下一班", "effect": { "energy": 2, "stress": -2 }, "reply": "多等三分钟，换来点清净，值。" }
+      ]
+    },
+    {
+      "id": "late_anxiety",
+      "text": "手表显示9:02，晨会9:00开始。你还有两站。",
+      "options": [
+        { "label": "给组长发消息说堵车", "effect": { "stress": 4, "performance": -2 }, "reply": "消息发出去，心里反倒更慌了。" },
+        { "label": "认命，反正迟到定了", "effect": { "stress": -2, "san": -2 }, "reply": "破罐子破摔地想，迟到又不会死。" },
+        { "label": "冲刺跑最后一段", "effect": { "energy": -6, "health": -2, "performance": 2 }, "reply": "踩点冲进电梯，喘得像刚跑完百米。" }
+      ]
+    },
+    {
+      "id": "breakfast_stall",
+      "text": "路口的煎饼摊排了小队，老板手速飞快。",
+      "options": [
+        { "label": "排队买一个", "effect": { "money": -8, "energy": 6, "san": 2 }, "reply": "咬一口，油而不腻，今天有点盼头。" },
+        { "label": "算了，到公司再说", "effect": { "energy": -2 }, "reply": "肚子从九点开始咕咕叫。" }
+      ]
+    },
+    {
+      "id": "stranger_chat",
+      "text": "等红绿灯时，旁边的陌生人突然搭话：'今天也要上班啊？'",
+      "options": [
+        { "label": "笑着回一句'可不是嘛'", "effect": { "san": 3, "passion": 1 }, "reply": "萍水相逢的几句话，莫名让心情松了一点。" },
+        { "label": "礼貌笑笑没搭理", "effect": { "stress": 1 }, "reply": "你继续盯着手机，假装没听见。" }
+      ]
+    },
+    {
+      "id": "bike_share_gone",
+      "text": "常骑的那辆共享单车被别人先扫走了，附近一辆都没有。",
+      "options": [
+        { "label": "走过去，当锻炼", "effect": { "health": 3, "energy": -5, "stress": -2 }, "reply": "走得有点喘，但空气挺好。" },
+        { "label": "打车过去", "effect": { "money": -18, "energy": 2 }, "reply": "钱包瘦了一点，人倒是舒服到了公司。" }
+      ]
+    },
+    {
+      "id": "elevator_colleague",
+      "text": "电梯里遇到隔壁组的同事，两人大眼瞪小眼站了十几层。",
+      "options": [
+        { "label": "没话找话聊两句", "effect": { "san": 2, "passion": 2 }, "reply": "聊了句昨晚的球赛，气氛没那么尴尬了。" },
+        { "label": "各自看手机，沉默到底", "effect": { "stress": 1 }, "reply": "电梯每上一层，安静得能听见呼吸。" },
+        { "label": "主动约一起吃个午饭", "effect": { "passion": 3, "san": 2 }, "reply": "同事愣了一下，笑着答应了。昨晚刚跟家里聊完，今天格外想找点连接感。", "requiresSeed": "warm" }
+      ]
+    },
+    {
+      "id": "help_stranger_directions",
+      "text": "一个拖着行李箱的人拦住你，问最近的地铁站怎么走。",
+      "options": [
+        { "label": "带他走一段，顺路指路", "effect": { "san": 4, "energy": -2 }, "reply": "他连声道谢，你多走了两百米，心里却挺熨帖。", "followupSeed": "remembered_kindness" },
+        { "label": "随手一指，继续赶路", "effect": { "energy": 1 }, "reply": "他道了谢，你俩就此别过。" }
+      ]
+    },
+    {
+      "id": "phone_dead",
+      "text": "刚上地铁，手机就跳出'电量1%'，然后黑屏了。",
+      "options": [
+        { "label": "干脆收起来，发会儿呆", "effect": { "stress": -3, "san": 2 }, "reply": "没了手机，倒是第一次好好看了看车厢里的人。" },
+        { "label": "心里有点慌，数着站数", "effect": { "stress": 3 }, "reply": "总觉得错过了什么重要消息。" }
+      ]
+    },
+    {
+      "id": "overslept_almost_missed",
+      "text": "昨晚赶活到后半夜，今早地铁上一犯困，差点坐过了站。",
+      "requires": { "seeds": ["burnout"] },
+      "options": [
+        { "label": "掐自己一把，硬撑清醒", "effect": { "energy": -3, "stress": 2 }, "reply": "站台名一晃入眼，及时冲下车。" },
+        { "label": "干脆再眯一小会儿", "effect": { "energy": 4, "stress": -1, "performance": -2 }, "reply": "补了个小盹，但今天注定要迟到了。" }
+      ]
+    },
+    {
+      "id": "light_steps",
+      "text": "昨晚跟家里通完电话，今天走出地铁站的脚步都轻快了些。",
+      "requires": { "seeds": ["warm"] },
+      "options": [
+        { "label": "顺路给爸妈发张早安照片", "effect": { "san": 4, "passion": 2 }, "reply": "他们大概还没起，但你想着他们会看到。" },
+        { "label": "就这么惦记着，继续走", "effect": { "san": 2 }, "reply": "心里那点暖意，撑到了公司门口。" }
+      ]
+    },
+    {
+      "id": "mind_still_learning",
+      "text": "昨晚看的那段技术文章，路上脑子里还在过一遍逻辑。",
+      "requires": { "seeds": ["studied"] },
+      "options": [
+        { "label": "掏出手机把关键点记下来", "effect": { "skill": 4, "energy": -2 }, "reply": "记完那几行，感觉今天能用上。" },
+        { "label": "算了，到工位再想", "effect": { "skill": 1 }, "reply": "地铁上信号不好，索性放过自己。" }
+      ]
+    },
+    {
+      "id": "no_snooze",
+      "text": "昨晚跑了两圈，今早闹钟一响，居然真的没赖床。",
+      "requires": { "seeds": ["fit"] },
+      "options": [
+        { "label": "多留十分钟，慢慢走过去", "effect": { "energy": 3, "san": 2 }, "reply": "难得的从容，路上的风都好像凉快点。" },
+        { "label": "把省下的时间用来刷手机", "effect": { "energy": 1, "passion": -1 }, "reply": "刷着刷着，又开始焦虑起同龄人的动态。" }
+      ]
+    },
+    {
+      "id": "lucky_find",
+      "text": "心情不错的早上，你在长椅上捡到一张没花完的地铁充值票。",
+      "requires": { "statMax": { "stress": 30 } },
+      "options": [
+        { "label": "交给站务员", "effect": { "san": 4 }, "reply": "站务员笑着夸你一句，今天顺得有点不真实。" },
+        { "label": "顺手留着自己用", "effect": { "money": 8, "san": -1 }, "reply": "占了小便宜，心里却有点说不清的膈应。" }
+      ]
+    },
+    {
+      "id": "nothing_goes_right",
+      "text": "压力太大的日子，连过马路都能被溅一身水——一辆车飞驰而过。",
+      "requires": { "statMin": { "stress": 70 } },
+      "options": [
+        { "label": "深呼吸，骂一句就算了", "effect": { "stress": -3, "san": -2 }, "reply": "裤脚湿了一片，但好歹没让情绪彻底崩。" },
+        { "label": "越想越气，一路阴着脸", "effect": { "stress": 3, "san": -4 }, "reply": "到公司时，脸色比裤脚还难看。" }
+      ]
+    },
+    {
+      "id": "dizzy_spell",
+      "text": "身体最近撑得有点勉强，刚下地铁，眼前突然一阵发黑。",
+      "requires": { "statMax": { "health": 35 } },
+      "options": [
+        { "label": "扶着栏杆缓一缓", "effect": { "energy": -3, "health": 2 }, "reply": "缓了半分钟才敢往前走，给自己提了个醒。" },
+        { "label": "咬牙撑着继续走", "effect": { "health": -4, "energy": -2 }, "reply": "走是走到了，但整个人虚得慌。" }
+      ]
+    },
+    {
+      "id": "karma_returns",
+      "text": "今天顺得有点不像话——地铁没挤、电梯刚好等你，好像上次的善意绕了回来。",
+      "requires": { "seeds": ["kind_karma"] },
+      "options": [
+        { "label": "心想，这就是好人有好报", "effect": { "san": 5, "passion": 2 }, "reply": "你嘴角忍不住上扬了一下。" },
+        { "label": "没多想，纯当运气好", "effect": { "san": 2 }, "reply": "管它为什么，顺就完了。" }
+      ]
+    },
+    {
+      "id": "stranger_remembers",
+      "text": "在换乘通道又碰见那个拖行李箱的人，他一眼认出你，笑着点了点头。",
+      "requires": { "seeds": ["remembered_kindness"] },
+      "options": [
+        { "label": "笑着回应，聊了两句", "effect": { "san": 4, "passion": 2 }, "reply": "他说后来顺利找到了地铁站，这算是补上的谢意。" },
+        { "label": "礼貌点头，匆匆走过", "effect": { "san": 2 }, "reply": "没多聊，但被记得的感觉还是挺好。" }
+      ]
+    },
+    {
+      "id": "busker_recognizes_you",
+      "text": "换乘通道里，又是那个弹唱的年轻人。他冲你笑了笑，像是记得你上次停下听过。",
+      "requires": { "seeds": ["busker_bond"] },
+      "options": [
+        { "label": "多留一会儿，扔了点钱", "effect": { "money": -10, "passion": 4, "san": 2 }, "reply": "他弹得比上次更放开了些。" },
+        { "label": "笑着点头致意，继续赶路", "effect": { "passion": 2 }, "reply": "简单的默契，不需要太多话。" }
       ]
     }
   ]

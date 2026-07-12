@@ -50,6 +50,22 @@ ok('playUrl act2', adv.playUrl.includes('programmer_act2'));
 const noadv = tryAdvanceByMilestone({ phase: 'working', act: 1 }, 1, 'programmer', true);
 ok('无 pending 不推进', !noadv.advanced);
 
+// ── 跨档保护回归(修 bug:一次进度跨两阈值曾跳过整幕剧情)──
+// applyProjectMilestone 用 max 累积 pendingAct:已挂 2 再收到更高档,取较高值,不被覆盖。
+const mAccum = applyProjectMilestone({ phase: 'working', act: 1, pendingAct: 2 }, 50, 1);
+ok('跨档累积 max(2,3)=3', mAccum.unlocked && mAccum.pendingAct === 3);
+// 低档不覆盖已挂的高档(防乱序 emit 回退)
+const mNoRegress = applyProjectMilestone({ phase: 'working', act: 1, pendingAct: 3 }, 25, 1);
+ok('低档不回退 max(3,2)=3', mNoRegress.pendingAct === 3);
+// tryAdvance 一次只推一幕:pendingAct=3 时 act1→2(不跳到3),且保留 pendingAct=3 待续。
+const advStep = tryAdvanceByMilestone({ phase: 'working', act: 1, pendingAct: 3 }, 1, 'programmer', true);
+ok('跨档时一次只推一幕 act1→2', advStep.advanced && advStep.act === 2);
+ok('推进后保留 pendingAct=3 待续', advStep.story.pendingAct === 3);
+ok('续播 act2 剧情(不跳过)', advStep.playUrl.includes('programmer_act2'));
+// 玩完 act2 再推:2→3,pendingAct 清空。
+const advStep2 = tryAdvanceByMilestone({ phase: 'working', act: 2, pendingAct: 3 }, 2, 'programmer', true);
+ok('续推 act2→3 且清 pendingAct', advStep2.advanced && advStep2.act === 3 && advStep2.story.pendingAct === null);
+
 const dayNeed = actDaysNeeded(2);
 ok('act2 需要 2 天', dayNeed === 2 && ACT_DAYS[2] === 2);
 const d0 = tryAdvanceByDays({ phase: 'working', act: 2, daysInAct: 0 }, 2, 'admin');

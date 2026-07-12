@@ -27,9 +27,9 @@ t('测试类工单映射到 testcase', testOrders.length === 0 || testOrders.eve
 // _launchCoding 的 gameType 映射覆盖所有合法类型(读 WorldScene 源码)
 const ws = fs.readFileSync(new URL('../src/scenes/WorldScene.js', import.meta.url), 'utf8');
 t('WorldScene 有 _gameSceneForType 映射', ws.includes('_gameSceneForType'));
-// 新工作玩法:debug/sequence 改用可爱好玩的敲码节奏(替换硬核点代码小游戏)
-t('映射覆盖 debug→TypingRhythmScene(敲码节奏)', ws.includes("debug: 'TypingRhythmScene'"));
-t('映射覆盖 sequence→TypingRhythmScene(敲码节奏)', ws.includes("sequence: 'TypingRhythmScene'"));
+// 玩法多样化:每种工单用名副其实的玩法(不再全塞敲码节奏,修用户"一直敲空格太单调"反馈)
+t('映射覆盖 debug→DebugGameScene(找bug行)', ws.includes("debug: 'DebugGameScene'"));
+t('映射覆盖 sequence→SequenceGameScene(排顺序)', ws.includes("sequence: 'SequenceGameScene'"));
 t('映射覆盖 review→CodeReviewScene', ws.includes("review: 'CodeReviewScene'"));
 t('映射覆盖 testcase→TestCaseScene', ws.includes("testcase: 'TestCaseScene'"));
 t('_doWorkOrder 传入 order.gameType', ws.includes('order.gameType'));

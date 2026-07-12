@@ -8,8 +8,9 @@ import {
 } from '../systems/CareerFit.js';
 import { ExplorationArchive, recommendDirections, completion } from '../systems/ExplorationArchive.js';
 import { normalizeAxes, AXIS_META, AXIS_KEYS } from '../systems/PersonalityAxes.js';
-import { INSIGHT_TOTAL } from '../systems/InsightCodex.js';
+import { INSIGHTS, INSIGHT_TOTAL } from '../systems/InsightCodex.js';
 import { makeCutePanel } from '../systems/UI.js';
+import { ensurePixelIcons, ICON_KEYS, makeIcon } from '../systems/PixelIcons.js';
 
 // HubScene：职业选择大厅。玩家捏完人后选职业进入体验。
 // 职业列表暂时硬编码，以后可挪到 data/ 目录的 JSON。
@@ -397,10 +398,20 @@ export class HubScene extends Phaser.Scene {
       els.push(this.add.circle(mid + (v / 100) * (tw / 2), ay, 5, 0xf0c060).setDepth(D + 3));
       ay += 26;
     }
-    // 完成度
-    els.push(this.add.text(lx, ay + 6, `探索完成度：职业 ${comp.careers.tried}/${comp.careers.total} · 感悟 ${comp.thoughts}/${INSIGHT_TOTAL}`, {
+    // 完成度：职业进度纯展示；感悟进度做成可点入口——图鉴才是"可回看"的落点。
+    els.push(this.add.text(lx, ay + 6, `探索完成度：职业 ${comp.careers.tried}/${comp.careers.total}`, {
       fontSize: '11px', color: '#9ab4dc',
     }).setOrigin(0, 0).setDepth(D + 2));
+    ensurePixelIcons(this);
+    const insightRowY = ay + 26;
+    const insightIcon = makeIcon(this, lx + 8, insightRowY, ICON_KEYS.lens, 0xc79ae8, 14).setDepth(D + 2);
+    const insightBtn = this.add.text(lx + 20, insightRowY, `感悟图鉴 ${comp.thoughts}/${INSIGHT_TOTAL} →`, {
+      fontSize: '11px', color: '#c79ae8', fontStyle: 'bold',
+    }).setOrigin(0, 0.5).setDepth(D + 2).setInteractive({ useHandCursor: true });
+    insightBtn.on('pointerover', () => { insightBtn.setColor('#ffe08a'); insightIcon.setTint(0xffe08a); });
+    insightBtn.on('pointerout', () => { insightBtn.setColor('#c79ae8'); insightIcon.setTint(0xc79ae8); });
+    insightBtn.on('pointerdown', () => { AudioSystem.uiClick(); this._showInsightCodexPanel(); });
+    els.push(insightIcon); els.push(insightBtn);
 
     // 右栏：已试职业 + 推荐方向
     const rx = 470;
@@ -425,5 +436,156 @@ export class HubScene extends Phaser.Scene {
     close.on('pointerover', () => close.setColor('#ff9a9a'));
     close.on('pointerdown', () => { els.push(close); els.forEach(e => e.destroy()); });
     els.push(close);
+  }
+
+  // 职业感悟图鉴浏览面板：翻看所有已解锁的感悟卡（未解锁=占位，给收集目标感）。
+  // 内容/解锁逻辑完全复用 InsightCodex.js + ExplorationArchive——本方法只做展示。
+  // 叠在探索档案面板之上（更高 depth），关闭后回到档案面板，风格与其一致（makeCutePanel 圆角+金边系）。
+  _showInsightCodexPanel() {
+    const arch = ExplorationArchive.load();
+    const owned = new Set(arch.thoughts || []);
+    ensurePixelIcons(this);
+    const kb = this.input.keyboard;
+    const D = 70; // 高于 _showArchivePanel 的 D(60)+3，确保叠在其上
+    const cols = 4, rows = 2, perPage = cols * rows;
+    const total = INSIGHT_TOTAL;
+    const pageCount = Math.max(1, Math.ceil(total / perPage));
+    let page = 0;
+
+    const els = [];       // 面板整体（标题/进度/关闭按钮等），关闭时统一销毁
+    const gridEls = [];   // 当前页的卡片，翻页时重建
+    let detailEls = [];   // 详情浮层，随时可能开关
+
+    els.push(this.add.rectangle(480, 270, 960, 540, 0x05050c, 0.88).setInteractive().setDepth(D));
+    els.push(makeCutePanel(this, { x: 480, y: 270, w: 700, h: 420, radius: 22, fill: 0x161628, stroke: 0xc79ae8, glow: true }).setDepth(D + 1));
+    els.push(this.add.text(480, 78, '感悟图鉴', { fontSize: '22px', color: '#e8d4f8', fontStyle: 'bold' }).setOrigin(0.5).setDepth(D + 2));
+    const progressText = this.add.text(480, 102, '', { fontSize: '12px', color: '#9ab4dc' }).setOrigin(0.5).setDepth(D + 2);
+    els.push(progressText);
+    const pageText = this.add.text(480, 452, '', { fontSize: '11px', color: '#8a90a6' }).setOrigin(0.5).setDepth(D + 2);
+    els.push(pageText);
+    els.push(this.add.text(480, 468, 'ESC 关闭 · ←→ / Tab 翻页 · 数字键查看详情', {
+      fontSize: '10px', color: '#5a6078',
+    }).setOrigin(0.5).setDepth(D + 2));
+
+    const close = this.add.text(808, 66, '✕', { fontSize: '20px', color: '#8a8a9e' })
+      .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(D + 3);
+    close.on('pointerover', () => close.setColor('#ff9a9a'));
+    close.on('pointerout', () => close.setColor('#8a8a9e'));
+    els.push(close);
+
+    const DIGIT_NAMES = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+    let digitHandlers = [];
+    const clearDigitHandlers = () => { digitHandlers.forEach(({ name, handler }) => kb.off(`keydown-${name}`, handler)); digitHandlers = []; };
+    const clearGrid = () => { gridEls.forEach((e) => e.destroy()); gridEls.length = 0; };
+    const clearDetail = () => { detailEls.forEach((e) => e.destroy()); detailEls = []; };
+
+    const showDetail = (idx) => {
+      clearDetail();
+      const ins = INSIGHTS[idx];
+      if (!ins) return;
+      const dD = D + 10;
+      const scrim = this.add.rectangle(480, 270, 960, 540, 0x05050a, 0.55).setInteractive().setDepth(dD);
+      detailEls.push(scrim);
+      detailEls.push(makeCutePanel(this, { x: 480, y: 270, w: 480, h: 260, radius: 20, fill: 0x1e1a38, stroke: 0xffe08a, glow: true }).setDepth(dD + 1));
+      detailEls.push(this.add.text(480, 172, ins.title, {
+        fontSize: '20px', color: '#ffe08a', fontStyle: 'bold', wordWrap: { width: 420 }, align: 'center',
+      }).setOrigin(0.5, 0).setDepth(dD + 2));
+      detailEls.push(this.add.text(480, 258, ins.text, {
+        fontSize: '14px', color: '#e8e4f4', wordWrap: { width: 400, useAdvancedWrap: true }, align: 'center', lineSpacing: 6,
+      }).setOrigin(0.5, 0.5).setDepth(dD + 2));
+      detailEls.push(this.add.text(480, 372, 'ESC / 点击空白处 返回', { fontSize: '11px', color: '#8a90a6' }).setOrigin(0.5).setDepth(dD + 2));
+      scrim.on('pointerdown', () => clearDetail());
+    };
+
+    const renderGrid = () => {
+      clearGrid();
+      clearDigitHandlers();
+      const startIdx = page * perPage;
+      const items = INSIGHTS.slice(startIdx, startIdx + perPage);
+      const cardW = 145, cardH = 115, gapX = 12, gapY = 16;
+      const totalW = cols * cardW + (cols - 1) * gapX;
+      const startX = 480 - totalW / 2 + cardW / 2;
+      const startY = 168;
+      items.forEach((ins, i) => {
+        const col = i % cols, row = Math.floor(i / cols);
+        const cx = startX + col * (cardW + gapX);
+        const cy = startY + row * (cardH + gapY);
+        const isUnlocked = owned.has(ins.id);
+        const g = this.add.graphics().setDepth(D + 2);
+        const draw = (hover) => {
+          g.clear();
+          g.fillStyle(hover && isUnlocked ? 0x2e2a58 : (isUnlocked ? 0x232045 : 0x1a1a26), 0.98);
+          g.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 12);
+          g.lineStyle(hover && isUnlocked ? 2.5 : 2, hover && isUnlocked ? 0xffe08a : (isUnlocked ? 0xc79ae8 : 0x33333f), isUnlocked ? 1 : 0.7);
+          g.strokeRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 12);
+        };
+        draw(false);
+        gridEls.push(g);
+        gridEls.push(this.add.text(cx - cardW / 2 + 8, cy - cardH / 2 + 6, `${startIdx + i + 1}`, {
+          fontSize: '10px', color: '#6a6a82',
+        }).setOrigin(0, 0).setDepth(D + 3));
+        if (isUnlocked) {
+          gridEls.push(this.add.text(cx, cy - cardH / 2 + 14, ins.title, {
+            fontSize: '13px', color: '#f0d8ff', fontStyle: 'bold',
+            wordWrap: { width: cardW - 20, useAdvancedWrap: true }, align: 'center',
+          }).setOrigin(0.5, 0).setDepth(D + 3));
+          const snippet = ins.text.length > 34 ? `${ins.text.slice(0, 34)}…` : ins.text;
+          gridEls.push(this.add.text(cx, cy + 8, snippet, {
+            fontSize: '10px', color: '#b8b4cc',
+            wordWrap: { width: cardW - 20, useAdvancedWrap: true }, align: 'center', lineSpacing: 2,
+          }).setOrigin(0.5, 0).setDepth(D + 3));
+        } else {
+          gridEls.push(makeIcon(this, cx, cy - 14, ICON_KEYS.quest, 0x55556a, 22).setDepth(D + 3));
+          gridEls.push(this.add.text(cx, cy + 18, '？未解锁', { fontSize: '11px', color: '#55556a' }).setOrigin(0.5).setDepth(D + 3));
+        }
+        const zone = this.add.zone(cx, cy, cardW, cardH).setDepth(D + 4).setInteractive({ useHandCursor: isUnlocked });
+        gridEls.push(zone);
+        if (isUnlocked) {
+          zone.on('pointerover', () => draw(true));
+          zone.on('pointerout', () => draw(false));
+          zone.on('pointerdown', () => { AudioSystem.uiClick(); showDetail(startIdx + i); });
+        }
+        // 数字键 1-8 快速查看当前页对应卡片详情（未解锁的不响应）
+        if (DIGIT_NAMES[i]) {
+          const handler = () => { if (isUnlocked) { AudioSystem.uiClick(); showDetail(startIdx + i); } };
+          kb.on(`keydown-${DIGIT_NAMES[i]}`, handler);
+          digitHandlers.push({ name: DIGIT_NAMES[i], handler });
+        }
+      });
+      progressText.setText(`已悟 ${owned.size} / 共 ${total}`);
+      pageText.setText(pageCount > 1 ? `第 ${page + 1}/${pageCount} 页` : '');
+    };
+
+    const changePage = (delta) => {
+      if (detailEls.length) return; // 详情打开时先不切页，避免视觉突变
+      if (pageCount <= 1) return;
+      page = (page + delta + pageCount) % pageCount;
+      AudioSystem.uiClick();
+      renderGrid();
+    };
+
+    const onLeft = () => changePage(-1);
+    const onRight = () => changePage(1);
+    const onTab = (e) => { if (e) e.preventDefault(); changePage(1); };
+    const onEsc = () => { if (detailEls.length) clearDetail(); else closeAll(); };
+
+    kb.on('keydown-LEFT', onLeft);
+    kb.on('keydown-RIGHT', onRight);
+    kb.on('keydown-TAB', onTab);
+    kb.on('keydown-ESC', onEsc);
+
+    const closeAll = () => {
+      kb.off('keydown-LEFT', onLeft);
+      kb.off('keydown-RIGHT', onRight);
+      kb.off('keydown-TAB', onTab);
+      kb.off('keydown-ESC', onEsc);
+      clearDigitHandlers();
+      clearDetail();
+      clearGrid();
+      els.forEach((e) => e.destroy());
+    };
+    close.on('pointerdown', () => closeAll());
+
+    renderGrid();
   }
 }

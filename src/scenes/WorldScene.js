@@ -314,6 +314,7 @@ export class WorldScene extends Phaser.Scene {
     this._eventUI = null;
     this._pausedNpc = null;
     this._familyMsgShown = false;
+    this._pendingAcceptCard = null; // 交付后待弹的"下一环接取"卡,跨天不残留
 
     // 进场即存档：⚠️ 此刻 stateSystem/questSystem/... 尚未 new(要到 create() 才建),
     // 若照常写会把 stats/quests/project 等以 null 覆盖刚读出的好档(saveSlot 的
@@ -426,10 +427,11 @@ export class WorldScene extends Phaser.Scene {
       this._reportShown = false;
     }
     this.statusUI = new StatusBarUI(this, this.stateSystem);
-    // Q2:Tab 展开的大状态面板会盖住左上任务指引(objectiveHud/guideText),展开时让它们避让
-    this.statusUI.onExpandChange = (expanded) => {
-      if (this.objectiveHud) this.objectiveHud.setVisible(!expanded && !this.dialogueActive && !!this.objectiveHud.text);
-    };
+    // Q2:Tab 展开的大状态面板会盖住左上任务指引(objectiveHud),展开时让它避让。
+    // ⚠️ 单一数据源:objectiveHud 可见性有三个写入方(展开态/每帧dialogue同步/标签变化),
+    // 旧代码只在 onExpandChange 当帧隐藏,下一帧 _updateObjectiveHud 又按 !dialogueActive
+    // 把它打开→Q2 修复只维持一帧、每帧重叠回归。现全部收敛到 _syncObjectiveHudVisibility()。
+    this.statusUI.onExpandChange = () => this._syncObjectiveHudVisibility();
     this.dialogueEngine = new DialogueEngine(this, this.stateSystem);
     this._setupDialogueEvents();
     // 家人消息：数据层（异步加载）+ UI 层（仿微信弹窗）
@@ -1152,20 +1154,26 @@ export class WorldScene extends Phaser.Scene {
     if (!e || !e._mood || !e.spr) return;
     e._mood.setText(Phaser.Utils.Array.GetRandom(this._moodPool()));
     this._positionMood(e);
-    e._mood.setVisible(e.spr.visible);
+    // ⚠️ 心情气泡认【_hiddenByPopulation 权威源】,不认滞后的 spr.visible。
+    // 根因(玩家实测"做完任务后人不见了,'约饭'/'午休片刻'浮标残留空座位"):spr.visible
+    // 由 _setPopulation 的 500ms 淡出 tween 在 onComplete 才置 false,而 _refreshAllMoods 在
+    // 淡出在途时(spr.visible 仍 true)就把气泡重新点亮→sprite 淡没、气泡却悬在空座位。
+    // 与 _updateFocus 一样把 _hiddenByPopulation 当唯一数据源,气泡与 sprite 显隐同步。
+    e._mood.setVisible(e.spr.visible && !e._hiddenByPopulation);
   }
 
   _refreshAllMoods() {
-    // 出行中的同事保留其"目的"文字,不被时段刷新打断(根治"去厕所走一半突然变打卡")
+    // 出行中的同事保留其"目的"文字,不被时段刷新打断(根治"去厕所走一半突然变打卡");
+    // 被时段人口隐藏的同事也不刷新(_setMood 内已按 _hiddenByPopulation 关气泡,双保险)
     [...(this.npcs || []), ...(this.workers || [])]
-      .filter(e => !(e.agent && e.agent.busy))
+      .filter(e => !(e.agent && e.agent.busy) && !e._hiddenByPopulation)
       .forEach(e => this._setMood(e));
   }
 
   // 每隔几秒随机给几个同事换一句状态（让泡泡"活"起来）。出行中的人保留其"目的"文字,不打断。
   _shuffleSomeMoods() {
     const all = [...(this.npcs || []), ...(this.workers || [])]
-      .filter(e => e.spr && e.spr.visible && !(e.agent && e.agent.busy));
+      .filter(e => e.spr && e.spr.visible && !e._hiddenByPopulation && !(e.agent && e.agent.busy));
     if (!all.length) return;
     const n = Math.min(2, all.length);
     for (let i = 0; i < n; i++) this._setMood(Phaser.Utils.Array.GetRandom(all));
@@ -2125,6 +2133,27 @@ export class WorldScene extends Phaser.Scene {
               '#5fbf7f',
             );
           }
+          // ⚠️ 交付即接下一环(修"第二个任务要跟老陈交流两次"):交付完不直接 return,
+          // 同一次交互里再算一次 action。若下一环已解锁(requires 满足、无待播剧情 pending)
+          // → 立即接取,交付台词关闭后自动弹"新任务接取"卡,一次交互完成"交付+接取"。
+          // 若此刻有 pendingAct(里程碑刚触发,该先推进剧情)→ 不接,让玩家去找老陈推进剧情。
+          const next = seniorInteractAction({
+            questSystem: this.questSystem,
+            story: this._story,
+            workLoopEnabled: this.workLoopEnabled,
+            act: this.act,
+          });
+          if (next.kind === 'accept') {
+            const acc = applySeniorAction(this.questSystem, next);
+            if (acc.ok) {
+              // 接取卡延到交付台词关闭后再弹(_showLine 关闭会清 dialogueActive),
+              // 避免与交付台词抢屏。用一次性 dialogueEnd 钩子承接。
+              this._pendingAcceptCard = {
+                questId: next.questId || acc.questId,
+                title: next.title || acc.line,
+              };
+            }
+          }
           this._updateNpcMarks();
           this._autoSave?.();
           return;
@@ -2385,6 +2414,14 @@ export class WorldScene extends Phaser.Scene {
       this._lineActive = false;
       this._lineBodyText = null;
       if (this.guideText) this.guideText.setVisible(true);
+      // 交付台词关闭后:若刚才 deliver 时顺带接取了下一环,现在弹"新任务接取"卡
+      // (一次交互完成"交付+接下一环",修"第二个任务要交流两次")。
+      if (this._pendingAcceptCard) {
+        const card = this._pendingAcceptCard;
+        this._pendingAcceptCard = null;
+        this._showQuestAcceptedCard(card.questId, card.title);
+        this._updateNpcMarks();
+      }
     };
     this.time.delayedCall(120, () => {
       hit.on('pointerdown', close);
@@ -2491,6 +2528,16 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  // objectiveHud 可见性【单一数据源】:有内容 且 非对话中 且 状态面板未展开,才显示。
+  // 三个写入方(onExpandChange/每帧dialogue同步/标签变化)全调它,消除"谁最后写谁赢"的每帧竞争。
+  _syncObjectiveHudVisibility() {
+    if (!this.objectiveHud) return;
+    const visible = !!this.objectiveHud.text
+      && !this.dialogueActive
+      && !(this.statusUI && this.statusUI.expanded);
+    this.objectiveHud.setVisible(visible);
+  }
+
   // 每帧轻量更新（HUD 文本变化才 setText;箭头按目标方向环绕玩家）
   // guideText 与 objectiveHud 共用 _currentGoal，避免静态「新人报到」与真实下一步打架。
   _updateObjectiveHud() {
@@ -2508,7 +2555,8 @@ export class WorldScene extends Phaser.Scene {
     if (this._lastGoalLabel !== label) {
       this._lastGoalLabel = label;
       if (this.objectiveHud) {
-        this.objectiveHud.setText(label).setVisible(!!label && !this.dialogueActive);
+        this.objectiveHud.setText(label);
+        this._syncObjectiveHudVisibility();
       }
       // 底部引导条：与 objective 同源
       if (this.guideText && !this.dialogueActive) {
@@ -2521,9 +2569,7 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     }
-    if (this.objectiveHud && this.objectiveHud.visible === this.dialogueActive && label) {
-      this.objectiveHud.setVisible(!this.dialogueActive); // 对话中隐藏
-    }
+    this._syncObjectiveHudVisibility(); // 每帧兜底(对话/展开态变化)——单一数据源,不再各自写
     // 方向箭头：目标离玩家 >260px 才显示（近了看得见头顶浮标,箭头反而碍事）
     if (!this._goalArrow) return;
     if (!goal || goal.x == null || this.dialogueActive) { this._goalArrow.setVisible(false); return; }
@@ -2685,15 +2731,21 @@ export class WorldScene extends Phaser.Scene {
       const show = i < keep;
       // 单一可见性数据源：_hiddenByPopulation 标记"当前时段是否被下班隐藏"。
       // _updateFocus 会读这个标记并全程避让被隐藏的人，不会把它们的 alpha 拉回。
+      const prevHidden = w._hiddenByPopulation;
       w._hiddenByPopulation = !show;
       if (!w.spr) return;
       if (w._body && w._body.body) w._body.body.enable = show; // 隐藏的人不挡路
       if (w._mood) w._mood.setVisible(show); // 隐藏的人不显示状态泡泡
-      if (show === w.spr.visible) return;
+      // ⚠️ 判据用【意图位 _hiddenByPopulation】而非滞后的 spr.visible:后者由 500ms 淡出
+      // tween 的 onComplete 才翻转,两次 _setPopulation 落在同一淡出窗口内且 show 反相时,
+      // 旧判据 show===spr.visible 会误判提前 return,导致该同事卡"alpha=1 但 visible=false"
+      // 的隐身态。先 killTweensOf 掐掉在途 tween 再起新的,保证可见性永远跟意图一致。
+      if (show === !prevHidden && prevHidden !== undefined) return; // 意图未变,免重复起 tween
       if (!show && w.agent) w.agent.reset(); // 下班的人若正在走动，先归位再淡出
+      this.tweens.killTweensOf(w.spr);       // 掐掉上一条未完成的淡入/淡出,避免互相打断
+      if (show) w.spr.setVisible(true);       // show 立即可见(不等 onStart),hide 才延到 onComplete
       this.tweens.add({
         targets: w.spr, alpha: show ? 1 : 0, duration: 500,
-        onStart: () => { if (show) w.spr.setVisible(true); },
         onComplete: () => { if (!show) w.spr.setVisible(false); },
       });
     });

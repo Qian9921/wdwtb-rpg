@@ -16,8 +16,13 @@ Phaser.GameObjects.GameObjectFactory.register('text', function (x, y, text, styl
   // 顶部叠加一点 padding 抵消——按字号比例算、限定 2~6px，视觉几乎无感：
   // setOrigin(0.5) 的文字最多因此下移 padTop/2（≤3px），背景框也只增高这一点点，
   // 且是叠加在已有的 style.padding 之上（不覆盖左右下三边）。
+  // 中文墨迹顶部超出 Phaser 用拉丁测试串估的 ascent,【上溢量随字号线性增长】(约字号的
+  // 15~20%)。旧公式 min(6, ceil(fs*0.12)) 把补偿钉死在 6px 上限,大字号(首页80px标题、
+  // MBTI 32px)补偿缺口大→顶部被裁。改为 20% 比例、上限抬到 20px:32px→7、80px→16,
+  // 覆盖上溢缺口。副作用:setOrigin(0.5) 居中文字整体下移 padTop/2(80px 标题≤8px),
+  // 标题多有留白无碍;origin(0,0) 逐行堆叠布局自适应。
   const fs = parseInt(st.fontSize, 10) || 16;
-  const padTop = Math.min(6, Math.max(2, Math.ceil(fs * 0.12)));
+  const padTop = Math.max(2, Math.min(20, Math.round(fs * 0.2)));
   const p = t.padding;
   t.setPadding(p.left, p.top + padTop, p.right, p.bottom);
   this.displayList.add(t);

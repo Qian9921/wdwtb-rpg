@@ -110,7 +110,6 @@ export class HomeScene extends Phaser.Scene {
       const fill = canDo ? 0x2a2a4a : 0x1c1c28;
       const border = canDo ? 0x4a4a66 : 0x2a2a38;
       const textColor = canDo ? '#e6e6e6' : '#5a5a6a';
-      const btn = this.add.rectangle(W / 2, by, 660, rowH - 6, fill).setStrokeStyle(2, border);
       // 主文案 + 右侧代价说明(不可用时显示灰因)
       const effLabel = this._effectSummary(act);
       const line = act.available
@@ -119,8 +118,13 @@ export class HomeScene extends Phaser.Scene {
       // 按活动 tag 选像素图标(替代旧 emoji),与文字一起作为整体在按钮内居中
       const iconKey = TAG_ICON[act.tag] || null;
       const iconSize = 20, iconGap = 8;
-      const txt = this.add.text(0, by, line, { fontSize: '18px', color: textColor }).setOrigin(0, 0.5);
+      // 字号 17(比原 18 略小),给长文案(如"接私单"带5个属性变化)更多余量,防溢出
+      const txt = this.add.text(0, by, line, { fontSize: '17px', color: textColor }).setOrigin(0, 0.5);
       const contentW = txt.width + (iconKey ? iconSize + iconGap : 0);
+      // ⚠️ 按钮宽度【自适应内容】:内容宽 + 左右各 28 内边距,下限 660。修 bug(私单等长文案
+      // 撑出固定 660 按钮框):内容长时按钮跟着变宽,文字/图标永远在框内。
+      const btnW = Math.max(660, Math.ceil(contentW) + 56);
+      const btn = this.add.rectangle(W / 2, by, btnW, rowH - 6, fill).setStrokeStyle(2, border);
       const startX = W / 2 - contentW / 2;
       let icon = null;
       if (iconKey) {

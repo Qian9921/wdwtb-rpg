@@ -2983,11 +2983,14 @@ export class WorldScene extends Phaser.Scene {
     c.add(this.add.text(px - pw / 2 + 48, mainY - 8, '⛓ 当前任务', { fontSize: '17px', fill: '#8fc3ff', fontStyle: 'bold' }).setOrigin(0, 0.5));
     // 主任务卡
     c.add(this.add.rectangle(px, mainY + 42, pw - 80, 90, 0x1e2a3e, 0.98).setStrokeStyle(3, 0x4a7ab5));
+    // 标题/步骤限宽:卡片左内边距60,右侧留"项目X%"约100,故 wordWrap 上限 = pw-220。
+    // 加防线(此前无任何宽度约束,任务标题/步骤文案一长就撞破卡片、盖住右侧"项目X%")。
+    const cardTextW = pw - 220;
     if (hud.title) {
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 20, hud.title, { fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3 }).setOrigin(0, 0.5));
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 52, hud.step, { fontSize: '16px', fill: '#ffd24d' }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 20, hud.title, { fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', stroke: '#0a0a14', strokeThickness: 3, wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 52, hud.step, { fontSize: '16px', fill: '#ffd24d', wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
     } else {
-      c.add(this.add.text(px - pw / 2 + 60, mainY + 42, hud.step, { fontSize: '16px', fill: '#8fc3ff' }).setOrigin(0, 0.5));
+      c.add(this.add.text(px - pw / 2 + 60, mainY + 42, hud.step, { fontSize: '16px', fill: '#8fc3ff', wordWrap: { width: cardTextW, useAdvancedWrap: true } }).setOrigin(0, 0.5));
     }
     c.add(this.add.text(px + pw / 2 - 56, mainY + 42, `项目 ${pj}%`, { fontSize: '16px', fill: '#f0c060', fontStyle: 'bold' }).setOrigin(1, 0.5));
 
@@ -3460,10 +3463,11 @@ export class WorldScene extends Phaser.Scene {
       chC.add(this.add.text(badgeX, 0, `${i + 1}`, {
         fontSize: '16px', color: '#16161f', fontStyle: 'bold',
       }).setOrigin(0.5).setScrollFactor(0));
-      // 选项文字
+      // 选项文字。⚠️ useAdvancedWrap:true 必须加——Phaser 默认 basicWordWrap 只按空格切词,
+      // 中文无空格永远不换行、直接横向撑破选项框并与相邻选项重叠。事件选项后续会扩充文案。
       chC.add(this.add.text(14, 0, ch.label, {
         fontSize: '17px', color: '#ffffff',
-        wordWrap: { width: chW - 96 }, align: 'center',
+        wordWrap: { width: chW - 96, useAdvancedWrap: true }, align: 'center',
       }).setOrigin(0.5).setScrollFactor(0));
       // 交互热区
       const zone = this.add.zone(0, 0, chW, chH).setScrollFactor(0).setInteractive({ useHandCursor: true });

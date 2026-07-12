@@ -2913,10 +2913,11 @@ export class WorldScene extends Phaser.Scene {
     this._eventSeen = new Set();
     if (!this._officeEvents.length) return;
     if (this._eventTimer) this._eventTimer.remove();
-    // 低频但有仪式感：每 ~60 秒掷一次、35% 概率触发。
-    // 触发时不再凭空弹窗——先派一个 NPC 走到玩家面前"送"事件。
+    // 突发事件是职场体验的核心——要高频、有存在感(用户反馈"事件没了")。
+    // 每 ~25 秒掷一次、55% 概率触发(见 _maybeTriggerEvent 的 fireChance),
+    // 一个工作日能遇到 2-4 次信使跑来逼你做选择。触发时先派 NPC 走到玩家面前"送"事件。
     this._eventTimer = this.time.addEvent({
-      delay: 60000, loop: true, callback: () => this._maybeTriggerEvent(),
+      delay: 25000, loop: true, callback: () => this._maybeTriggerEvent(),
     });
   }
 
@@ -2930,7 +2931,7 @@ export class WorldScene extends Phaser.Scene {
       seenIds: this._eventSeen,
       act: this.act,
       relations: this.relations,
-      fireChance: 0.35,
+      fireChance: 0.55,
       rng: () => Phaser.Math.RND.frac(),
       relationFilter: eventMeetsRelations,
     });

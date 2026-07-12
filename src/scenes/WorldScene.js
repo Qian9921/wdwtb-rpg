@@ -491,13 +491,20 @@ export class WorldScene extends Phaser.Scene {
     // 程序化场景背景：剧情演到通勤/大堂/家/医院等非办公室场景时，盖对应场景画面
     this.sceneBackdrop = new SceneBackdrop(this);
 
-    // 操作提示（屏幕顶部居中）
-    trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · Shift 冲刺 · E 交互 · T 倾听内心 · ESC 菜单', {
+    // 操作提示（屏幕顶部居中）——新手看几秒即淡出，不常驻挡视野（进游戏后画面更清爽）
+    this._controlHint = trackUI(this.add.text(SW / 2, 14, 'WASD 移动 · Shift 冲刺 · E 交互 · T 倾听内心 · ESC 菜单', {
       fontSize: '22px',
       fill: '#dfe3ff',
       backgroundColor: '#000000aa',
       padding: { x: 14, y: 7 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(9999));
+    // 6 秒后缓缓淡出（玩家已经上手，不再需要常驻操作说明）
+    this.time.delayedCall(6000, () => {
+      if (this._controlHint && this._controlHint.scene) {
+        this.tweens.add({ targets: this._controlHint, alpha: 0, duration: 1200, ease: 'Sine.in',
+          onComplete: () => { if (this._controlHint) this._controlHint.setVisible(false); } });
+      }
+    });
 
     // 天数/时段 HUD（屏幕右上角）
     this.dayText = trackUI(this.add.text(SW - 20, 16, '', {

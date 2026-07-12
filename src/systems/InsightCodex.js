@@ -16,6 +16,10 @@ export const INSIGHTS = [
   { id: 'ins_safe', title: '能回滚,才敢上', text: '关键时刻你选了稳妥。求稳不是胆小,是你懂得为下行风险留好退路。', tag: 'safe', times: 1, axis: 'risk-' },
   { id: 'ins_bold', title: '敢赌一把', text: '你在不确定里肯先迈一步。冒险要配一张回滚方案,但抓住窗口的,往往是你这样的人。', tag: 'bold', times: 1, axis: 'risk+' },
   { id: 'ins_ask_mentor', title: '站在前人肩上', text: '你懂得向老陈这样的过来人取经。会借力的人,成长得比谁都快。', tag: 'ask_mentor', times: 1, axis: 'collab+' },
+  // ── 职业共鸣类：不测「你是谁」，测「你喜不喜欢这行的核心活动」——回答初衷的「喜欢」维度 ──
+  // 用 tags 数组:任一职业热爱标签累计达标即解锁(love_building/love_debugging/love_impact 合计)。
+  { id: 'ins_love_code', title: '和它较劲，会上瘾', text: '你一次次为「把它跑通」「看它立起来」心跳快了一下。这不是「适合」——适合可以靠性格凑;这是更难得的「喜欢」:这件事本身让你上头。这个信号，值得你认真对待。', tags: ['love_building', 'love_debugging', 'love_impact'], times: 2, axis: 'risk+' },
+  { id: 'ins_code_neutral', title: '它是工具，不是心动', text: '你把代码当成一把趁手的工具用得不错，但它没真正点着你。「做得来」和「喜欢做」是两回事。也许你该再试一条离「人」或「创意」更近的线，对照着看——热爱值得多找几次。', tags: ['neutral_impact', 'prefer_structure', 'flee_hard'], times: 2, axis: 'plan+' },
 ];
 
 const BY_ID = Object.fromEntries(INSIGHTS.map(i => [i.id, i]));
@@ -31,7 +35,13 @@ export function getInsight(id) { return BY_ID[id] || null; }
 export function unlockedInsights(tagCounts = {}) {
   const out = [];
   for (const ins of INSIGHTS) {
-    if ((Number(tagCounts[ins.tag]) || 0) >= ins.times) out.push(ins.id);
+    // 单 tag：该标签计数达标即解锁。
+    // 多 tags(数组)：这组标签的计数【合计】达标即解锁——用于「职业共鸣」类
+    //   (love_building/love_debugging/love_impact 是同一种『喜欢』的不同表现,应合并计数)。
+    const count = Array.isArray(ins.tags)
+      ? ins.tags.reduce((sum, t) => sum + (Number(tagCounts[t]) || 0), 0)
+      : (Number(tagCounts[ins.tag]) || 0);
+    if (count >= ins.times) out.push(ins.id);
   }
   return out;
 }

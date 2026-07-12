@@ -7,7 +7,7 @@ const ok = (n, c, d) => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { f
 console.log('\n=== InsightCodex 单元测试 ===\n');
 
 ok('目录非空', INSIGHTS.length >= 8 && INSIGHT_TOTAL === INSIGHTS.length);
-ok('每条含 id/title/text/tag/times', INSIGHTS.every(i => i.id && i.title && i.text && i.tag && i.times >= 1));
+ok('每条含 id/title/text/tag(或tags)/times', INSIGHTS.every(i => i.id && i.title && i.text && (i.tag || (Array.isArray(i.tags) && i.tags.length)) && i.times >= 1));
 ok('id 唯一', new Set(INSIGHTS.map(i => i.id)).size === INSIGHTS.length);
 
 // getInsight

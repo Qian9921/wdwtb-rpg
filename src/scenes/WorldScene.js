@@ -1511,9 +1511,13 @@ export class WorldScene extends Phaser.Scene {
   // 跟背景同事聊两句（简单寒暄，不触发任务/好感系统）
   _interactWorker(w) {
     if (this.dialogueActive) return;
-    const moods = ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '这块代码我写的，有问题找我。',
-      '今天需求又变了……习惯就好。', '咖啡机右边第二格是好豆子。', '别太拼，命是自己的。'];
-    const line = moods[Math.floor(Math.random() * moods.length)];
+    // 背景同事寒暄:按【当前职业】取,让不同职业的办公室有各自的味道
+    // (不再全职业都说程序员的话)。数据在 office_npcs.json 的 bantersByCareer。
+    const cfg = this.cache.json.get('office_npcs');
+    const byCareer = cfg && cfg.bantersByCareer;
+    const pool = (byCareer && byCareer[this.career])
+      || ['在忙，改天聊！', '诶新来的？有空一起吃饭。', '慢慢熟，别急。'];
+    const line = pool[Math.floor(Math.random() * pool.length)];
     this._showLine(w.name || '同事', line, w.skin);
   }
 

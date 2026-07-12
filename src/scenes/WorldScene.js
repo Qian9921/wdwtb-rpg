@@ -3643,9 +3643,33 @@ export class WorldScene extends Phaser.Scene {
     this._showFamilyByAct(this.act);
     const need = ACT_DAYS[this.act] || 1;
     const seniorName = (this.npcs || []).find(n => n.id === 'senior')?.name || '导师';
-    // workLoop：下一步是领链任务——直接弹仪式（不等 400ms），文字更明确
+
+    // ★去割裂：workLoop 职业，剧情刚结束就【当场把第一个任务发到手上】，
+    // 不再让玩家"再走回老陈那儿按一次 E"——那次二次交互是纯空转，正是割裂感来源。
+    // 复用 seniorInteractAction 的 accept 分支：此刻 pending=false，会返回第一个待派链任务。
+    if (this.workLoopEnabled && this.questSystem) {
+      const action = seniorInteractAction({
+        questSystem: this.questSystem,
+        story: this._story,
+        workLoopEnabled: this.workLoopEnabled,
+        act: this.act,
+      });
+      if (action.kind === 'accept') {
+        const applied = applySeniorAction(this.questSystem, action);
+        if (applied.ok) {
+          this._updateNpcMarks();
+          this._persistStory();
+          this._autoSave?.();
+          // 直接弹"新任务接取"卡片（与走近老陈领任务同款体验），玩家看完开场任务已在手
+          this._showQuestAcceptedCard(action.questId || applied.questId, action.title || applied.line);
+          return;
+        }
+      }
+    }
+
+    // 兜底（非 workLoop / 无可派任务）：仍走原引导仪式
     const body = this.workLoopEnabled
-      ? `📅 开场故事结束。\n\n${seniorName}有事找你——\n再走近他（头顶有 ❗），按 E 对话，\n他会给你第一个工作任务。\n\n之后：找同事对接 → 回工位开工 → 右上角下班。`
+      ? `📅 开场故事结束。\n${seniorName}把第一个活儿交给你了——\n看左上角任务：找同事对接 → 回工位开工 → 右上角下班。`
       : `📅 这一阶段的故事告一段落。\n接下来的${need}天，好好经营你的职场日常——\n做做任务、和同事聊聊、累了就下班回家。\n等你过完这几天，去找${seniorName}聊下一步。`;
     this._showRitual(body);
   }

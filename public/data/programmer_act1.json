@@ -4,105 +4,83 @@
   "act": 1,
   "actName": "初见：你带着什么期待来",
   "start": "a1_start",
-  "_meta": "第一章·初见。入职忐忑+种绿植+职业倾向小问卷(播4轴基线)+确认dev/test镜子+写期待信(存档,第五章开封对照)。写码/找人/干活交给任务链与真实玩法,剧情只留情感锚点与人格探针。",
+  "_meta": "第一章·初见(精简版)。主旨:剧情叙事做减法——几句话到岗、老陈给活、职业镜子一句、手机妈妈一句,聊完任务当场到手(next_act后引擎直接派活,不再二次找老陈)。删掉种绿萝/写期待信/三舅家族群等重仪式。玩法丰富交给办公室循环,剧情只做轻点缀。",
   "nodes": {
     "a1_start": {
       "speaker": "",
-      "text": "六点四十的闹钟,你五点多就醒了。\n地铁上你没敢坐——怕压皱了熨过两遍的新衬衫。抬头,那栋在招聘页看过八百遍的玻璃大厦撞进眼里。\n你怕的不是它太高,是怕自己配不上它。",
-      "bg": "street_morning",
-      "effects": { "passion": 5 },
-      "choices": [{ "label": "(深吸一口气,走进去)", "next": "a1_msg" }],
-      "note": "开幕:仰望大楼的忐忑豪情。"
-    },
-    "a1_msg": {
-      "speaker": "",
-      "text": "手机震了一下。家族群——三舅:「我外甥今天进大厂上班啦,有出息!」底下一排大拇指。\n你想回点什么。",
-      "bg": "street_morning",
-      "effects": {},
-      "choices": [
-        { "label": "「谢谢三舅」发出去", "next": "a1_meet", "effects": { "passion": 2 }, "tag": "report_good_news", "axes": { "empathy": 1 } },
-        { "label": "先锁屏,等真站稳了再说", "next": "a1_meet", "effects": { "stress": 2 }, "tag": "steady", "axes": { "plan": 1 } }
-      ],
-      "note": "情感锚点前置+第一个轻探针。"
+      "text": "早高峰的地铁把你送到玻璃大厦楼下。\n招聘页上看过八百遍的名字,现在就在头顶。你深吸一口气,走进去。",
+      "bg": "office_day",
+      "effects": { "passion": 3 },
+      "choices": [{ "label": "(进去)", "next": "a1_meet" }],
+      "note": "到岗,两句带过。不铺长旁白。"
     },
     "a1_meet": {
-      "speaker": "",
-      "text": "研发中心在十九层,键盘声像下雨。HR把你领到靠里的工位:「陈老师,新人带到了。」\n那人格子衫洗得发白,手边一只泡着枸杞的旧保温杯。过了三秒他才转过椅子:「叫我老陈就行。工位在你右手边。」\n又顿了顿:「别紧张。第一天,谁都不指望你写出什么惊天动地的东西。」",
+      "speaker": "同事老陈",
+      "text": "研发中心在十九层。一个格子衫、泡着枸杞的人转过椅子:「叫我老陈,以后你带你。工位在右手边。」\n他把一张卡片推过来:「别紧张。第一天,谁也不指望你写出什么惊天动地的东西——先认认门。」",
       "bg": "office_day",
       "effects": { "san": 2 },
-      "choices": [{ "label": "(在自己的新工位坐下)", "next": "a1_plant" }],
-      "note": "老陈登场:话少+冷幽默+暗中护犊。枸杞杯=镜像伏笔。"
-    },
-    "a1_plant": {
-      "speaker": "",
-      "text": "老陈递过来一个塑料小花盆:「行政发的,人手一盆,放工位上。」\n你接了半杯水浇进去,把它摆在显示器旁边。工位看起来像样了一点。",
-      "bg": "office_day",
-      "action": "plant_tree",
-      "effects": { "passion": 3, "san": 2 },
-      "choices": [{ "label": "(把它摆在窗台最亮的一格)", "next": "a1_role" }],
-      "note": "★仪式一·种绿植=心理外化,跨五章回收。"
+      "choices": [{ "label": "(在新工位坐下)", "next": "a1_role" }],
+      "note": "老陈登场即给活的引子。话少、护犊、枸杞杯伏笔。合并了原来的HR带路+种绿萝。"
     },
     "a1_role": {
-      "speaker": "",
-      "text": "系统提示:你的【职业体验计划】已开启——入职时的问卷已经记下你的起点,接下来,它会一路悄悄看你怎么工作,复盘时给你出一份【职业人格报告】。\n老陈瞥了一眼你的工牌:「哦,你是走这条线的。」他难得多说了一句:「同是写软件,两条路看世界的方式不一样。想清楚你更想当哪种人。」",
+      "speaker": "同事老陈",
+      "text": "老陈瞥了眼你的工牌:「哦,你走这条线。」\n「同是写软件,两条路看世界的方式不一样。想清楚你更想当哪种人。」",
       "bg": "office_day",
       "effects": {},
       "choices": [
         { "label": "(我选的是·开发)", "next": "a1_role_dev", "condition": { "subRole": "dev" } },
         { "label": "(我选的是·测试)", "next": "a1_role_test", "condition": { "subRole": "test" } }
       ],
-      "note": "★子职业镜子分叉。subRole 门控,只显示匹配的一支;null 兜底走 dev。"
+      "note": "★子职业镜子分叉。subRole门控。"
     },
     "a1_role_dev": {
       "speaker": "",
-      "text": "开发工程师——【造物者】。\n你的日常是从零把一个东西造出来:一个能跑的接口、一个能点的按钮。成就感来自「它真的动了」,而代价是——你要长期和不确定性共处,需求会变、bug 会藏。\n这条线,悄悄问你一句:你享受创造吗?扛得住「还没做完」的焦虑吗?",
+      "text": "开发——造物者。从零把一个东西造出来,成就感来自「它真的动了」。\n代价是:需求会变,bug 会藏,你得和不确定共处。",
       "bg": "office_day",
       "effects": { "passion": 2 },
-      "choices": [{ "label": "(记下这句话)", "next": "a1_letter" }]
+      "choices": [{ "label": "(记下了)", "next": "a1_phone" }],
+      "note": "镜子一句话,不铺长。"
     },
     "a1_role_test": {
       "speaker": "",
-      "text": "测试工程师——【守护者】。\n你的日常是替所有人把关:在东西上线前,想尽办法找出它会怎么坏。成就感来自「我拦住了一场事故」,而代价是——你常要在别人赶工期时说「不,这不能发」。\n这条线,悄悄问你一句:你善于发现问题吗?顶得住压力、守得住原则吗?",
+      "text": "测试——守护者。在东西上线前,想尽办法找出它会怎么坏,成就感来自「我拦住了一场事故」。\n代价是:你常要在别人赶工期时说「不,这不能发」。",
       "bg": "office_day",
       "effects": { "san": 2 },
-      "choices": [{ "label": "(记下这句话)", "next": "a1_letter" }]
+      "choices": [{ "label": "(记下了)", "next": "a1_phone" }],
+      "note": "镜子一句话。"
+    },
+    "a1_phone": {
+      "speaker": "",
+      "text": "手机在兜里震了一下。\n妈妈:「第一天顺利吗?照顾好自己。」",
+      "bg": "office_day",
+      "effects": { "san": 3 },
+      "choices": [
+        { "label": "回:「都好，你们别操心」", "next": "a1_letter", "tag": "report_good_news", "axes": { "empathy": 1 } },
+        { "label": "回:「有点紧张，但还行」", "next": "a1_letter", "effects": { "san": 1 } }
+      ],
+      "note": "★家人=手机一句微信。轻。顺手埋报喜不报忧探针。替代原来的三舅家族群+妈妈短信。"
     },
     "a1_letter": {
       "speaker": "",
-      "text": "问卷最后一题是开放题:「写一条你此刻对这份工作最真实的期待。系统会封存,和你接下来的真实经历对照。」\n输入框空着。你此刻最想写下的是哪一条?",
-      "bg": "office_evening",
+      "text": "锁屏前,备忘录跳出新员工引导的最后一句:「用一句话,写下你此刻对这份工作最真实的期待。」\n你想了想。",
+      "bg": "office_day",
+      "action": "write_letter",
       "effects": {},
       "choices": [
-        { "label": "「我期待做出真正有人用的东西。」", "next": "a1_letter_seal", "effects": { "passion": 3 }, "tag": "keep_passion", "axes": { "risk": 1 } },
-        { "label": "「我期待踏实成长,一年后能独立扛事。」", "next": "a1_letter_seal", "effects": { "san": 3 }, "tag": "steady", "axes": { "plan": 1 } },
-        { "label": "「我期待工作和生活能保持平衡。」", "next": "a1_letter_seal", "effects": { "health": 3 }, "tag": "health_first" }
+        { "label": "「我想做出真正有人用的东西。」", "next": "a1_end", "effects": { "passion": 3 }, "tag": "keep_passion", "axes": { "risk": 1 } },
+        { "label": "「我想验证自己是不是真的适合这行。」", "next": "a1_end", "effects": { "san": 2 }, "tag": "steady", "axes": { "plan": 1 } },
+        { "label": "「我想搞清楚:这行的日常，我是被点燃还是被消耗。」", "next": "a1_end", "effects": { "san": 2 }, "tag": "health_first" }
       ],
-      "note": "★仪式二·写信。选的那句在第五章开封回收。"
-    },
-    "a1_letter_seal": {
-      "speaker": "",
-      "text": "你把那句期待读了一遍。现在它只是一个假设——这份工作到底是不是你想的那样,得靠接下来的日子验证。\n你点下「封存」。屏幕提示:该记录将在你的职业人格报告中,与真实体验对照。",
-      "bg": "office_evening",
-      "action": "write_letter",
-      "effects": { "san": 2 },
-      "choices": [{ "label": "(收拾东西准备下班)", "next": "a1_parents" }]
-    },
-    "a1_parents": {
-      "speaker": "",
-      "text": "手机震了。妈妈发来一条简短短信:「第一天顺利吗?照顾好自己。」\n你回了个「都好」。就这样,简单,够了。",
-      "bg": "office_night",
-      "effects": { "san": 3 },
-      "choices": [{ "label": "(把手机收进兜里)", "next": "a1_end" }],
-      "note": "★报喜不报忧初现,后续逐章加重。"
+      "note": "★写期待信钩子(轻量化):不再整段输入框+封存仪式,并进手机备忘录一句话。write_letter action 记录所选,第五章结局开封对照(兑现/落空)。保住跨章回收,又不啰嗦。"
     },
     "a1_end": {
-      "speaker": "",
-      "text": "走出大堂,晚风扑上来。你回头,那栋早上让你不敢直视的大厦,此刻整面都亮了。你知道今晚那里有一盏灯,曾是你的。\n早上你怕配不上它。现在你依然不知道答案,但好像,没那么怕了。\n明天开始,是真正的活儿了——老陈说,第一课等着你。",
-      "bg": "office_night",
+      "speaker": "同事老陈",
+      "text": "老陈那边招手:「行了,别愣着——真正的第一课,现在开始。」",
+      "bg": "office_day",
       "action": "next_act",
-      "effects": { "passion": 3, "san": 2 },
+      "effects": { "passion": 2 },
       "choices": [],
-      "note": "★章末 next_act。把玩家递给任务链(老陈的第一课=dev_c1/test_c1)。"
+      "note": "★章末 next_act。之后引擎直接把第一个任务派到手(去割裂),不再要玩家二次找老陈。"
     }
   }
 }

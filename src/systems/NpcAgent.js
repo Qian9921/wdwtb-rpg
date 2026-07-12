@@ -119,7 +119,41 @@ export class NpcAgent {
   // update：补间自带推进,这里只需保证走动时深度随 y(已在 onUpdate 处理),留空即可。
   update() {}
 
+  // 玩家来交互:如果 NPC 正在走动,停下来面对玩家(暂停移动 tween,不改变状态机)。
+  // 交互结束后调 resumeAfterInteract() 让它继续原来的事(走到目的地/回工位)。
+  pauseForInteract(faceDir) {
+    if (this._interactPaused) return;
+    this._interactPaused = true;
+    const spr = this.w.spr;
+    if (this._tween && this._tween.isPlaying && this._tween.isPlaying()) {
+      this._tween.pause();
+    }
+    if (spr) {
+      spr.stop && spr.stop(); // 停走路动画
+      // 面向玩家(可选):给个 idle 帧,像"停下听你说话"
+      const dir = faceDir || this._lastDir || 'down';
+      const idle = this.w.anims?.idleFrame?.(dir);
+      if (idle != null) spr.setFrame(idle);
+    }
+  }
+
+  // 交互结束:恢复移动,NPC 继续做他原来的事。
+  resumeAfterInteract() {
+    if (!this._interactPaused) return;
+    this._interactPaused = false;
+    if (this._tween && this._tween.isPaused && this._tween.isPaused()) {
+      const spr = this.w.spr;
+      // 恢复走路动画 + 继续 tween(从暂停处接着走到原目的地)
+      if (spr && this.state === 'walking') {
+        const anim = `${this.walkPrefix}_${this._lastDir || 'down'}`;
+        if (this.scene.anims.exists(anim)) spr.play(anim, true);
+      }
+      this._tween.resume();
+    }
+  }
+
   reset() {
+    this._interactPaused = false;
     if (this._tween) { this._tween.stop(); this._tween = null; }
     this._sitDown();
   }

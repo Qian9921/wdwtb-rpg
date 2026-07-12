@@ -1538,8 +1538,30 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // 跟背景同事聊两句（简单寒暄，不触发任务/好感系统）
+  // 走动中的 NPC 被玩家交互时:停下来面对玩家。记住是哪个,交互结束后 _resumePausedNpc 让它继续。
+  _pauseNpcForTalk(npc) {
+    if (!npc || !npc.agent || !npc.agent.busy) return; // 只有在走动/忙碌的才需要停
+    // 面向玩家的方向(玩家在 NPC 的哪一侧)
+    let faceDir = 'down';
+    if (npc.spr && this.player) {
+      const dx = this.player.x - npc.spr.x, dy = this.player.y - npc.spr.y;
+      faceDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    }
+    npc.agent.pauseForInteract(faceDir);
+    this._pausedNpc = npc;
+  }
+
+  // 交互结束:让之前停下的走动 NPC 继续做他原来的事(走到目的地/回工位)。
+  _resumePausedNpc() {
+    if (this._pausedNpc && this._pausedNpc.agent) {
+      this._pausedNpc.agent.resumeAfterInteract();
+    }
+    this._pausedNpc = null;
+  }
+
   _interactWorker(w) {
     if (this.dialogueActive) return;
+    this._pauseNpcForTalk(w); // 走动中的同事被搭话→停下面对你
     // 背景同事寒暄:按【当前职业】取,让不同职业的办公室有各自的味道
     // (不再全职业都说程序员的话)。数据在 office_npcs.json 的 bantersByCareer。
     const cfg = this.cache.json.get('office_npcs');
@@ -1701,6 +1723,7 @@ export class WorldScene extends Phaser.Scene {
 
   _interact(npc) {
     if (this.dialogueActive) return;
+    this._pauseNpcForTalk(npc); // 走动中的 NPC 被交互→停下面对你(交互完继续做他的事)
 
     // 导师(senior) → 剧情状态机（剧情=里程碑，经营期=日常，交替推进）
     if (npc.id === 'senior' || npc.act) {
@@ -2274,6 +2297,7 @@ export class WorldScene extends Phaser.Scene {
       kb.off('keydown-ESC', close);
       c.destroy(true);
       this.dialogueActive = false;
+      this._resumePausedNpc(); // 聊完了，让停下的走动 NPC 继续做他的事
       // B1 修复：E/SPACE/ESC 关闭本气泡的这一帧，update() 里的 JustDown(eKey)/
       // JustDown(escKey) 仍可能读到 true（键盘 down 事件先于 scene.update 触发），
       // 导致"刚关闭又对同一 NPC/同一帧重新触发交互"或"顺带弹出暂停菜单"。
@@ -3503,6 +3527,7 @@ export class WorldScene extends Phaser.Scene {
 
     eng.on('dialogueEnd', () => {
       self.dialogueActive = false;
+      self._resumePausedNpc(); // 剧情对话结束,让停下的走动 NPC 继续做他的事
       // B1 修复：剧情对话可能由玩家按 ESC 触发退出（DialogueEngine._forceExit →
       // _endDialogue → 这里）。同一帧 WorldScene.update() 的 JustDown(escKey) 仍可能
       // 读到 true，把 ESC 又当成"唤起暂停菜单"的按键，对话一退出就顺带弹出暂停菜单。
